@@ -257,6 +257,15 @@ model vehicle {
   @@index([userId], map: "Vehicle_userId_fkey")
 }
 
+model DemandPrediction {
+  id          String   @id @default(uuid())
+  parkingId  String
+  hour       Int
+  date       DateTime
+  demandScore Float
+  createdAt DateTime @default(now())
+}
+
 enum parkingslot_type {
   REGULAR
   EV

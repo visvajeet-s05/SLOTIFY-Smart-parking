@@ -1,178 +1,138 @@
 "use client"
 
-import { useState } from "react"
-import { signIn } from "next-auth/react"
+import { motion, AnimatePresence } from "framer-motion"
 import { X, Eye, EyeOff, Mail, Lock } from "lucide-react"
+import { useState } from "react"
 
-export default function LoginModal({
-  open,
-  onClose,
-}: {
+interface LoginModalProps {
   open: boolean
   onClose: () => void
-}) {
-  const [email, setEmail] = useState("")
-  const [password, setPassword] = useState("")
+}
+
+export default function LoginModal({ open, onClose }: LoginModalProps) {
   const [showPassword, setShowPassword] = useState(false)
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState("")
 
-  if (!open) return null
-
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setError("")
-    setLoading(true)
-
-    try {
-      const res = await signIn("credentials", {
-        email,
-        password,
-        redirect: false,
-      })
-
-      if (res?.error) {
-        setError("Invalid email or password")
-      }
-      // AuthProvider will handle the redirect based on role
-      onClose() // Close modal on success
-    } catch {
-      setError("Invalid email or password")
-    } finally {
-      setLoading(false)
-    }
-  }
+if (!open) return null
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
+    <>
       {/* Overlay */}
-      <div
-        className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="fixed inset-0 z-[100] bg-black/70 backdrop-blur-sm"
         onClick={onClose}
       />
 
       {/* Modal */}
-      <div className="relative w-[92%] max-w-md rounded-2xl bg-white/95 shadow-2xl animate-fadeIn">
-        {/* Close */}
-        <button
-          onClick={onClose}
-          className="absolute right-4 top-4 text-gray-400 hover:text-gray-600"
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95, y: 20 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.95, y: 20 }}
+        transition={{ duration: 0.25 }}
+        className="fixed inset-0 z-[101] flex items-center justify-center px-4"
+      >
+        <div
+          onClick={(e) => e.stopPropagation()}
+          className="
+            relative w-full max-w-md rounded-2xl
+            bg-gradient-to-br from-[#1a1a2e] via-[#16213e] to-[#0f3460]
+            p-8 shadow-2xl border border-white/10
+          "
         >
-          <X size={20} />
-        </button>
+          {/* Close */}
+          <button
+            onClick={onClose}
+            className="absolute right-4 top-4 text-gray-400 hover:text-white"
+          >
+            <X size={20} />
+          </button>
 
-        {/* Header */}
-        <div className="px-8 pt-10 pb-6 text-center">
-          <h2 className="text-2xl font-semibold text-gray-900">
-            Welcome Back
-          </h2>
-          <p className="mt-2 text-sm text-gray-500">
-            Sign in to manage your parking dashboard
-          </p>
-        </div>
+          {/* Header */}
+          <div className="mb-6 text-center">
+            <h2 className="text-2xl font-bold text-white">Welcome Back</h2>
+            <p className="text-sm text-gray-300 mt-1">
+              Sign in to manage your parking dashboard
+            </p>
+          </div>
 
-        {/* Form */}
-        <form 
-          onSubmit={handleLogin}
-          className="px-8 pb-8 space-y-5"
-        >
           {/* Email */}
-          <div>
-            <label className="text-sm font-medium text-gray-700">
+          <div className="mb-4">
+            <label className="text-sm text-gray-300 mb-1 block">
               Email address
             </label>
-            <div className="relative mt-1">
-              <Mail
-                size={18}
-                className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-              />
+            <div className="relative">
+              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
               <input
                 type="email"
                 placeholder="owner@gmail.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full rounded-lg border border-gray-300 pl-10 pr-4 py-2.5 text-sm focus:border-purple-600 focus:ring-2 focus:ring-purple-600/30 outline-none"
-                required
+                className="
+                  w-full rounded-lg bg-white/10 pl-10 pr-3 py-2.5
+                  text-white placeholder-gray-400
+                  outline-none border border-white/10
+                  focus:border-purple-500
+                "
               />
             </div>
           </div>
 
           {/* Password */}
-          <div>
-            <label className="text-sm font-medium text-gray-700">
+          <div className="mb-4">
+            <label className="text-sm text-gray-300 mb-1 block">
               Password
             </label>
-            <div className="relative mt-1">
-              <Lock
-                size={18}
-                className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-              />
+            <div className="relative">
+              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
               <input
                 type={showPassword ? "text" : "password"}
                 placeholder="••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full rounded-lg border border-gray-300 pl-10 pr-10 py-2.5 text-sm focus:border-purple-600 focus:ring-2 focus:ring-purple-600/30 outline-none"
-                required
+                className="
+                  w-full rounded-lg bg-white/10 pl-10 pr-10 py-2.5
+                  text-white placeholder-gray-400
+                  outline-none border border-white/10
+                  focus:border-purple-500
+                "
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400"
               >
                 {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
               </button>
             </div>
           </div>
 
-          {/* Remember */}
-          <div className="flex items-center justify-between text-sm">
-            <label className="flex items-center gap-2 text-gray-600">
-              <input type="checkbox" className="rounded border-gray-300" />
+          {/* Remember + Forgot */}
+          <div className="mb-6 flex items-center justify-between text-sm">
+            <label className="flex items-center gap-2 text-gray-300">
+              <input type="checkbox" className="accent-purple-500" />
               Remember me
             </label>
-            <a href="#" className="text-purple-600 hover:underline">
+            <button className="text-purple-400 hover:underline">
               Forgot password?
-            </a>
+            </button>
           </div>
-
-          {/* Error Message */}
-          {error && (
-            <p className="text-sm text-red-600 text-center">{error}</p>
-          )}
 
           {/* Button */}
           <button
-            type="submit"
-            disabled={loading}
-            className="w-full rounded-lg bg-gradient-to-r from-purple-600 to-purple-700 py-2.5 text-white font-medium shadow-lg hover:from-purple-700 hover:to-purple-800 transition disabled:opacity-50 disabled:cursor-not-allowed"
+            className="
+              w-full rounded-lg py-2.5 font-semibold text-white
+              bg-gradient-to-r from-purple-600 to-indigo-600
+              hover:from-purple-700 hover:to-indigo-700
+              transition
+            "
           >
-            {loading ? "Signing in..." : "Sign In"}
+            Sign In
           </button>
 
           {/* Footer */}
-          <p className="text-center text-xs text-gray-500">
+          <p className="mt-4 text-center text-xs text-gray-400">
             Access is provided by the administrator
           </p>
-        </form>
-      </div>
-
-      {/* Animation */}
-      <style jsx>{`
-        .animate-fadeIn {
-          animation: fadeIn 0.35s ease-out;
-        }
-        @keyframes fadeIn {
-          from {
-            opacity: 0;
-            transform: translateY(10px) scale(0.98);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0) scale(1);
-          }
-        }
-      `}</style>
-    </div>
+        </div>
+      </motion.div>
+    </>
   )
 }

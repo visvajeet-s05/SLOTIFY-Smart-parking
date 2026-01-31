@@ -4,7 +4,6 @@ import React, { useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { motion } from "framer-motion"
 import { useSession } from "next-auth/react"
-import CustomerNavbar from "@/components/navigation/CustomerNavbar"
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter()
@@ -36,7 +35,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   return (
     <div className="min-h-screen bg-black text-white">
-      <CustomerNavbar />
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}

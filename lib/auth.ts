@@ -46,12 +46,12 @@ export const authOptions: NextAuthOptions = {
           ownerStatus = user.ownerprofile?.status || null
         }
 
-  return {
-    id: user.id,
-    email: user.email,
-    role: user.role,
-    ownerStatus,
-  }
+        return {
+          id: user.id,
+          email: user.email,
+          role: user.role,
+          ownerStatus,
+        }
       }
     })
   ],
@@ -80,20 +80,13 @@ export const authOptions: NextAuthOptions = {
 }
 
 export async function getCurrentUser() {
-  const cookieStore = await cookies()
-  const token = cookieStore.get("auth_token")?.value
-
-  if (!token) {
+  const session = await getServerSession(authOptions)
+  if (!session?.user?.id) {
     throw new Error("Unauthorized")
   }
 
-  const decoded = jwt.verify(
-    token,
-    process.env.JWT_SECRET!
-  ) as { id: string; role: string; email: string }
-
   const user = await prisma.user.findUnique({
-    where: { id: decoded.id },
+    where: { id: session.user.id },
     include: { ownerprofile: true }
   })
 
@@ -105,22 +98,5 @@ export async function getCurrentUser() {
 }
 
 export async function getUserFromSession() {
-  // Assuming this is similar to getCurrentUser, but for session
-  // Since the task uses it in API routes, and getServerSession is used, but task specifies getUserFromSession
-  // I'll implement it to return the user from session
-  const session = await getServerSession(authOptions)
-  if (!session?.user?.id) {
-    throw new Error("Unauthorized")
-  }
-
-  const user = await prisma.user.findUnique({
-    where: { id: session.user.id },
-    include: { ownerProfile: true }
-  })
-
-  if (!user) {
-    throw new Error("User not found")
-  }
-
-  return user
+  return await getCurrentUser()
 }

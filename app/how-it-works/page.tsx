@@ -66,7 +66,7 @@ export default function HowItWorks() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
             <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-purple-400 to-purple-600 text-transparent bg-clip-text mb-6">
-              How Smart Parking Works
+              How Slotify Works
             </h1>
             <p className="text-xl text-gray-300 max-w-3xl mx-auto mb-8">
               Our platform makes finding and booking parking spots simple, secure, and stress-free.
@@ -130,7 +130,7 @@ export default function HowItWorks() {
                 Key Features
               </h2>
               <p className="text-lg text-gray-300 max-w-3xl mx-auto">
-                Smart Parking offers a range of features to make your parking experience seamless.
+                Slotify offers a range of features to make your parking experience seamless.
               </p>
             </motion.div>
           </div>
@@ -170,7 +170,7 @@ export default function HowItWorks() {
                 Frequently Asked Questions
               </h2>
               <p className="text-lg text-gray-300 max-w-3xl mx-auto">
-                Find answers to common questions about Smart Parking.
+                Find answers to common questions about Slotify.
               </p>
             </motion.div>
           </div>
@@ -223,7 +223,7 @@ export default function HowItWorks() {
       <footer className="bg-gray-900 border-t border-gray-800">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="text-center text-gray-400">
-            <p>@2026 Smart Parking. All rights reserved.</p>
+            <p>@2026 Slotify. All rights reserved.</p>
           </div>
         </div>
       </footer>

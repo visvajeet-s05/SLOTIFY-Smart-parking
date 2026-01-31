@@ -4,6 +4,7 @@ import { useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { useSession } from "next-auth/react"
 import OwnerNavbar from "@/components/navigation/OwnerNavbar"
+import AnimatedBackground from "@/components/ui/AnimatedBackground"
 
 export default function OwnerLayout({ children }: { children: React.ReactNode }) {
   const { data: session, status } = useSession()
@@ -19,7 +20,8 @@ export default function OwnerLayout({ children }: { children: React.ReactNode })
   if (status === "loading" || !session) return null
 
   return (
-    <div className="min-h-screen bg-black text-white">
+    <div className="relative min-h-screen bg-black text-white">
+      <AnimatedBackground />
       <OwnerNavbar />
       <main className="pt-16">{children}</main>
     </div>

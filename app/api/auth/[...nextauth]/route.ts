@@ -1,17 +1,22 @@
 import NextAuth from "next-auth"
-import Credentials from "next-auth/providers/credentials"
-import { prisma } from "@/lib/prisma"
+import CredentialsProvider from "next-auth/providers/credentials"
+import { PrismaClient } from "@prisma/client"
 import bcrypt from "bcryptjs"
+
+const prisma = new PrismaClient()
 
 const handler = NextAuth({
   providers: [
-    Credentials({
+    CredentialsProvider({
+      name: "Credentials",
       credentials: {
-        email: {},
-        password: {},
+        email: { label: "Email", type: "email" },
+        password: { label: "Password", type: "password" },
       },
       async authorize(credentials) {
-        if (!credentials?.email || !credentials?.password) return null
+        if (!credentials?.email || !credentials?.password) {
+          return null
+        }
 
         const user = await prisma.user.findUnique({
           where: { email: credentials.email },
@@ -19,30 +24,26 @@ const handler = NextAuth({
 
         if (!user) return null
 
-        const ok = await bcrypt.compare(
+        const isValid = await bcrypt.compare(
           credentials.password,
           user.password
         )
 
-        if (!ok) return null
-
-        // Update lastLoginAt on successful login
-        await prisma.user.update({
-          where: { id: user.id },
-          data: { lastLoginAt: new Date() },
-        })
+        if (!isValid) return null
 
         return {
           id: user.id,
           email: user.email,
-          name: user.name,
           role: user.role,
+          name: user.name,
         }
       },
     }),
   ],
 
-  session: { strategy: "jwt" },
+  session: {
+    strategy: "jwt",
+  },
 
   callbacks: {
     async jwt({ token, user }) {
@@ -53,16 +54,19 @@ const handler = NextAuth({
       return token
     },
     async session({ session, token }) {
-      session.user.id = token.id
-      session.user.role = token.role
-      session.user.name = token.name
+      if (session.user) {
+        session.user.id = token.id as string
+        session.user.role = token.role as string
+      }
       return session
     },
   },
 
   pages: {
-    signIn: "/",
+    signIn: "/", // your modal login
   },
+
+  secret: process.env.NEXTAUTH_SECRET,
 })
 
 export { handler as GET, handler as POST }

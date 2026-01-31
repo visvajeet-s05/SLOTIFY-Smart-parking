@@ -28,7 +28,7 @@ export default function OwnerNavbar() {
   const userInitial = userEmail ? userEmail.charAt(0).toUpperCase() : "O"
 
   const ownerLinks = [
-    { name: "Dashboard", href: "/dashboard/owner" },
+    { name: "Home", href: "/dashboard/owner" },
     { name: "Parking Lots", href: "/dashboard/owner/parking-lots" },
     { name: "Bookings", href: "/dashboard/owner/bookings" },
     { name: "Analytics", href: "/dashboard/owner/analytics" },
@@ -40,7 +40,7 @@ export default function OwnerNavbar() {
       initial={{ y: -100 }}
       animate={{ y: 0 }}
       transition={{ duration: 0.3 }}
-      className="fixed top-0 left-0 right-0 z-50 bg-[#0B1220] border-b border-white/10 shadow-lg"
+        className="fixed top-0 left-0 right-0 z-50 bg-gradient-to-r from-black via-gray-900 to-black border-b border-white/10 shadow-lg"
     >
       <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
         {/* Left side */}

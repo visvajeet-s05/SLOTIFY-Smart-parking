@@ -6,6 +6,7 @@ import { motion } from "framer-motion"
 import { useSession, signOut } from "next-auth/react"
 import AdminSidebar from "@/components/admin/sidebar"
 import AdminHeader from "@/components/admin/header"
+import AnimatedBackground from "@/components/ui/AnimatedBackground"
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter()
@@ -35,7 +36,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   }
 
   return (
-    <div className="min-h-screen bg-black text-white pt-16">
+    <div className="relative min-h-screen bg-black text-white pt-16">
+      <AnimatedBackground />
       <div className="flex">
         <AdminSidebar onLogout={() => { signOut({ callbackUrl: '/' }); }} />
         <div className="flex-1 min-h-screen">

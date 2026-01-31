@@ -16,12 +16,13 @@ import { Badge } from "@/components/ui/badge"
 import { useSession, signOut } from "next-auth/react"
 import { Search, Bell, Settings, User, LogOut } from "lucide-react"
 import Image from "next/image"
+import OnlinePulse from "@/components/ui/OnlinePulse"
 
 export default function OwnerTopbar() {
   const { data: session } = useSession()
 
   const navigation = [
-    { name: "Dashboard", href: "/dashboard/owner" },
+    { name: "Home", href: "/dashboard/owner" },
     { name: "Parking Lots", href: "/dashboard/owner/parking-lots" },
     { name: "Bookings", href: "/dashboard/owner/bookings" },
     { name: "Analytics", href: "/dashboard/owner/analytics" },
@@ -101,19 +102,25 @@ export default function OwnerTopbar() {
           </DropdownMenuContent>
         </DropdownMenu>
 
+        {/* Online Status */}
+        <div className="hidden md:flex items-center gap-2 text-sm text-green-400">
+          <OnlinePulse />
+          Online
+        </div>
+
         {/* Profile Menu */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" className="flex items-center space-x-2 px-2">
               <Avatar className="h-8 w-8">
-                <AvatarImage src="" alt={session?.user?.name || ""} />
+                <AvatarImage src="" alt={session?.user?.email || ""} />
                 <AvatarFallback className="bg-purple-600 text-white">
-                  {(session?.user?.name || session?.user?.email || "U")[0].toUpperCase()}
+                  {(session?.user?.email || "U")[0].toUpperCase()}
                 </AvatarFallback>
               </Avatar>
               <div className="hidden md:block text-left">
-                <p className="text-sm font-medium text-white">{session?.user?.name}</p>
-                <p className="text-xs text-slate-400">{session?.user?.email}</p>
+                <p className="text-sm font-medium text-white">{session?.user?.email}</p>
+                <p className="text-xs text-slate-400">{session?.user?.role}</p>
               </div>
             </Button>
           </DropdownMenuTrigger>

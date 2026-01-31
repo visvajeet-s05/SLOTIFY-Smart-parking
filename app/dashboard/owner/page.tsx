@@ -17,6 +17,7 @@ import {
   Car
 } from "lucide-react"
 import OwnerTopbar from "@/components/owner/owner-topbar"
+import { CountUp } from "@/components/ui/CountUp"
 
 export default function OwnerDashboardPage() {
   const { data: session } = useSession()
@@ -148,7 +149,15 @@ export default function OwnerDashboardPage() {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm text-gray-400 mb-2">{stat.title}</p>
-                    <p className="text-2xl font-bold text-white">{stat.value}</p>
+                    <p className="text-2xl font-bold text-white">
+                      {stat.title === "Total Revenue" ? (
+                        <>₹ <CountUp value={parseInt(stat.value.replace(/[^0-9]/g, ''))} /></>
+                      ) : stat.title === "Occupancy Rate" ? (
+                        <><CountUp value={parseInt(stat.value.replace(/[^0-9]/g, ''))} />%</>
+                      ) : (
+                        <CountUp value={parseInt(stat.value.replace(/[^0-9]/g, ''))} />
+                      )}
+                    </p>
                     <p className="text-sm text-green-400 mt-1">{stat.change}</p>
                   </div>
                   <div className={`w-12 h-12 bg-gradient-to-r ${stat.color} rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform duration-300`}>

@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebSocket Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #1a1a1a;
+            color: white;
+        }
+        .container {
+            background: #2a2a2a;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+        .message {
+            padding: 10px;
+            margin: 10px 0;
+            background: #3a3a3a;
+            border-radius: 5px;
+        }
+        .connected { color: green; }
+        .disconnected { color: red; }
+        .error { color: orange; }
+        button {
+            background: #4a90e2;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-right: 10px;
+        }
+        button:hover {
+            background: #357abd;
+        }
+        textarea {
+            width: 100%;
+            height: 200px;
+            padding: 10px;
+            margin: 10px 0;
+            background: #3a3a3a;
+            color: white;
+            border: 1px solid #555;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <h1>WebSocket Test Page</h1>
+    
+    <div class="container">
+        <h3>Status: <span id="status" class="disconnected">Disconnected</span></h3>
+        <button onclick="connect()">Connect</button>
+        <button onclick="disconnect()">Disconnect</button>
+        <button onclick="sendTestData()">Send Test Data</button>
+    </div>
+    
+    <div class="container">
+        <h3>Messages:</h3>
+        <div id="messages"></div>
+    </div>
+    
+    <div class="container">
+        <h3>Send Message:</h3>
+        <textarea id="messageInput" placeholder='{"parkingId": "1", "availableSlots": 42, "lat": 13.0827, "lng": 80.2707}'></textarea>
+        <button onclick="sendMessage()">Send</button>
+    </div>
+
+    <script src="https://cdn.socket.io/4.7.4/socket.io.min.js"></script>
+    <script>
+        let socket;
+        
+        function connect() {
+            try {
+                socket = io('http://localhost:3000', {
+                    path: '/api/socket'
+                });
+                
+                socket.on('connect', () => {
+                    addMessage('✅ Connected to server');
+                    document.getElementById('status').textContent = 'Connected';
+                    document.getElementById('status').className = 'connected';
+                });
+                
+                socket.on('disconnect', () => {
+                    addMessage('❌ Disconnected from server');
+                    document.getElementById('status').textContent = 'Disconnected';
+                    document.getElementById('status').className = 'disconnected';
+                });
+                
+                socket.on('error', (error) => {
+                    addMessage(`🚫 Error: ${error}`, 'error');
+                });
+                
+                socket.on('parking:update', (data) => {
+                    addMessage(`📡 Received: ${JSON.stringify(data)}`);
+                });
+                
+            } catch (error) {
+                addMessage(`🚫 Connection failed: ${error}`, 'error');
+            }
+        }
+        
+        function disconnect() {
+            if (socket) {
+                socket.disconnect();
+            }
+        }
+        
+        function sendMessage() {
+            const messageInput = document.getElementById('messageInput');
+            try {
+                const data = JSON.parse(messageInput.value);
+                socket.emit('parking:update', data);
+                addMessage(`📤 Sent: ${JSON.stringify(data)}`);
+            } catch (error) {
+                addMessage(`🚫 Invalid JSON: ${error}`, 'error');
+            }
+        }
+        
+        function sendTestData() {
+            const testData = {
+                parkingId: Math.floor(Math.random() * 12) + 1,
+                availableSlots: Math.floor(Math.random() * 100),
+                lat: 13.0827,
+                lng: 80.2707
+            };
+            socket.emit('parking:update', testData);
+            addMessage(`📤 Sent test data: ${JSON.stringify(testData)}`);
+        }
+        
+        function addMessage(text, className = 'message') {
+            const messagesDiv = document.getElementById('messages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = className;
+            messageDiv.textContent = text;
+            messagesDiv.appendChild(messageDiv);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+        
+        // Auto-connect on load
+        window.addEventListener('load', connect);
+    </script>
+</body>
+</html>

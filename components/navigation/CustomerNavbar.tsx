@@ -30,7 +30,7 @@ export default function CustomerNavbar() {
   const userInitial = userEmail ? userEmail.charAt(0).toUpperCase() : "U"
 
   const dashboardLinks = [
-    { name: "Dashboard", href: "/dashboard" },
+    { name: "Home", href: "/dashboard" },
     { name: "Find Parking", href: "/dashboard/find" },
     { name: "My Bookings", href: "/dashboard/bookings" },
     { name: "Profile", href: "/dashboard/profile" },
@@ -41,7 +41,7 @@ export default function CustomerNavbar() {
       initial={{ y: -100 }}
       animate={{ y: 0 }}
       transition={{ duration: 0.3 }}
-      className="fixed top-0 left-0 right-0 z-50 bg-gray-900/90 backdrop-blur-md shadow-lg"
+        className="fixed top-0 left-0 right-0 z-50 bg-gradient-to-r from-black via-gray-900 to-black border-b border-white/10 backdrop-blur-md shadow-lg"
     >
       <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
         {/* Logo */}

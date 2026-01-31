@@ -31,7 +31,7 @@ export default function OwnerSidebar({ onLogout }: OwnerSidebarProps) {
 
   const links = [
     {
-      label: "Dashboard",
+      label: "Home",
       href: "/dashboard/owner",
       icon: <LayoutDashboard size={18} />,
     },

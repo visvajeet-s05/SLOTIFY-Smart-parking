@@ -2,34 +2,29 @@
 
 import { useEffect, useState } from "react"
 import { motion } from "framer-motion"
-import { MapPin, Star, Clock, Shield, ArrowRight, Car } from "lucide-react"
-import LoginModal from "@/components/auth/login-modal"
+import { MapPin, Star, Clock, Shield, ArrowRight, Car, Locate } from "lucide-react"
+import dynamic from "next/dynamic"
 import { Button } from "@/components/ui/button"
 import Image from "next/image"
 import { useRouter } from "next/navigation"
-import { useSession } from "next-auth/react"
+import { useUserLocation } from "@/hooks/useUserLocation"
+import UserMap from "@/components/map/UserMap"
+import ScrollDownArrow from "@/components/ui/ScrollDownArrow"
+
+// Dynamically import the map component to avoid SSR issues with Leaflet
+const MapBackground = dynamic(() => import("@/components/map/map-background"), {
+  ssr: false,
+  loading: () => <div className="w-full h-screen bg-black/90 animate-pulse" />,
+})
 
 export default function LandingPage() {
   const [showLogin, setShowLogin] = useState(false)
   const [isLoaded, setIsLoaded] = useState(false)
   const router = useRouter()
-  const { data: session } = useSession()
 
   useEffect(() => {
     setIsLoaded(true)
-    
-    // Redirect if already logged in
-    if (session?.user) {
-      const role = session.user.role
-      if (role === "OWNER") {
-        router.push("/dashboard/owner")
-      } else if (role === "ADMIN") {
-        router.push("/dashboard/admin")
-      } else {
-        router.push("/dashboard")
-      }
-    }
-  }, [session, router])
+  }, [])
 
   const features = [
     {
@@ -56,26 +51,21 @@ export default function LandingPage() {
 
   return (
     <main className="relative min-h-screen w-full overflow-hidden">
-      {/* Hero Section with Video Background */}
+      {/* Hero Section with Map Background */}
       <section className="relative h-screen w-full">
+        {/* Leaflet Map */}
         <div className="absolute inset-0 z-0">
-          <video
-            autoPlay
-            loop
-            muted
-            playsInline
-            className="w-full h-full object-cover"
-          >
-            <source src="/images/Slotify_video.mp4" type="video/mp4" />
-          </video>
-          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
+          <MapBackground />
         </div>
+
+        {/* Dark Overlay */}
+        <div className="absolute inset-0 z-10 bg-black/60 backdrop-blur-[1px]" />
 
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: isLoaded ? 1 : 0 }}
           transition={{ duration: 0.8 }}
-          className="relative z-10 flex flex-col items-center justify-center h-full px-4 pt-16"
+          className="relative z-20 flex flex-col items-center justify-center h-full px-4 pt-16"
         >
           <motion.div
             initial={{ y: 50, opacity: 0 }}
@@ -83,31 +73,23 @@ export default function LandingPage() {
             transition={{ delay: 0.3, duration: 0.8 }}
             className="text-center max-w-3xl"
           >
-            <h1 className="text-4xl md:text-6xl font-bold mb-6 bg-gradient-to-r from-purple-400 to-purple-600 text-transparent bg-clip-text">
-              Smart Parking
-            </h1>
-            <p className="text-lg md:text-xl text-gray-300 mb-8">
+<h1 className="text-4xl md:text-6xl font-bold mb-6 text-purple-600 drop-shadow-lg">
+  Slotify
+</h1>
+            <p className="text-lg md:text-xl text-gray-200 drop-shadow mb-8">
               Find and book parking spots in real-time with our interactive platform. Get access to thousands of parking
               spaces with just a few clicks.
             </p>
-            <Button
-              onClick={() => setShowLogin(true)}
-              size="lg"
-              className="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white px-8 py-6 rounded-lg text-lg shadow-[0_0_15px_rgba(168,85,247,0.5)] hover:shadow-[0_0_25px_rgba(168,85,247,0.7)] transition-all duration-300"
-            >
-              <MapPin className="mr-2 h-5 w-5" />
-              Get Started
-            </Button>
           </motion.div>
         </motion.div>
       </section>
 
       {/* Features Section */}
-      <section className="py-20 bg-gray-900">
+      <section id="home-section-2" className="py-20 bg-gray-900">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
             <h2 className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-purple-400 to-purple-600 text-transparent bg-clip-text mb-4">
-              Why Choose Smart Parking?
+              Why Choose Slotify?
             </h2>
             <p className="text-lg text-gray-300 max-w-3xl mx-auto">
               Our platform offers a seamless parking experience with real-time updates and secure bookings.
@@ -153,19 +135,16 @@ export default function LandingPage() {
                 step: "01",
                 title: "Find a Spot",
                 description: "Search for parking spots near your destination using our interactive map.",
-                image: "/Step1.png",
               },
               {
                 step: "02",
                 title: "Book & Pay",
                 description: "Select your preferred spot, choose your duration, and make a secure payment.",
-                image: "/Step2.png",
               },
               {
                 step: "03",
                 title: "Park with Ease",
                 description: "Use the generated QR code for seamless entry and exit from the parking area.",
-                image: "/Step3.png",
               },
             ].map((item, index) => (
               <motion.div
@@ -178,15 +157,6 @@ export default function LandingPage() {
               >
                 <div className="absolute -top-10 left-0 text-6xl font-bold text-purple-600/20">{item.step}</div>
                 <div className="pt-8 border-t border-purple-600/30">
-                  <div className="mb-4">
-                    <Image
-                      src={item.image}
-                      alt={item.title}
-                      width={400}
-                      height={250}
-                      className="rounded-lg w-full"
-                    />
-                  </div>
                   <h3 className="text-xl font-semibold mb-2">{item.title}</h3>
                   <p className="text-gray-400">{item.description}</p>
                 </div>
@@ -207,7 +177,7 @@ export default function LandingPage() {
               viewport={{ once: true }}
             >
               <h2 className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-purple-400 to-purple-600 text-transparent bg-clip-text mb-4">
-                Experience Smart Parking on Your Mobile
+                Experience Slotify on Your Mobile
               </h2>
               <p className="text-lg text-gray-300 mb-6">
                 Download our mobile app for a seamless parking experience on the go. Find, book, and pay for parking
@@ -263,6 +233,9 @@ export default function LandingPage() {
 
       {/* CTA Section */}
       <section className="py-20 bg-black relative overflow-hidden">
+        <div className="absolute inset-0 opacity-20">
+          <MapBackground />
+        </div>
         <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -278,7 +251,7 @@ export default function LandingPage() {
               Join thousands of users who have simplified their parking experience with Smart Parking.
             </p>
             <Button
-              onClick={() => setShowLogin(true)}
+              onClick={() => router.push("/login")}
               size="lg"
               className="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white px-8 py-6 rounded-lg text-lg shadow-[0_0_15px_rgba(168,85,247,0.5)] hover:shadow-[0_0_25px_rgba(168,85,247,0.7)] transition-all duration-300"
             >
@@ -356,8 +329,7 @@ export default function LandingPage() {
         </div>
       </footer>
 
-      {/* Login Modal */}
-      <LoginModal open={showLogin} onClose={() => setShowLogin(false)} />
     </main>
   )
 }
+

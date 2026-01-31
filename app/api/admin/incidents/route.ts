@@ -1,30 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
-import jwt from 'jsonwebtoken';
-import { cookies } from 'next/headers';
+import { getCurrentUser } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 
 export async function GET(request: NextRequest) {
   try {
-    const cookieStore = await cookies();
-    const token = cookieStore.get('auth_token')?.value;
-
-    if (!token) {
+    const user = await getCurrentUser();
+    
+    if (user.role !== 'ADMIN') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as any;
-    if (decoded.role !== 'ADMIN') {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const incidents = await prisma.incident.findMany({
+    const incidents = await prisma.parkingincident.findMany({
       include: {
-        owner: {
-          include: {
-            user: true,
-            parkingLots: true,
-          },
-        },
+        user: true,
       },
       orderBy: { createdAt: 'desc' },
     });

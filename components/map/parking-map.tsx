@@ -1,10 +1,13 @@
 "use client"
 
-import { useEffect } from "react"
+import { useEffect, useState } from "react"
 import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet"
 import L from "leaflet"
 import "leaflet/dist/leaflet.css"
 import { useRouter } from "next/navigation"
+import ParkingHeatmap from "./ParkingHeatmap"
+import { Button } from "@/components/ui/button"
+import { Map as MapIcon, Thermometer } from "lucide-react"
 
 // Define marker icons
 const createMarkerIcon = (color: string) => {
@@ -44,6 +47,7 @@ interface ParkingMapProps {
 
 export default function ParkingMap({ parkingAreas, selectedId, onSelectParkingArea }: ParkingMapProps) {
   const router = useRouter()
+  const [showHeatmap, setShowHeatmap] = useState(false)
 
   const getMarkerIcon = (status: string) => {
     switch (status) {
@@ -67,46 +71,67 @@ export default function ParkingMap({ parkingAreas, selectedId, onSelectParkingAr
   }
 
   return (
-    <MapContainer center={[51.505, -0.09]} zoom={13} style={{ height: "100%", width: "100%" }} zoomControl={true}>
-      <TileLayer
-        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-      />
-
-      <MapCenter parkingAreas={parkingAreas} />
-
-      {parkingAreas.map((area) => (
-        <Marker
-          key={area.id}
-          position={area.coordinates}
-          icon={getMarkerIcon(area.status)}
-          eventHandlers={{
-            click: () => handleMarkerClick(area.id),
-          }}
+    <div className="relative rounded-xl overflow-hidden">
+      <div className="absolute inset-0 z-10 pointer-events-none animate-pulse bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+      
+      {/* Heatmap Toggle Button */}
+      <div className="absolute top-4 right-4 z-20">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setShowHeatmap(!showHeatmap)}
+          className="bg-gray-900/90 backdrop-blur text-white border-gray-700 hover:bg-gray-800 flex items-center gap-2"
         >
-          <Popup>
-            <div className="p-1">
-              <h3 className="font-semibold">{area.name}</h3>
-              <p className="text-sm">{area.address}</p>
-              <p className="text-sm mt-1">
-                <span
-                  className={`font-medium ${area.status === "available" ? "text-green-600" : area.status === "limited" ? "text-yellow-600" : "text-red-600"}`}
+          {showHeatmap ? <MapIcon className="w-4 h-4" /> : <Thermometer className="w-4 h-4" />}
+          {showHeatmap ? "Show Markers" : "Show Heatmap"}
+        </Button>
+      </div>
+      
+      <MapContainer center={[51.505, -0.09]} zoom={13} style={{ height: "100%", width: "100%" }} zoomControl={true}>
+        <TileLayer
+          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        />
+
+        <MapCenter parkingAreas={parkingAreas} />
+
+        {/* Heatmap Layer */}
+        {showHeatmap && <ParkingHeatmap parkingAreas={parkingAreas} />}
+
+        {/* Markers Layer */}
+        {!showHeatmap && parkingAreas.map((area) => (
+          <Marker
+            key={area.id}
+            position={area.coordinates}
+            icon={getMarkerIcon(area.status)}
+            eventHandlers={{
+              click: () => handleMarkerClick(area.id),
+            }}
+          >
+            <Popup>
+              <div className="p-1">
+                <h3 className="font-semibold">{area.name}</h3>
+                <p className="text-sm">{area.address}</p>
+                <p className="text-sm mt-1">
+                  <span
+                    className={`font-medium ${area.status === "available" ? "text-green-600" : area.status === "limited" ? "text-yellow-600" : "text-red-600"}`}
+                  >
+                    {area.availableSpots} / {area.totalSpots} spots available
+                  </span>
+                </p>
+                <p className="text-sm mt-1">${area.price}/hr</p>
+                <button
+                  className="mt-2 w-full bg-purple-600 hover:bg-purple-700 text-white px-2 py-1 rounded text-sm"
+                  onClick={() => handleViewDetails(area.id)}
                 >
-                  {area.availableSpots} / {area.totalSpots} spots available
-                </span>
-              </p>
-              <p className="text-sm mt-1">${area.price}/hr</p>
-              <button
-                className="mt-2 w-full bg-purple-600 hover:bg-purple-700 text-white px-2 py-1 rounded text-sm"
-                onClick={() => handleViewDetails(area.id)}
-              >
-                View Details
-              </button>
-            </div>
-          </Popup>
-        </Marker>
-      ))}
-    </MapContainer>
+                  View Details
+                </button>
+              </div>
+            </Popup>
+          </Marker>
+        ))}
+      </MapContainer>
+    </div>
   )
 }
 

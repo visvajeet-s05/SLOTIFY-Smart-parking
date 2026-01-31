@@ -6,11 +6,11 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
+    const { id } = await params
     const user = await prisma.user.findUnique({
-      where: { id: params.id },
+      where: { id },
       select: {
         name: true,
-        lastLoginAt: true,
       },
     })
 

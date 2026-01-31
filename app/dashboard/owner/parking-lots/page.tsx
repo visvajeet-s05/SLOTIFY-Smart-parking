@@ -28,8 +28,8 @@ export default function OwnerParkingLotsPage() {
       {/* Parking Lot Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <ParkingLotCard
-          name="City Center Parking"
-          location="MG Road, Bengaluru"
+          name="Chennai Central Parking Complex"
+          location="Near Chennai Central Railway Station, Chennai"
           status="Active"
           href="/dashboard/owner/parking-lots/1"
         />

@@ -1,27 +1,12 @@
 import { prisma } from "@/lib/prisma"
-import jwt from "jsonwebtoken"
-import { cookies } from "next/headers"
+import { getCurrentUser } from "@/lib/auth"
 
 export async function GET() {
-  const cookieStore = await cookies()
-  const token = cookieStore.get("auth_token")?.value
-
-  if (!token) return new Response("Unauthorized", { status: 401 })
-
   try {
-    const decoded = jwt.verify(
-      token,
-      process.env.JWT_SECRET!
-    ) as { id: string; role: string; email: string; ownerStatus: string }
+    const user = await getCurrentUser()
 
-    if (decoded.role !== "OWNER") return new Response("Unauthorized", { status: 401 })
+    if (user.role !== "OWNER") return new Response("Unauthorized", { status: 401 })
 
-    const user = await prisma.user.findUnique({
-      where: { id: decoded.id },
-      include: { ownerprofile: true }
-    })
-
-    if (!user || user.role !== "OWNER") return new Response("Unauthorized", { status: 401 })
     if (user.ownerprofile?.status !== "APPROVED") return new Response("Unauthorized", { status: 401 })
 
     // Total Customers - distinct booking customers

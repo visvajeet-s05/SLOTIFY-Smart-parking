@@ -61,7 +61,7 @@ export default function Sidebar() {
         {/* Sidebar Header */}
         <div className="flex h-16 items-center justify-between border-b border-gray-800 px-4">
           <div className="flex items-center gap-2">
-            <span className="text-lg font-bold">Dashboard</span>
+            <span className="text-lg font-bold">Home</span>
           </div>
 
           <Button variant="ghost" size="icon" className="md:hidden" onClick={() => setIsMobileOpen(false)}>

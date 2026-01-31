@@ -1,39 +1,46 @@
+"use client"
+
 import type React from "react"
-import type { Metadata } from "next"
 import { Inter } from "next/font/google"
+import { usePathname } from "next/navigation"
 import "./globals.css"
-import AuthSessionProvider from "@/components/auth/session-provider"
-import { AuthProvider } from "@/components/auth/auth-provider"
 import { Toaster } from "@/components/ui/toaster"
 import { Toaster as SonnerToaster } from "@/components/ui/sonner"
+import Navbar from "@/components/navigation/navbar"
 import AskLocation from "@/components/location/ask-location"
+import SessionWrapper from "@/components/auth/session-wrapper"
+import { metadata } from "./metadata"
 
 const inter = Inter({ subsets: ["latin"] })
-
-export const metadata: Metadata = {
-  title: "Smart Parking - Find and Book Parking Spots",
-  description: "A modern platform for finding and booking parking spots in real-time",
-    generator: 'v0.dev'
-}
 
 export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode
 }>) {
+  const pathname = usePathname()
+
+  // Hide global navbar on owner dashboard pages
+  const hideGlobalNavbar = pathname.startsWith("/dashboard/owner")
+
   return (
     <html lang="en">
+      <head>
+        {/* Preload critical routes */}
+        <link rel="preload" href="/login" as="document" />
+        <link rel="preload" href="/dashboard" as="document" />
+        <link rel="dns-prefetch" href="//fonts.googleapis.com" />
+        <link rel="dns-prefetch" href="//fonts.gstatic.com" />
+      </head>
       <body className={`${inter.className} bg-black text-white antialiased`}>
-        <AuthSessionProvider>
-          <AuthProvider>
-            <AskLocation />
-            <main className="min-h-screen">{children}</main>
-            <Toaster />
-            <SonnerToaster />
-          </AuthProvider>
-        </AuthSessionProvider>
+        <SessionWrapper>
+          {!hideGlobalNavbar && <Navbar />}
+          <AskLocation />
+          <main className="min-h-screen">{children}</main>
+          <Toaster />
+          <SonnerToaster />
+        </SessionWrapper>
       </body>
     </html>
   )
 }
-

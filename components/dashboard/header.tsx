@@ -27,7 +27,7 @@ export default function Header() {
     <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-gray-800 bg-black/80 backdrop-blur-md px-4">
       <div className="flex items-center gap-2">
         <h1 className="text-xl font-bold bg-gradient-to-r from-purple-400 to-purple-600 text-transparent bg-clip-text">
-          Smart Parking
+          Slotify
         </h1>
       </div>
 

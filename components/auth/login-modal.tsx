@@ -1,7 +1,9 @@
 "use client"
 
 import { useState } from "react"
-import { signIn } from "next-auth/react"
+import { useRouter } from "next/navigation"
+import { toast } from "@/components/ui/use-toast"
+import { useAuth } from "./auth-provider"
 
 export default function LoginModal({
   open,
@@ -15,19 +17,40 @@ export default function LoginModal({
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
 
+  const { login } = useAuth()
+  const router = useRouter()
+
   if (!open) return null
 
   const handleLogin = async (e: any) => {
     e.preventDefault()
+    setError("")
+    setLoading(true)
 
-    const res = await signIn("credentials", {
-      email,
-      password,
-      redirect: false,
-    })
+    const result = await login(email, password)
 
-    if (res?.error) {
+    if (result) {
+      toast({
+        title: "Login Successful",
+        description: "Welcome back!",
+      })
+
+      onClose()
+
+      // Redirect based on user role
+      switch (result.role) {
+        case "admin":
+          router.push("/dashboard/admin")
+          break
+        case "owner":
+          router.push("/dashboard/owner")
+          break
+        default:
+          router.push("/dashboard/users")
+      }
+    } else {
       setError("Invalid email or password")
+      setLoading(false)
     }
   }
 

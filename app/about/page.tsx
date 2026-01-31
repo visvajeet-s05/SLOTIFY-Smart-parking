@@ -75,7 +75,7 @@ export default function About() {
             className="text-center mb-16"
           >
             <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-purple-400 to-purple-600 text-transparent bg-clip-text mb-6">
-              About Smart Parking Tamil Nadu
+              About Slotify
             </h1>
             <p className="text-xl text-gray-300 max-w-3xl mx-auto">
               We're on a mission to revolutionize the parking experience in Tamil Nadu through technology and innovation.
@@ -91,7 +91,7 @@ export default function About() {
               <h2 className="text-2xl md:text-3xl font-bold mb-6">Our Story</h2>
               <div className="space-y-4 text-gray-300">
                 <p>
-                  Founded in 2024 in Chennai, Smart Parking Tamil Nadu was born out of a local frustration: the struggle
+                  Founded in 2024 in Chennai, Slotify Tamil Nadu was born out of a local frustration: the struggle
                   to find parking in areas like T. Nagar, Pondy Bazaar, and R.S. Puram.
                 </p>
                 <p>
@@ -113,7 +113,7 @@ export default function About() {
               <div className="absolute inset-0 bg-gradient-to-r from-purple-600 to-indigo-600 rounded-xl blur-xl opacity-30 transform scale-105"></div>
               <Image
                 src="/Logo.png"
-                alt="Smart Parking Tamil Nadu Team"
+                alt="Slotify Tamil Nadu Team"
                 width={600}
                 height={400}
                 className="relative z-10 rounded-xl border border-gray-800 shadow-xl w-full"
@@ -160,7 +160,7 @@ export default function About() {
               Our Values
             </h2>
             <p className="text-lg text-gray-300 max-w-3xl mx-auto">
-              These core values guide everything we do at Smart Parking Tamil Nadu.
+              These core values guide everything we do at Slotify.
             </p>
           </motion.div>
 
@@ -199,7 +199,7 @@ export default function About() {
               Meet Our Team
             </h2>
             <p className="text-lg text-gray-300 max-w-3xl mx-auto">
-              The passionate Tamil Nadu team behind Smart Parking.
+              The passionate Tamil Nadu team behind Slotify.
             </p>
           </motion.div>
 
@@ -235,7 +235,7 @@ export default function About() {
       <footer className="bg-gray-900 border-t border-gray-800">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="text-center text-gray-400">
-            <p>@2026 Smart Parking. All rights reserved.</p>
+            <p>@2026 Slotify. All rights reserved.</p>
           </div>
         </div>
       </footer>

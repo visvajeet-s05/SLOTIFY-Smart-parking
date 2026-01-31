@@ -6,6 +6,7 @@ import { MapPin, Star, Navigation2, Clock, TrendingUp, Zap } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
+import { memo } from "react"
 
 interface ParkingAreaCardProps {
   parkingArea: {
@@ -23,7 +24,7 @@ interface ParkingAreaCardProps {
   onSelect?: () => void
 }
 
-export default function ParkingAreaCard({
+function ParkingAreaCard({
   parkingArea,
   isSelected = false,
   onSelect,
@@ -64,9 +65,8 @@ export default function ParkingAreaCard({
 
   return (
     <motion.div
-      whileHover={{ y: -6 }}
-      whileTap={{ scale: 0.98 }}
-      transition={{ duration: 0.2 }}
+      whileHover={{ scale: 1.03 }}
+      transition={{ type: "spring", stiffness: 260, damping: 20 }}
       onClick={onSelect}
       className={cn(
         "group relative h-full bg-gradient-to-br from-gray-800 to-gray-900 rounded-xl border transition-all duration-300 cursor-pointer overflow-hidden",
@@ -202,4 +202,6 @@ export default function ParkingAreaCard({
     </motion.div>
   )
 }
+
+export default memo(ParkingAreaCard)
 

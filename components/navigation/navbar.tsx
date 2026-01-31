@@ -34,22 +34,22 @@ export default function Navbar() {
   const userInitial = userEmail ? userEmail.charAt(0).toUpperCase() : "U"
 
   const navLinks: Array<{ name: string; href: string; onClick?: () => void }> = [
-    { name: "Home", href: "/" },
+    { name: "Home", href: "/", onClick: undefined },
     {
       name: "Find Parking",
-      href: status === "authenticated" ? "/dashboard" : "#",
+      href: status === "authenticated" ? "/find" : "#",
       onClick: status === "authenticated" ? undefined : () => setShowLoginModal(true),
     },
-    { name: "How It Works", href: "/how-it-works" },
-    { name: "Pricing", href: "/pricing" },
-    { name: "About Us", href: "/about" },
+    { name: "How It Works", href: "/how-it-works", onClick: undefined },
+    { name: "Pricing", href: "/pricing", onClick: undefined },
+    { name: "About Us", href: "/about", onClick: undefined },
   ]
 
-  const dashboardLinks = [
-    { name: "Dashboard", href: "/dashboard" },
-    { name: "Find Parking", href: "/dashboard/find" },
-    { name: "My Bookings", href: "/dashboard/bookings" },
-    { name: "Profile", href: "/dashboard/profile" },
+  const dashboardLinks: Array<{ name: string; href: string; onClick?: () => void }> = [
+    { name: "Home", href: "/dashboard", onClick: undefined },
+    { name: "Find Parking", href: "/dashboard/find", onClick: undefined },
+    { name: "My Bookings", href: "/dashboard/bookings", onClick: undefined },
+    { name: "Profile", href: "/dashboard/profile", onClick: undefined },
   ]
 
   const activeLinks = isDashboard ? dashboardLinks : navLinks
@@ -60,7 +60,9 @@ export default function Navbar() {
         initial={{ y: -100 }}
         animate={{ y: 0 }}
         transition={{ duration: 0.3 }}
-        className="fixed top-0 left-0 right-0 z-50 bg-gray-900/90 backdrop-blur-md shadow-lg"
+        className="fixed top-0 left-0 right-0 z-50 
+bg-gradient-to-r from-black via-gray-900 to-black
+border-b border-white/10 backdrop-blur-md shadow-lg"
       >
         <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
           {/* Logo */}
@@ -133,10 +135,10 @@ export default function Navbar() {
                         <span className="text-sm font-medium text-white">
                           {session?.user?.role === "OWNER" ? "👤 Owner" :
                            session?.user?.role === "ADMIN" ? "🔧 Admin" :
-                           session?.user?.role === "CUSTOMER" ? "👥 Customer" : "User"}
+                           session?.user?.role === "CUSTOMER" ? "👥 Customer" : "👤 User"}
                         </span>
                         <span className="text-xs text-gray-400">
-                          {session?.user?.name || userEmail}
+                          {userEmail}
                         </span>
                       </div>
                     </Button>

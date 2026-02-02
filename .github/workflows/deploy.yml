@@ -1,0 +1,29 @@
+name: Deploy Slotify
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Login to DockerHub
+        run: echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
+
+      - name: Build & Push
+        run: |
+          docker build -t your-dockerhub/slotify:latest .
+          docker push your-dockerhub/slotify:latest
+
+      - name: Deploy to Kubernetes
+        uses: azure/k8s-deploy@v5
+        with:
+          manifests: |
+            k8s/deployment.yaml
+            k8s/service.yaml
+            k8s/ingress.yaml
+          namespace: slotify

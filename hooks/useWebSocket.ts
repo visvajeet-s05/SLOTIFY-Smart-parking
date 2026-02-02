@@ -34,12 +34,22 @@ export function useWebSocket(url: string, onMessage: (data: any) => void) {
       };
       
       socket.onerror = (error) => {
-        console.error('WebSocket error:', error);
+        // Enhanced error logging with detailed error information
+        console.error('WebSocket error:', {
+          type: error?.type,
+          target: error?.target,
+          currentTarget: error?.currentTarget,
+          timestamp: new Date().toISOString()
+        });
       };
       
       socketRef.current = socket;
     } catch (error) {
-      console.error('Failed to create WebSocket:', error);
+      console.error('Failed to create WebSocket:', {
+        message: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+        timestamp: new Date().toISOString()
+      });
       setIsConnected(false);
       // Retry after 3 seconds
       reconnectTimeoutRef.current = setTimeout(() => {
@@ -65,6 +75,8 @@ export function useWebSocket(url: string, onMessage: (data: any) => void) {
     if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
       const message = typeof data === 'string' ? data : JSON.stringify(data);
       socketRef.current.send(message);
+    } else {
+      console.warn('WebSocket not connected, cannot send message:', data);
     }
   };
 

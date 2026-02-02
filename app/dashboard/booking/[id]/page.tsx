@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useMemo } from "react"
+import React, { useState, useEffect, useMemo, use } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { motion } from "framer-motion"
 import {
@@ -33,6 +33,9 @@ export default function BookingPage({ params }: { params: { id: string } }) {
   const { toast } = useToast()
   const { data: session, status } = useSession()
 
+  // Unwrap the params Promise to access the id property
+  const parkingAreaId = use(params as any)
+
   const [isLoaded, setIsLoaded] = useState(false)
   const [paymentMethod, setPaymentMethod] = useState("card")
   const [hours, setHours] = useState(2)
@@ -52,12 +55,12 @@ export default function BookingPage({ params }: { params: { id: string } }) {
           "Please select a parking slot before proceeding to booking.",
         variant: "destructive",
       })
-      router.push(`/dashboard/parking/${params.id}`)
+      router.push(`/dashboard/parking/${parkingAreaId}`)
     }
-  }, [slotId, router, params.id, toast])
+  }, [slotId, router, parkingAreaId, toast])
 
   const bookingData = {
-    parkingAreaId: params.id,
+    parkingAreaId: parkingAreaId,
     parkingAreaName: "Downtown Parking Complex",
     address: "123 Main St, Downtown",
     slotId: slotId || "",
@@ -118,7 +121,7 @@ export default function BookingPage({ params }: { params: { id: string } }) {
     setIsProcessing(true)
     
     const bookingInfo = {
-      parkingAreaId: params.id,
+      parkingAreaId: parkingAreaId,
       slotId,
       date: bookingDate,
       time: bookingTime,
@@ -138,7 +141,7 @@ export default function BookingPage({ params }: { params: { id: string } }) {
         title: "Payment Successful!",
         description: "Your parking slot has been booked successfully.",
       })
-      router.push(`/dashboard/confirmation/${params.id}?slot=${slotId}`)
+      router.push(`/dashboard/confirmation/${parkingAreaId}?slot=${slotId}`)
     }, 2000)
   }
 

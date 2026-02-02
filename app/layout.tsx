@@ -8,7 +8,8 @@ import { Toaster } from "@/components/ui/toaster"
 import { Toaster as SonnerToaster } from "@/components/ui/sonner"
 import Navbar from "@/components/navigation/navbar"
 import AskLocation from "@/components/location/ask-location"
-import SessionWrapper from "@/components/auth/session-wrapper"
+import { AuthProvider } from "@/components/auth/auth-provider"
+import { SessionProvider } from "next-auth/react"
 import { metadata } from "./metadata"
 
 const inter = Inter({ subsets: ["latin"] })
@@ -33,13 +34,15 @@ export default function RootLayout({
         <link rel="dns-prefetch" href="//fonts.gstatic.com" />
       </head>
       <body className={`${inter.className} bg-black text-white antialiased`}>
-        <SessionWrapper>
-          {!hideGlobalNavbar && <Navbar />}
-          <AskLocation />
-          <main className="min-h-screen">{children}</main>
-          <Toaster />
-          <SonnerToaster />
-        </SessionWrapper>
+        <SessionProvider>
+          <AuthProvider>
+            {!hideGlobalNavbar && <Navbar />}
+            <AskLocation />
+            <main className="min-h-screen">{children}</main>
+            <Toaster />
+            <SonnerToaster />
+          </AuthProvider>
+        </SessionProvider>
       </body>
     </html>
   )

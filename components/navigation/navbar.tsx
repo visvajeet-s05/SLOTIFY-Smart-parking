@@ -19,26 +19,33 @@ import {
 import { Input } from "@/components/ui/input"
 import { useSession, signOut } from "next-auth/react"
 import LoginModal from "@/components/auth/LoginModal"
+import { useAuth } from "@/components/auth/auth-provider"
+import { isSessionValid } from "@/lib/checkSession"
 
 export default function Navbar() {
   const pathname = usePathname()
   const { data: session, status } = useSession()
+  const { user } = useAuth()
 
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const [showLoginModal, setShowLoginModal] = useState(false)
 
   const isDashboard = pathname.startsWith("/dashboard")
 
-  // ✅ SAFE helpers
-  const userEmail = session?.user?.email ?? ""
+  // ✅ Check authentication status - support both NextAuth and localStorage tokens
+  const isAuthenticated = status === "authenticated" || isSessionValid()
+  
+  // ✅ Get user info from either NextAuth session or localStorage
+  const userEmail = session?.user?.email || (typeof window !== 'undefined' ? localStorage.getItem("email") : "") || ""
+  const userRole = session?.user?.role || (typeof window !== 'undefined' ? localStorage.getItem("role") : "") || ""
   const userInitial = userEmail ? userEmail.charAt(0).toUpperCase() : "U"
 
   const navLinks: Array<{ name: string; href: string; onClick?: () => void }> = [
     { name: "Home", href: "/", onClick: undefined },
     {
       name: "Find Parking",
-      href: status === "authenticated" ? "/find" : "#",
-      onClick: status === "authenticated" ? undefined : () => setShowLoginModal(true),
+      href: isAuthenticated ? "/find" : "#",
+      onClick: isAuthenticated ? undefined : () => setShowLoginModal(true),
     },
     { name: "How It Works", href: "/how-it-works", onClick: undefined },
     { name: "Pricing", href: "/pricing", onClick: undefined },
@@ -116,7 +123,7 @@ border-b border-white/10 backdrop-blur-md shadow-lg"
 
           {/* Right side */}
           <div className="flex items-center gap-4">
-            {status === "authenticated" ? (
+            {isAuthenticated ? (
               <>
                 {isDashboard && (
                   <Button variant="ghost" size="icon" className="relative">
@@ -133,9 +140,9 @@ border-b border-white/10 backdrop-blur-md shadow-lg"
                       </Avatar>
                       <div className="hidden sm:flex flex-col items-start">
                         <span className="text-sm font-medium text-white">
-                          {session?.user?.role === "OWNER" ? "👤 Owner" :
-                           session?.user?.role === "ADMIN" ? "🔧 Admin" :
-                           session?.user?.role === "CUSTOMER" ? "👥 Customer" : "👤 User"}
+                          {userRole === "OWNER" ? "👤 Owner" :
+                           userRole === "ADMIN" ? "🔧 Admin" :
+                           userRole === "CUSTOMER" ? "👥 Customer" : "👤 User"}
                         </span>
                         <span className="text-xs text-gray-400">
                           {userEmail}
@@ -154,7 +161,14 @@ border-b border-white/10 backdrop-blur-md shadow-lg"
                     <DropdownMenuSeparator className="bg-gray-800" />
                     <DropdownMenuItem
                       className="text-red-400 cursor-pointer"
-                      onClick={() => signOut({ callbackUrl: "/" })}
+                      onClick={() => {
+                        // Clear localStorage tokens
+                        localStorage.removeItem("token")
+                        localStorage.removeItem("role")
+                        localStorage.removeItem("email")
+                        // Sign out from NextAuth
+                        signOut({ callbackUrl: "/" })
+                      }}
                     >
                       Logout
                     </DropdownMenuItem>

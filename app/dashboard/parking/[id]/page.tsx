@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import React, { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { motion } from "framer-motion"
 import { ArrowLeft, Car, Clock, DollarSign, Star, MapPin, Shield, Zap } from "lucide-react"
@@ -31,6 +31,9 @@ export default function ParkingAreaPage({ params }: { params: { id: string } }) 
   const [showSlotDetails, setShowSlotDetails] = useState(false)
   const [isLoaded, setIsLoaded] = useState(false)
 
+  // Unwrap the params Promise to access the id property
+  const parkingAreaId = React.use(params).id
+
   useEffect(() => {
     const timer = setTimeout(() => {
       setIsLoaded(true)
@@ -45,7 +48,7 @@ export default function ParkingAreaPage({ params }: { params: { id: string } }) 
 
   const handleBookSlot = () => {
     if (selectedSlot) {
-      router.push(`/dashboard/booking/${params.id}?slot=${selectedSlot}`)
+      router.push(`/dashboard/booking/${parkingAreaId}?slot=${selectedSlot}`)
     }
   }
 

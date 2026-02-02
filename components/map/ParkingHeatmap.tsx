@@ -3,6 +3,8 @@
 import { useEffect, useRef } from "react"
 import { useMap } from "react-leaflet"
 import L from "leaflet"
+
+// Import heatmap plugin
 import "leaflet.heat"
 
 interface ParkingHeatmapProps {
@@ -14,9 +16,15 @@ export default function ParkingHeatmap({ parkingAreas }: ParkingHeatmapProps) {
   const heatLayerRef = useRef<any>(null)
 
   useEffect(() => {
+    if (!map) return
+
     // Remove existing heat layer if it exists
     if (heatLayerRef.current) {
-      map.removeLayer(heatLayerRef.current)
+      try {
+        map.removeLayer(heatLayerRef.current)
+      } catch (error) {
+        console.warn('Error removing heat layer:', error)
+      }
     }
 
     // Create heatmap data points with density based on availability
@@ -26,19 +34,27 @@ export default function ParkingHeatmap({ parkingAreas }: ParkingHeatmapProps) {
     })
 
     // Create heat layer
-    heatLayerRef.current = (L as any).heatLayer(heatData, {
-      radius: 30,
-      blur: 20,
-      maxZoom: 18,
-    })
+    try {
+      heatLayerRef.current = (L as any).heatLayer(heatData, {
+        radius: 30,
+        blur: 20,
+        maxZoom: 18,
+      })
 
-    // Add heat layer to map
-    heatLayerRef.current.addTo(map)
+      // Add heat layer to map
+      heatLayerRef.current.addTo(map)
+    } catch (error) {
+      console.warn('Error creating heat layer:', error)
+    }
 
     // Cleanup
     return () => {
-      if (heatLayerRef.current) {
-        map.removeLayer(heatLayerRef.current)
+      if (heatLayerRef.current && map) {
+        try {
+          map.removeLayer(heatLayerRef.current)
+        } catch (error) {
+          console.warn('Error removing heat layer in cleanup:', error)
+        }
       }
     }
   }, [parkingAreas, map])

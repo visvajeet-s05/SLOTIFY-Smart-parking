@@ -14,7 +14,6 @@ async function resetUser() {
         email: "owner@gmail.com",
         password: hashedPassword,
         role: "OWNER",
-        name: "Owner",
       },
     });
     console.log('User reset for owner@gmail.com');

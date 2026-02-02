@@ -12,7 +12,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import ParkingAreaCard from "@/components/parking/parking-area-card"
-import { useParkingWebSocket } from "@/hooks/useWebSocket"
+import { useParkingSocket } from "@/hooks/useParkingSocket"
 
 // Dynamically import the map to prevent SSR issues
 const ParkingMap = dynamic(() => import("@/components/map/parking-map"), {
@@ -62,7 +62,7 @@ export default function FindParkingPage() {
   const [filteredAreas, setFilteredAreas] = useState<ParkingArea[]>(parkingAreas as ParkingArea[])
 
   // Real-time parking updates
-  useParkingWebSocket((data: any) => {
+  useParkingSocket((data: any) => {
     setFilteredAreas(prevAreas => 
       prevAreas.map(area => {
         if (area.id === data.parkingId) {

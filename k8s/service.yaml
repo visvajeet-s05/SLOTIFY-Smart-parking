@@ -1,0 +1,134 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: slotify-service
+  namespace: slotify
+  labels:
+    app: slotify
+    version: v1
+spec:
+  selector:
+    app: slotify
+    version: v1
+  ports:
+  - name: http
+    port: 80
+    targetPort: 3000
+    protocol: TCP
+  - name: metrics
+    port: 9090
+    targetPort: 9090
+    protocol: TCP
+  type: ClusterIP
+  sessionAffinity: None
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: slotify-staging-service
+  namespace: slotify-staging
+  labels:
+    app: slotify-staging
+    version: v1
+spec:
+  selector:
+    app: slotify
+    version: v1
+  ports:
+  - name: http
+    port: 80
+    targetPort: 3000
+    protocol: TCP
+  - name: metrics
+    port: 9090
+    targetPort: 9090
+    protocol: TCP
+  type: ClusterIP
+  sessionAffinity: None
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: slotify-dev-service
+  namespace: slotify-dev
+  labels:
+    app: slotify-dev
+    version: v1
+spec:
+  selector:
+    app: slotify
+    version: v1
+  ports:
+  - name: http
+    port: 80
+    targetPort: 3000
+    protocol: TCP
+  - name: metrics
+    port: 9090
+    targetPort: 9090
+    protocol: TCP
+  type: ClusterIP
+  sessionAffinity: None
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-service
+  namespace: slotify
+  labels:
+    app: redis
+spec:
+  selector:
+    app: redis
+  ports:
+  - name: client
+    port: 6379
+    targetPort: 6379
+    protocol: TCP
+  - name: gossip
+    port: 16379
+    targetPort: 16379
+    protocol: TCP
+  type: ClusterIP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-staging-service
+  namespace: slotify-staging
+  labels:
+    app: redis-staging
+spec:
+  selector:
+    app: redis
+  ports:
+  - name: client
+    port: 6379
+    targetPort: 6379
+    protocol: TCP
+  - name: gossip
+    port: 16379
+    targetPort: 16379
+    protocol: TCP
+  type: ClusterIP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-dev-service
+  namespace: slotify-dev
+  labels:
+    app: redis-dev
+spec:
+  selector:
+    app: redis
+  ports:
+  - name: client
+    port: 6379
+    targetPort: 6379
+    protocol: TCP
+  - name: gossip
+    port: 16379
+    targetPort: 16379
+    protocol: TCP
+  type: ClusterIP

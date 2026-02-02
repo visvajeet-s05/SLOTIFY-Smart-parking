@@ -3,6 +3,7 @@
 import { motion, AnimatePresence } from "framer-motion"
 import { X, Eye, EyeOff, Mail, Lock } from "lucide-react"
 import { useState } from "react"
+import { useRouter } from "next/navigation"
 
 interface LoginModalProps {
   open: boolean
@@ -11,8 +12,55 @@ interface LoginModalProps {
 
 export default function LoginModal({ open, onClose }: LoginModalProps) {
   const [showPassword, setShowPassword] = useState(false)
+  const [email, setEmail] = useState("")
+  const [password, setPassword] = useState("")
+  const [rememberMe, setRememberMe] = useState(false)
+  const [isLoading, setIsLoading] = useState(false)
+  const router = useRouter()
 
-if (!open) return null
+  const handleLogin = async () => {
+    if (!email || !password) return
+
+    setIsLoading(true)
+
+    try {
+      const response = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email,
+          password,
+          rememberMe,
+        }),
+      })
+
+      const data = await response.json()
+
+      if (data.success) {
+        // Store token, role, and email in localStorage
+        localStorage.setItem("token", data.token)
+        localStorage.setItem("role", data.role)
+        localStorage.setItem("email", email)
+
+        // Close modal first
+        onClose()
+
+        // Redirect to appropriate dashboard
+        router.replace(data.redirect)
+      } else {
+        // Show error message (you can add a toast here)
+        console.error("Login failed:", data.message)
+      }
+    } catch (error) {
+      console.error("Login error:", error)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  if (!open) return null
 
   return (
     <>
@@ -67,6 +115,8 @@ if (!open) return null
               <input
                 type="email"
                 placeholder="owner@gmail.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
                 className="
                   w-full rounded-lg bg-white/10 pl-10 pr-3 py-2.5
                   text-white placeholder-gray-400
@@ -87,6 +137,8 @@ if (!open) return null
               <input
                 type={showPassword ? "text" : "password"}
                 placeholder="••••••••"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
                 className="
                   w-full rounded-lg bg-white/10 pl-10 pr-10 py-2.5
                   text-white placeholder-gray-400
@@ -107,7 +159,12 @@ if (!open) return null
           {/* Remember + Forgot */}
           <div className="mb-6 flex items-center justify-between text-sm">
             <label className="flex items-center gap-2 text-gray-300">
-              <input type="checkbox" className="accent-purple-500" />
+              <input
+                type="checkbox"
+                checked={rememberMe}
+                onChange={(e) => setRememberMe(e.target.checked)}
+                className="accent-purple-500"
+              />
               Remember me
             </label>
             <button className="text-purple-400 hover:underline">
@@ -117,14 +174,17 @@ if (!open) return null
 
           {/* Button */}
           <button
+            onClick={handleLogin}
+            disabled={isLoading}
             className="
               w-full rounded-lg py-2.5 font-semibold text-white
               bg-gradient-to-r from-purple-600 to-indigo-600
               hover:from-purple-700 hover:to-indigo-700
+              disabled:opacity-50 disabled:cursor-not-allowed
               transition
             "
           >
-            Sign In
+            {isLoading ? "Signing in..." : "Sign In"}
           </button>
 
           {/* Footer */}

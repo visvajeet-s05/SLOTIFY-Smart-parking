@@ -16,7 +16,7 @@ import { Badge } from "@/components/ui/badge"
 import { useSession, signOut } from "next-auth/react"
 import { Search, Bell, Settings, User, LogOut } from "lucide-react"
 import Image from "next/image"
-import OnlinePulse from "@/components/ui/OnlinePulse"
+import { OnlinePulse } from "@/components/ui/OnlinePulse"
 
 export default function OwnerTopbar() {
   const { data: session } = useSession()

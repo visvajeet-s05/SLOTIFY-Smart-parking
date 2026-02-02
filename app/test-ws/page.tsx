@@ -1,21 +1,35 @@
 "use client"
 
 import { useEffect, useState } from 'react'
-import { useParkingWebSocket } from '@/hooks/useWebSocket'
+import { useParkingSocket } from '@/hooks/useParkingSocket'
 
 export default function TestWebSocketPage() {
   const [messages, setMessages] = useState<string[]>([])
   const [status, setStatus] = useState('Connecting...')
 
-  // Use WebSocket hook
-  const { isConnected } = useParkingWebSocket((data: any) => {
-    const message = `📡 Received: ${data.parkingId} - ${data.availableSlots} slots`
-    setMessages(prev => [...prev, message])
-  })
-
+  // Use Socket.IO hook instead of WebSocket
   useEffect(() => {
-    setStatus(isConnected ? 'Connected' : 'Disconnected')
-  }, [isConnected])
+    const socket = require('socket.io-client')({ path: "/api/socket" });
+    
+    socket.on('connect', () => {
+      setStatus('Connected');
+      console.log('Socket.IO connected');
+    });
+
+    socket.on('disconnect', () => {
+      setStatus('Disconnected');
+      console.log('Socket.IO disconnected');
+    });
+
+    socket.on('parking:update', (data: any) => {
+      const message = `📡 Received: ${data.parkingId} - ${data.availableSlots} slots`
+      setMessages(prev => [...prev, message])
+    });
+
+    return () => {
+      socket.disconnect();
+    };
+  }, [])
 
   return (
     <div className="min-h-screen bg-gray-900 text-white p-8">
@@ -24,7 +38,7 @@ export default function TestWebSocketPage() {
         
         <div className="bg-gray-800 rounded-lg p-6 mb-6">
           <h2 className="text-xl font-semibold mb-4">
-            Status: <span className={`${isConnected ? 'text-green-400' : 'text-red-400'}`}>{status}</span>
+            Status: <span className={`${status === 'Connected' ? 'text-green-400' : 'text-red-400'}`}>{status}</span>
           </h2>
           
           <div className="mb-4">

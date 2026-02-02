@@ -4,10 +4,20 @@ import { useEffect, useState } from "react"
 import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet"
 import L from "leaflet"
 import "leaflet/dist/leaflet.css"
+import "leaflet-defaulticon-compatibility"
+import "leaflet-defaulticon-compatibility/dist/leaflet-defaulticon-compatibility.css"
 import { useRouter } from "next/navigation"
 import ParkingHeatmap from "./ParkingHeatmap"
 import { Button } from "@/components/ui/button"
 import { Map as MapIcon, Thermometer } from "lucide-react"
+
+// Fix for default marker icons in react-leaflet v4+
+delete (L.Icon.Default.prototype as any)._getIconUrl
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
+  iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+  shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+})
 
 // Define marker icons
 const createMarkerIcon = (color: string) => {
@@ -29,10 +39,14 @@ function MapCenter({ parkingAreas }: { parkingAreas: any[] }) {
   const map = useMap()
 
   useEffect(() => {
-    if (parkingAreas.length > 0) {
-      // Create bounds from all parking areas
-      const bounds = L.latLngBounds(parkingAreas.map((area) => area.coordinates))
-      map.fitBounds(bounds, { padding: [50, 50] })
+    if (parkingAreas.length > 0 && map) {
+      try {
+        // Create bounds from all parking areas
+        const bounds = L.latLngBounds(parkingAreas.map((area) => area.coordinates))
+        map.fitBounds(bounds, { padding: [50, 50] })
+      } catch (error) {
+        console.warn('Error fitting bounds:', error)
+      }
     }
   }, [map, parkingAreas])
 
@@ -48,6 +62,16 @@ interface ParkingMapProps {
 export default function ParkingMap({ parkingAreas, selectedId, onSelectParkingArea }: ParkingMapProps) {
   const router = useRouter()
   const [showHeatmap, setShowHeatmap] = useState(false)
+
+  // Calculate initial center based on parking areas or use Chennai as default
+  const getInitialCenter = () => {
+    if (parkingAreas.length > 0) {
+      // Use first parking area as center
+      return parkingAreas[0].coordinates
+    }
+    // Default to Chennai, Tamil Nadu
+    return [13.0827, 80.2707]
+  }
 
   const getMarkerIcon = (status: string) => {
     switch (status) {
@@ -87,7 +111,7 @@ export default function ParkingMap({ parkingAreas, selectedId, onSelectParkingAr
         </Button>
       </div>
       
-      <MapContainer center={[51.505, -0.09]} zoom={13} style={{ height: "100%", width: "100%" }} zoomControl={true}>
+      <MapContainer center={getInitialCenter()} zoom={13} style={{ height: "100%", width: "100%" }} zoomControl={true}>
         <TileLayer
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'

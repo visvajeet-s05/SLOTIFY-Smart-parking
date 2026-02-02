@@ -6,58 +6,24 @@ const prisma = new PrismaClient()
 async function main() {
   const passwordHash = async (password) => await bcrypt.hash(password, 10)
 
-  const owners = [
+  const admins = [
     {
-      id: "owner-1",
-      email: "owner@gmail.com",
-      password: await passwordHash("owner@123"),
-      role: "OWNER",
-      name: "Test Owner",
-    },
-    {
-      id: "owner-2",
-      email: "owner1@gmail.com",
-      password: await passwordHash("owner1@123"),
-      role: "OWNER",
-      name: "Test Owner 1",
-    },
-    {
-      id: "owner-3",
-      email: "owner2@gmail.com",
-      password: await passwordHash("owner2@123"),
-      role: "OWNER",
-      name: "Test Owner 2",
+      id: "admin-1",
+      email: "admin@slotify.com",
+      password: await passwordHash("admin@slotify"),
+      role: "ADMIN",
     },
   ]
 
-  const customers = [
-    {
-      id: "customer-1",
-      email: "visvajeet@gmail.com",
-      password: await passwordHash("visvajeet"),
-      role: "CUSTOMER",
-      name: "Visvajeet Customer",
-    },
-  ]
-
-  for (const owner of owners) {
+  for (const admin of admins) {
     await prisma.user.upsert({
-      where: { email: owner.email },
+      where: { email: admin.email },
       update: {},
-      create: owner,
+      create: admin,
     })
   }
 
-  for (const customer of customers) {
-    await prisma.user.upsert({
-      where: { email: customer.email },
-      update: { password: customer.password },
-      create: customer,
-    })
-  }
-
-  console.log("✅ Owners seeded successfully")
-  console.log("✅ Customer seeded successfully")
+  console.log("✅ Admin user seeded successfully")
 }
 
 main()

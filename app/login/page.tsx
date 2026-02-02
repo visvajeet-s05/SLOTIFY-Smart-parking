@@ -21,14 +21,18 @@ export default function LoginPage() {
     setLoading(true)
 
     try {
-      const result = await signIn("credentials", {
-        email,
-        password,
-        redirect: false,
+      const response = await fetch("/api/auth/custom-login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ email, password }),
       })
 
-      if (result?.error) {
-        setError("Invalid credentials")
+      const data = await response.json()
+
+      if (!response.ok) {
+        setError(data.message || "Invalid credentials")
         setLoading(false)
         return
       }
@@ -39,9 +43,22 @@ export default function LoginPage() {
         description: "Welcome back!",
       })
 
-      // Redirect based on user role - we need to get user role from session
-      // For now, redirect to dashboard, and let middleware handle role-based routing
-      router.push("/dashboard")
+      // Redirect based on user role
+      const userRole = data.user.role.toLowerCase()
+      switch (userRole) {
+        case "admin":
+          router.push("/dashboard/admin")
+          break
+        case "owner":
+          router.push("/dashboard/owner")
+          break
+        case "customer":
+        case "user":
+          router.push("/dashboard")
+          break
+        default:
+          router.push("/dashboard")
+      }
     } catch (err) {
       setError("An error occurred. Please try again.")
       setLoading(false)
@@ -99,10 +116,23 @@ export default function LoginPage() {
             </Button>
           </form>
 
-          <div className="mt-6 text-center text-sm text-gray-600">
-            <p>Test Owner Credentials:</p>
-            <p className="text-purple-600 font-medium">Email: owner@gmail.com</p>
-            <p className="text-purple-600 font-medium">Password: owner@123</p>
+          <div className="mt-6 text-center text-sm text-gray-600 space-y-4">
+            <div>
+              <p className="font-semibold text-gray-800 mb-2">Admin Test Credentials:</p>
+              <div className="space-y-1">
+                <p className="text-purple-600 font-medium">Visvajeet: visvajeet@gmail.com / visvajeet@123</p>
+                <p className="text-purple-600 font-medium">Manish: manish@gmail.com / manish@123</p>
+                <p className="text-sm text-gray-500">→ Redirects to: /dashboard/admin</p>
+              </div>
+            </div>
+            <div>
+              <p className="font-semibold text-gray-800 mb-2">Owner Test Credentials:</p>
+              <div className="space-y-1">
+                <p className="text-purple-600 font-medium">Chennai Central Parking: owner@gmail.com / owner@123</p>
+                <p className="text-purple-600 font-medium">Anna Nagar Tower Parking: owner1@gmail.com / owner1@123</p>
+                <p className="text-sm text-gray-500">→ Redirects to: /dashboard/owner</p>
+              </div>
+            </div>
           </div>
         </div>
       </div>

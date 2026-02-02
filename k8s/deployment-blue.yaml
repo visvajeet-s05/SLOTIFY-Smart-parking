@@ -1,0 +1,22 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: slotify-blue
+  namespace: slotify
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: slotify
+      version: blue
+  template:
+    metadata:
+      labels:
+        app: slotify
+        version: blue
+    spec:
+      containers:
+        - name: app
+          image: your-dockerhub/slotify:v1
+          ports:
+            - containerPort: 3000

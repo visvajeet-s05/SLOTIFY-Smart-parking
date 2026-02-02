@@ -59,6 +59,39 @@ body {
   height: 100%;
 }
 
+/* Ensure Leaflet maps render properly */
+.leaflet-pane {
+  z-index: 400;
+}
+
+.leaflet-map-pane {
+  z-index: auto;
+}
+
+.leaflet-tile-pane {
+  z-index: 200;
+}
+
+.leaflet-overlay-pane {
+  z-index: 400;
+}
+
+.leaflet-shadow-pane {
+  z-index: 500;
+}
+
+.leaflet-marker-pane {
+  z-index: 600;
+}
+
+.leaflet-tooltip-pane {
+  z-index: 650;
+}
+
+.leaflet-popup-pane {
+  z-index: 700;
+}
+
 /* ---- Subtle animated background ---- */
 @keyframes gradientMove {
   0% {

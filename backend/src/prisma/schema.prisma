@@ -1,0 +1,64 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id       String   @id @default(uuid())
+  email    String   @unique
+  name     String?
+  role     String   @default("USER")
+  password String?
+  bookings Booking[]
+  ownerprofile OwnerProfile?
+}
+
+model Booking {
+  id        String   @id @default(uuid())
+  userId    String
+  slotId    String
+  status    String   @default("PENDING")
+  startTime DateTime
+  endTime   DateTime
+  user      User     @relation(fields: [userId], references: [id])
+}
+
+model BlockchainPayment {
+  id        String   @id @default(uuid())
+  payer     String
+  owner     String
+  amount    String
+  token     String
+  chain     String
+  createdAt DateTime @default(now())
+}
+
+model Payment {
+  id            String   @id @default(uuid())
+  bookingId     String
+  userId        String
+  ownerWallet   String
+  amount        Decimal
+  currency      String   // USDC, USDT
+  txHash        String   @unique
+  chain         String   // polygon, base, arbitrum
+  status        String   // PAID | REFUNDED | PARTIAL_REFUND
+  createdAt     DateTime @default(now())
+
+  refunds       Refund[]
+}
+
+model Refund {
+  id          String   @id @default(uuid())
+  paymentId  String
+  amount     Decimal
+  txHash     String
+  reason     String
+  createdAt  DateTime @default(now())
+
+  payment    Payment  @relation(fields: [paymentId], references: [id])
+}

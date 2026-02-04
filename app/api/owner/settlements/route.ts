@@ -4,16 +4,17 @@ import { getCurrentUser } from "@/lib/auth"
 
 export async function GET() {
   const user = await getCurrentUser()
-  const owner = await prisma.ownerProfile.findUnique({
+  const owner = await prisma.ownerprofile.findUnique({
     where: { userId: user.id },
   })
 
-  const settlements = await prisma.settlement.findMany({
-    where: { ownerId: user.id },
-    include: {
-      invoice: true
-    },
-    orderBy: { createdAt: "desc" },
+  if (!owner) {
+    return NextResponse.json({ error: "Owner profile not found" }, { status: 404 })
+  }
+
+  const settlements = await prisma.ownersettlement.findMany({
+    where: { ownerId: owner.id },
+    orderBy: { settledAt: "desc" },
   })
 
   return NextResponse.json(settlements)

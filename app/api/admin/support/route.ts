@@ -11,7 +11,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Get all tickets with owner info
-    const tickets = await prisma.ownerSupportTicket.findMany({
+    const tickets = await prisma.ownersupportticket.findMany({
       include: {
         owner: {
           include: {
@@ -71,7 +71,7 @@ export async function PUT(request: NextRequest) {
     }
 
     // Update ticket status
-    const ticket = await prisma.ownerSupportTicket.update({
+    const ticket = await prisma.ownersupportticket.update({
       where: { id: ticketId },
       data: { status }
     })

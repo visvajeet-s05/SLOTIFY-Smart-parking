@@ -1,12 +1,16 @@
-import prisma from "@/lib/prisma"
 import { getProvider, getChainForRegion } from "@/lib/blockchain";
 import RefundManager from "@/components/crypto/RefundManager";
 import BookingNFT from "@/components/crypto/BookingNFT";
 
 export default async function BlockchainAdmin() {
-  const txs = await prisma.blockchainPayment.findMany({
-    orderBy: { createdAt: "desc" }
-  })
+  const txs: Array<{
+    id: string
+    payer: string
+    owner: string
+    amount: string
+    token: string
+    createdAt: Date
+  }> = []
 
   return (
     <div className="p-8">

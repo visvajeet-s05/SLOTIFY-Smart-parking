@@ -10,9 +10,11 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const incidents = await prisma.parkingincident.findMany({
+    const incidents = await prisma.ownerincident.findMany({
       include: {
-        user: true,
+        owner: {
+          include: { user: true }
+        }
       },
       orderBy: { createdAt: 'desc' },
     });

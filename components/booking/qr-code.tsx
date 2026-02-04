@@ -34,7 +34,7 @@ export default function QRCode({
             light: bgColor,
           },
         },
-        (error) => {
+        (error: unknown) => {
           if (error) console.error(error)
         },
       )
@@ -43,4 +43,3 @@ export default function QRCode({
 
   return <canvas ref={canvasRef} />
 }
-

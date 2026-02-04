@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
-import { prisma } from '@/lib/prisma';
 import { stripe } from '@/lib/stripe';
+import { prisma } from '@/lib/prisma';
+import crypto from 'crypto';
 
 export async function POST(request: NextRequest) {
   const sig = request.headers.get('stripe-signature');
@@ -35,14 +36,21 @@ export async function POST(request: NextRequest) {
 async function handlePaymentSucceeded(paymentIntent: Stripe.PaymentIntent) {
   const { id, amount, currency, metadata } = paymentIntent;
 
-  await prisma.payment.create({
-    data: {
+  await prisma.payment.upsert({
+    where: { stripeId: id },
+    update: {
+      status: 'PAID',
+      updatedAt: new Date(),
+    },
+    create: {
+      id: crypto.randomUUID(),
       stripeId: id,
       amount,
       currency,
       bookingId: metadata.bookingId,
       status: 'PAID',
       region: metadata.region || 'us',
+      updatedAt: new Date(),
     },
   });
 
@@ -52,14 +60,21 @@ async function handlePaymentSucceeded(paymentIntent: Stripe.PaymentIntent) {
 async function handlePaymentFailed(paymentIntent: Stripe.PaymentIntent) {
   const { id, metadata } = paymentIntent;
 
-  await prisma.payment.create({
-    data: {
+  await prisma.payment.upsert({
+    where: { stripeId: id },
+    update: {
+      status: 'FAILED',
+      updatedAt: new Date(),
+    },
+    create: {
+      id: crypto.randomUUID(),
       stripeId: id,
       amount: paymentIntent.amount,
       currency: paymentIntent.currency,
       bookingId: metadata.bookingId,
       status: 'FAILED',
       region: metadata.region || 'us',
+      updatedAt: new Date(),
     },
   });
 

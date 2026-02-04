@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { stripe } from '@/lib/stripe';
 import { prisma } from '@/lib/prisma';
+import crypto from 'crypto';
 
 export async function POST(request: NextRequest) {
   const { bookingId, amount, currency = 'usd', region } = await request.json();
@@ -15,15 +16,16 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // Create a pending payment record
     await prisma.payment.create({
       data: {
+        id: crypto.randomUUID(),
         stripeId: paymentIntent.id,
-        amount,
+        amount: paymentIntent.amount,
         currency,
         bookingId,
         status: 'PENDING',
         region: region || 'us',
+        updatedAt: new Date(),
       },
     });
 

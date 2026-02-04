@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { PrismaClient } from '@prisma/client'
-import bcrypt from 'bcryptjs'
 import { getServerSession } from 'next-auth'
+import crypto from 'crypto'
 
 const prisma = new PrismaClient()
 
@@ -9,34 +9,36 @@ const prisma = new PrismaClient()
 export async function POST(request: NextRequest) {
   try {
     const session = await getServerSession()
-    if (!session?.user?.ownerId) {
+    if (!session?.user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
     const { name, email, role } = await request.json()
+    const owner = await prisma.ownerprofile.findUnique({
+      where: { userId: session.user.id },
+    })
+
+    if (!owner) {
+      return NextResponse.json({ error: 'Owner profile not found' }, { status: 404 })
+    }
 
     // Check if email already exists
-    const existingStaff = await prisma.staff.findUnique({
-      where: { email }
+    const existingStaff = await prisma.ownerstaff.findFirst({
+      where: { ownerId: owner.id, email }
     })
 
     if (existingStaff) {
       return NextResponse.json({ error: 'Email already in use' }, { status: 400 })
     }
 
-    // Generate temporary password
-    const tempPassword = Math.random().toString(36).slice(-8)
-    const hashedPassword = await bcrypt.hash(tempPassword, 10)
-
     // Create staff member
-    const staff = await prisma.staff.create({
+    const staff = await prisma.ownerstaff.create({
       data: {
-        ownerId: session.user.ownerId,
+        id: crypto.randomUUID(),
+        ownerId: owner.id,
         name,
         email,
-        password: hashedPassword,
-        role: role.toUpperCase(),
-        status: 'ACTIVE'
+        role: role?.toUpperCase() || 'SCANNER',
       }
     })
 
@@ -46,10 +48,8 @@ export async function POST(request: NextRequest) {
         id: staff.id,
         name: staff.name,
         email: staff.email,
-        role: staff.role,
-        status: staff.status
-      },
-      tempPassword // In real app, send via email
+        role: staff.role
+      }
     })
   } catch (error) {
     console.error('Error creating staff:', error)
@@ -61,18 +61,25 @@ export async function POST(request: NextRequest) {
 export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession()
-    if (!session?.user?.ownerId) {
+    if (!session?.user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const staff = await prisma.staff.findMany({
-      where: { ownerId: session.user.ownerId },
+    const owner = await prisma.ownerprofile.findUnique({
+      where: { userId: session.user.id },
+    })
+
+    if (!owner) {
+      return NextResponse.json({ error: 'Owner profile not found' }, { status: 404 })
+    }
+
+    const staff = await prisma.ownerstaff.findMany({
+      where: { ownerId: owner.id },
       select: {
         id: true,
         name: true,
         email: true,
         role: true,
-        status: true,
         createdAt: true
       },
       orderBy: { createdAt: 'desc' }

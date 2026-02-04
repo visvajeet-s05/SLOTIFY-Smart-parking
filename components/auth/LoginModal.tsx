@@ -8,20 +8,42 @@ import { useRouter } from "next/navigation"
 interface LoginModalProps {
   open: boolean
   onClose: () => void
+  email?: string
+  setEmail?: (email: string) => void
+  password?: string
+  setPassword?: (password: string) => void
+  isLoading?: boolean
+  handleLogin?: () => Promise<void>
 }
 
-export default function LoginModal({ open, onClose }: LoginModalProps) {
+export default function LoginModal({ 
+  open, 
+  onClose, 
+  email: propsEmail,
+  setEmail: propsSetEmail,
+  password: propsPassword,
+  setPassword: propsSetPassword,
+  isLoading: propsIsLoading,
+  handleLogin: propsHandleLogin
+}: LoginModalProps) {
   const [showPassword, setShowPassword] = useState(false)
-  const [email, setEmail] = useState("")
-  const [password, setPassword] = useState("")
+  const [localEmail, setLocalEmail] = useState("")
+  const [localPassword, setLocalPassword] = useState("")
   const [rememberMe, setRememberMe] = useState(false)
-  const [isLoading, setIsLoading] = useState(false)
+  const [localIsLoading, setLocalIsLoading] = useState(false)
   const router = useRouter()
+  
+  // Use props if provided, otherwise use local state
+  const email = propsEmail ?? localEmail
+  const setEmail = propsSetEmail ?? setLocalEmail
+  const password = propsPassword ?? localPassword
+  const setPassword = propsSetPassword ?? setLocalPassword
+  const isLoading = propsIsLoading ?? localIsLoading
 
-  const handleLogin = async () => {
+  const defaultHandleLogin = async () => {
     if (!email || !password) return
 
-    setIsLoading(true)
+    setLocalIsLoading(true)
 
     try {
       const response = await fetch("/api/auth/login", {
@@ -48,7 +70,11 @@ export default function LoginModal({ open, onClose }: LoginModalProps) {
         onClose()
 
         // Redirect to appropriate dashboard
-        router.replace(data.redirect)
+        if (data.redirect) {
+          router.replace(data.redirect)
+        } else {
+          router.replace("/dashboard")
+        }
       } else {
         // Show error message (you can add a toast here)
         console.error("Login failed:", data.message)
@@ -56,9 +82,11 @@ export default function LoginModal({ open, onClose }: LoginModalProps) {
     } catch (error) {
       console.error("Login error:", error)
     } finally {
-      setIsLoading(false)
+      setLocalIsLoading(false)
     }
   }
+
+  const handleLogin = propsHandleLogin ?? defaultHandleLogin
 
   if (!open) return null
 

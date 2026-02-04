@@ -311,4 +311,90 @@ const Dashboard = () => {
                         <th className="p-4 text-sm font-medium text-gray-600">Name</th>
                         <th className="p-4 text-sm font-medium text-gray-600">Total Spaces</th>
                         <th className="p-4 text-sm font-medium text-gray-600">Occupied</th>
-                        <th className="p-4 text-sm
+                        <th className="p-4 text-sm font-medium text-gray-600">Available</th>
+                        <th className="p-4 text-sm font-medium text-gray-600">Revenue</th>
+                        <th className="p-4 text-sm font-medium text-gray-600">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {parkingLotData.map((lot, index) => (
+                        <tr key={index} className="border-b border-gray-200">
+                          <td className="p-4">
+                            <div className="flex items-center">
+                              <div className="w-10 h-10 bg-gray-200 rounded-lg mr-3"></div>
+                              <div>
+                                <p className="font-medium text-gray-900">{lot.name}</p>
+                                <p className="text-sm text-gray-500">Lot #{index + 1}</p>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="p-4 text-sm text-gray-700">{lot.spaces}</td>
+                          <td className="p-4 text-sm text-gray-700">{lot.occupied}</td>
+                          <td className="p-4 text-sm text-gray-700">{lot.available}</td>
+                          <td className="p-4 text-sm font-medium text-gray-900">${lot.revenue.toLocaleString()}</td>
+                          <td className="p-4">
+                            <Badge variant={lot.status === 'Active' ? 'default' : 'secondary'}>
+                              {lot.status}
+                            </Badge>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Recent Activity */}
+            <Card>
+              <CardHeader className="pb-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-lg font-semibold text-gray-900">Recent Activity</h3>
+                  <Button variant="ghost" className="text-sm text-gray-600">
+                    View All
+                    <ArrowRight className="h-4 w-4 ml-1" />
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {activityData.map((activity) => (
+                    <div key={activity.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                      <div className="flex items-center space-x-3">
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                          activity.status === 'Success' ? 'bg-green-100 text-green-600' :
+                          activity.status === 'Paid' ? 'bg-blue-100 text-blue-600' :
+                          activity.status === 'Alert' ? 'bg-red-100 text-red-600' :
+                          'bg-gray-100 text-gray-600'
+                        }`}>
+                          {activity.type === 'Booking' && <Calendar className="h-4 w-4" />}
+                          {activity.type === 'Payment' && <FileText className="h-4 w-4" />}
+                          {activity.type === 'Maintenance' && <Shield className="h-4 w-4" />}
+                          {activity.type === 'Parking' && <MessageSquare className="h-4 w-4" />}
+                        </div>
+                        <div>
+                          <p className="font-medium text-gray-900">{activity.message}</p>
+                          <p className="text-sm text-gray-500">{activity.user} • {activity.time}</p>
+                        </div>
+                      </div>
+                      <Badge variant={
+                        activity.status === 'Success' ? 'default' :
+                        activity.status === 'Paid' ? 'secondary' :
+                        activity.status === 'Alert' ? 'destructive' :
+                        'outline'
+                      }>
+                        {activity.status}
+                      </Badge>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </main>
+      </div>
+    </div>
+  )
+}
+
+export default Dashboard

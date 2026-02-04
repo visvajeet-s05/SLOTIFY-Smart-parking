@@ -6,7 +6,7 @@ const prisma = new PrismaClient()
 // PATCH /api/staff/[id] - Update staff status
 export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
   try {
-    const { status } = await request.json()
+    const { status, active } = await request.json()
     const staffId = params.id
 
     // Get owner ID from auth (simplified for now)
@@ -17,7 +17,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
     }
 
     // Verify staff belongs to owner
-    const staff = await prisma.staff.findFirst({
+    const staff = await prisma.ownerstaff.findFirst({
       where: {
         id: staffId,
         ownerId
@@ -29,23 +29,18 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
     }
 
     // Update status
-    const updatedStaff = await prisma.staff.update({
+    const isActive =
+      typeof active === "boolean" ? active : (status || "").toUpperCase() === "ACTIVE"
+
+    const updatedStaff = await prisma.ownerstaff.update({
       where: { id: staffId },
-      data: { status: status.toUpperCase() },
+      data: { active: isActive },
       select: {
         id: true,
         name: true,
         email: true,
         role: true,
-        status: true
-      }
-    })
-
-    // Log activity
-    await prisma.staffActivity.create({
-      data: {
-        staffId,
-        action: `Status changed to ${status.toUpperCase()}`
+        active: true
       }
     })
 

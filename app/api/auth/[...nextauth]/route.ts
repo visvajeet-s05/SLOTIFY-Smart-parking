@@ -2,6 +2,7 @@ import NextAuth from "next-auth"
 import CredentialsProvider from "next-auth/providers/credentials"
 import { PrismaClient } from "@prisma/client"
 import bcrypt from "bcryptjs"
+import { Role } from "@/lib/auth/roles"
 
 const prisma = new PrismaClient()
 
@@ -34,7 +35,7 @@ const handler = NextAuth({
         return {
           id: user.id,
           email: user.email,
-          role: user.role,
+          role: user.role as Role,
           name: user.name,
         }
       },

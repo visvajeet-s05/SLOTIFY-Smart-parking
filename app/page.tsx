@@ -10,7 +10,7 @@ import { useRouter } from "next/navigation"
 import { useUserLocation } from "@/hooks/useUserLocation"
 import UserMap from "@/components/map/UserMap"
 import ScrollDownArrow from "@/components/ui/ScrollDownArrow"
-
+import { useAuth } from "@/components/auth/auth-provider"
 // Dynamically import the map component to avoid SSR issues with Leaflet
 const MapBackground = dynamic(() => import("@/components/map/map-background"), {
   ssr: false,
@@ -251,7 +251,10 @@ export default function LandingPage() {
               Join thousands of users who have simplified their parking experience with Smart Parking.
             </p>
             <Button
-              onClick={() => router.push("/login")}
+              onClick={() => {
+                const { login } = useAuth()
+                login()
+              }}
               size="lg"
               className="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white px-8 py-6 rounded-lg text-lg shadow-[0_0_15px_rgba(168,85,247,0.5)] hover:shadow-[0_0_25px_rgba(168,85,247,0.7)] transition-all duration-300"
             >

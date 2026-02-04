@@ -5,10 +5,29 @@ import { NextResponse } from "next/server"
 export async function GET() {
   const user = await getCurrentUser()
 
-  const occupancy = await prisma.parkingOccupancy.findMany({
+  const owner = await prisma.ownerprofile.findUnique({
+    where: { userId: user.id },
+  })
+
+  if (!owner) {
+    return Response.json({ error: "Owner profile not found" }, { status: 404 })
+  }
+
+  const lots = await prisma.parkinglot.findMany({
     where: {
-      parkingLot: { owner: { userId: user.id } },
+      ownerId: owner.id,
     },
+    include: { parkingslot: true },
+  })
+
+  const occupancy = lots.map((lot) => {
+    const totalSlots = lot.parkingslot.length
+    const activeSlots = lot.parkingslot.filter((slot: { isActive: boolean }) => slot.isActive).length
+    return {
+      parkingLotId: lot.id,
+      totalSlots,
+      activeSlots,
+    }
   })
 
   return Response.json(occupancy)

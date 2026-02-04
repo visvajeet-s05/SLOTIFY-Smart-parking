@@ -76,9 +76,6 @@ export class DemandPredictionModel {
           createdAt: {
             gte: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000) // Last 90 days
           }
-        },
-        include: {
-          parkingSlot: true
         }
       })
 
@@ -94,7 +91,7 @@ export class DemandPredictionModel {
       for (const booking of bookings) {
         const featuresVector = this.extractFeatures(booking)
         features.push(featuresVector)
-        labels.push(booking.totalPrice)
+        labels.push(booking.amount)
       }
 
       // Convert to tensors
@@ -146,8 +143,8 @@ export class DemandPredictionModel {
     const hourOfDay = date.getHours()
     
     return [
-      booking.parkingSlot?.currentPrice || 0,
-      this.calculateDemandFactor(booking.parkingSlot?.id, date),
+      booking.amount || 0,
+      this.calculateDemandFactor(booking.parkingLotId, date),
       dayOfWeek,
       hourOfDay,
       this.isWeekend(dayOfWeek) ? 1 : 0,
@@ -156,7 +153,7 @@ export class DemandPredictionModel {
     ]
   }
 
-  private calculateDemandFactor(slotId: string, date: Date): number {
+  private calculateDemandFactor(slotId: string | null, date: Date): number {
     // Calculate demand based on historical bookings for this time slot
     // This is a simplified calculation - in production you'd use more sophisticated metrics
     return Math.random() * 100 // Placeholder

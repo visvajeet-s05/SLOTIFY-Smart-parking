@@ -6,7 +6,7 @@ export async function GET() {
   const session = await getServerSession(authOptions)
   if (!session) return new Response("Unauthorized", { status: 401 })
 
-  const owner = await prisma.ownerProfile.findUnique({
+  const owner = await prisma.ownerprofile.findUnique({
     where: { userId: session.user.id },
     include: { ownerverification: true, parkingsetupprogress: true },
   })

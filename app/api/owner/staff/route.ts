@@ -1,13 +1,23 @@
 import { prisma } from "../../../../lib/prisma"
 import { getUserFromSession } from "../../../../lib/auth"
+import crypto from "crypto"
 
 export async function POST(req: Request) {
   const user = await getUserFromSession()
-  const { email, role } = await req.json()
+  const { email, role, name } = await req.json()
+  const owner = await prisma.ownerprofile.findUnique({
+    where: { userId: user!.id },
+  })
 
-  const staff = await prisma.staff.create({
+  if (!owner) {
+    return new Response("Owner profile not found", { status: 404 })
+  }
+
+  const staff = await prisma.ownerstaff.create({
     data: {
-      ownerId: user!.id,
+      id: crypto.randomUUID(),
+      ownerId: owner.id,
+      name: name || email?.split("@")[0] || "Staff",
       email,
       role,
     },
@@ -18,8 +28,16 @@ export async function POST(req: Request) {
 
 export async function GET() {
   const user = await getUserFromSession()
-  const staff = await prisma.staff.findMany({
-    where: { ownerId: user!.id },
+  const owner = await prisma.ownerprofile.findUnique({
+    where: { userId: user!.id },
+  })
+
+  if (!owner) {
+    return new Response("Owner profile not found", { status: 404 })
+  }
+
+  const staff = await prisma.ownerstaff.findMany({
+    where: { ownerId: owner.id },
   })
   return Response.json(staff)
 }

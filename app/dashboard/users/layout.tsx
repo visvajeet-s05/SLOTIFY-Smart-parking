@@ -100,7 +100,7 @@ export default function UsersDashboardLayout({
             <Button
               variant="ghost"
               size="icon"
-              onClick={() => signOut({ callbackUrl: "/" })}
+              onClick={() => signOut()}
               className="text-red-400 hover:text-red-300"
             >
               <Settings className="h-5 w-5" />

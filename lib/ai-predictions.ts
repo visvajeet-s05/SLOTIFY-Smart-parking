@@ -104,7 +104,7 @@ export class DemandPredictor {
         createdAt: { gte: thirtyDaysAgo }
       },
       include: {
-        parkinglot: true
+        parkinglot: { include: { parkingslot: true } }
       }
     })
 
@@ -157,7 +157,8 @@ export class DemandPredictor {
         },
         update: { demandScore: pred.score },
         create: {
-          parkingLotId,
+          id: `${parkingLotId}-${pred.hour}-${pred.date.toISOString().split('T')[0]}`,
+          parkingId: parkingLotId,
           hour: pred.hour,
           date: pred.date,
           demandScore: pred.score

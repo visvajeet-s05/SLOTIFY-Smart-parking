@@ -8,7 +8,7 @@ export async function POST(
   try {
     const { id } = params
 
-    await prisma.ownerProfile.update({
+    await prisma.ownerprofile.update({
       where: { userId: id },
       data: {
         status: "APPROVED",

@@ -4,10 +4,16 @@ import { getCurrentUser } from "@/lib/auth"
 export default async function OwnerInvoicesPage() {
   const user = await getCurrentUser()
 
-  const invoices = await prisma.invoice.findMany({
-    where: { ownerId: user.id },
-    orderBy: { createdAt: "desc" },
+  const owner = await prisma.ownerprofile.findUnique({
+    where: { userId: user.id },
   })
+
+  const invoices = owner
+    ? await prisma.ownerinvoice.findMany({
+        where: { ownerId: owner.id },
+        orderBy: { generatedAt: "desc" },
+      })
+    : []
 
   const formatCurrency = (amount: number) => `₹${amount.toLocaleString()}`
 
@@ -19,25 +25,13 @@ export default async function OwnerInvoicesPage() {
     return months[month - 1]
   }
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "PAID":
-        return "text-green-400"
-      case "APPROVED":
-        return "text-blue-400"
-      case "PENDING":
-      default:
-        return "text-yellow-400"
-    }
-  }
-
   // Calculate summary from latest invoice
   const latestInvoice = invoices[0]
   const summary = latestInvoice ? {
     thisMonth: latestInvoice.grossAmount,
     commission: latestInvoice.platformFee,
     tax: latestInvoice.taxAmount,
-    netPayout: latestInvoice.netPayout
+    netPayout: latestInvoice.netAmount
   } : {
     thisMonth: 0,
     commission: 0,
@@ -79,26 +73,24 @@ export default async function OwnerInvoicesPage() {
 
       {/* Invoice Table */}
       <div className="bg-gray-900 border border-gray-800 rounded-lg p-4 text-sm">
-        <div className="grid grid-cols-6 gap-3 font-medium text-gray-400 border-b border-gray-700 pb-2">
+        <div className="grid grid-cols-5 gap-3 font-medium text-gray-400 border-b border-gray-700 pb-2">
           <div>Month</div>
           <div>Gross</div>
           <div>Commission</div>
           <div>Tax</div>
           <div>Net</div>
-          <div>Status</div>
         </div>
 
         {invoices.length === 0 ? (
           <div className="py-8 text-center text-gray-400">No invoices found</div>
         ) : (
           invoices.map((invoice) => (
-            <div key={invoice.id} className="grid grid-cols-6 gap-3 py-3 border-b border-gray-800 last:border-b-0">
+            <div key={invoice.id} className="grid grid-cols-5 gap-3 py-3 border-b border-gray-800 last:border-b-0">
               <div>{getMonthName(invoice.month)} {invoice.year}</div>
               <div>{formatCurrency(invoice.grossAmount)}</div>
               <div>{formatCurrency(invoice.platformFee)}</div>
               <div>{formatCurrency(invoice.taxAmount)}</div>
-              <div>{formatCurrency(invoice.netPayout)}</div>
-              <div className={getStatusColor(invoice.status)}>{invoice.status}</div>
+              <div>{formatCurrency(invoice.netAmount)}</div>
             </div>
           ))
         )}

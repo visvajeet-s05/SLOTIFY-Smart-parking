@@ -7,7 +7,7 @@ export async function GET() {
     return new Response("Unauthorized", { status: 401 })
   }
 
-  const verifications = await prisma.ownerVerification.findMany({
+  const verifications = await prisma.ownerverification.findMany({
     include: {
       owner: {
         include: {

@@ -21,6 +21,7 @@ import { useSession, signOut } from "next-auth/react"
 import LoginModal from "@/components/auth/LoginModal"
 import { useAuth } from "@/components/auth/auth-provider"
 import { isSessionValid } from "@/lib/checkSession"
+import { Role } from "@/lib/auth/roles"
 
 export default function Navbar() {
   const pathname = usePathname()
@@ -40,19 +41,21 @@ export default function Navbar() {
   const userRole = session?.user?.role || (typeof window !== 'undefined' ? localStorage.getItem("role") : "") || ""
   const userInitial = userEmail ? userEmail.charAt(0).toUpperCase() : "U"
 
-  const navLinks: Array<{ name: string; href: string; onClick?: () => void }> = [
+  const navLinks: Array<{ name: string; href: string; onClick?: () => void; component?: string; serverComponent?: any }> = [
     { name: "Home", href: "/", onClick: undefined },
-    {
-      name: "Find Parking",
-      href: isAuthenticated ? "/find" : "#",
-      onClick: isAuthenticated ? undefined : () => setShowLoginModal(true),
-    },
+{
+  name: "Find Parking",
+  href: isAuthenticated ? "/find" : "#",
+  onClick: isAuthenticated ? undefined : () => setShowLoginModal(true),
+  component: isAuthenticated ? "link" : "button",
+  serverComponent: isAuthenticated ? Link : "button",
+},
     { name: "How It Works", href: "/how-it-works", onClick: undefined },
     { name: "Pricing", href: "/pricing", onClick: undefined },
     { name: "About Us", href: "/about", onClick: undefined },
   ]
 
-  const dashboardLinks: Array<{ name: string; href: string; onClick?: () => void }> = [
+  const dashboardLinks: Array<{ name: string; href: string; onClick?: () => void; serverComponent?: any }> = [
     { name: "Home", href: "/dashboard", onClick: undefined },
     { name: "Find Parking", href: "/dashboard/find", onClick: undefined },
     { name: "My Bookings", href: "/dashboard/bookings", onClick: undefined },
@@ -86,29 +89,55 @@ border-b border-white/10 backdrop-blur-md shadow-lg"
 
           {/* Desktop links */}
           <div className="hidden md:flex items-center space-x-4">
-            {activeLinks.map((link) =>
-              link.onClick ? (
-                <button
-                  key={link.name}
-                  onClick={link.onClick}
-                  className="px-3 py-2 text-sm text-gray-300 hover:text-white hover:bg-gray-800 rounded-md"
-                >
-                  {link.name}
-                </button>
-              ) : (
-                <Link
-                  key={link.name}
-                  href={link.href}
-                  className={`px-3 py-2 text-sm rounded-md ${
-                    pathname === link.href
-                      ? "text-purple-400"
-                      : "text-gray-300 hover:text-white hover:bg-gray-800"
-                  }`}
-                >
-                  {link.name}
-                </Link>
-              )
-            )}
+{activeLinks.map((link) =>
+  link.onClick ? (
+    <button
+      key={link.name}
+      onClick={link.onClick}
+      className="px-3 py-2 text-sm text-gray-300 hover:text-white hover:bg-gray-800 rounded-md"
+    >
+      {link.name}
+    </button>
+  ) : (
+    link.serverComponent === "button" ? (
+      <button
+        key={link.name}
+        className={`px-3 py-2 text-sm rounded-md ${
+          pathname === link.href
+            ? "text-purple-400"
+            : "text-gray-300 hover:text-white hover:bg-gray-800"
+        }`}
+      >
+        {link.name}
+      </button>
+    ) : (
+      link.serverComponent === Link ? (
+        <Link
+          key={link.name}
+          href={link.href}
+          className={`px-3 py-2 text-sm rounded-md ${
+            pathname === link.href
+              ? "text-purple-400"
+              : "text-gray-300 hover:text-white hover:bg-gray-800"
+          }`}
+        >
+          {link.name}
+        </Link>
+      ) : (
+        <button
+          key={link.name}
+          className={`px-3 py-2 text-sm rounded-md ${
+            pathname === link.href
+              ? "text-purple-400"
+              : "text-gray-300 hover:text-white hover:bg-gray-800"
+          }`}
+        >
+          {link.name}
+        </button>
+      )
+    )
+  )
+)}
 
             {isDashboard && (
               <div className="relative ml-4">
@@ -140,9 +169,10 @@ border-b border-white/10 backdrop-blur-md shadow-lg"
                       </Avatar>
                       <div className="hidden sm:flex flex-col items-start">
                         <span className="text-sm font-medium text-white">
-                          {userRole === "OWNER" ? "👤 Owner" :
-                           userRole === "ADMIN" ? "🔧 Admin" :
-                           userRole === "CUSTOMER" ? "👥 Customer" : "👤 User"}
+                          {userRole === Role.OWNER ? "👤 Owner" :
+                           userRole === Role.ADMIN ? "🔧 Admin" :
+                           userRole === Role.CUSTOMER ? "👥 Customer" :
+                           userRole === Role.STAFF ? "👷 Staff" : "👤 User"}
                         </span>
                         <span className="text-xs text-gray-400">
                           {userEmail}

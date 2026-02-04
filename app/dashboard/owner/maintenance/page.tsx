@@ -5,7 +5,6 @@ import { useState, useEffect } from "react"
 export default function OwnerMaintenancePage() {
   const [maintenance, setMaintenance] = useState<any[]>([])
   const [title, setTitle] = useState("")
-  const [parkingLotId, setParkingLotId] = useState("")
   const [startTime, setStartTime] = useState("")
   const [endTime, setEndTime] = useState("")
 
@@ -17,10 +16,9 @@ export default function OwnerMaintenancePage() {
   async function submit() {
     await fetch("/api/owner/maintenance", {
       method: "POST",
-      body: JSON.stringify({ title, parkingLotId, startTime, endTime }),
+      body: JSON.stringify({ title, startTime, endTime }),
     })
     setTitle("")
-    setParkingLotId("")
     setStartTime("")
     setEndTime("")
     load()
@@ -32,13 +30,7 @@ export default function OwnerMaintenancePage() {
 
       <div className="admin-card text-left space-y-2">
         <input
-          placeholder="Parking Lot ID"
-          value={parkingLotId}
-          onChange={e => setParkingLotId(e.target.value)}
-          className="w-full bg-gray-800 border border-gray-700 rounded p-2"
-        />
-        <input
-          placeholder="Title"
+          placeholder="Reason"
           value={title}
           onChange={e => setTitle(e.target.value)}
           className="w-full bg-gray-800 border border-gray-700 rounded p-2"
@@ -64,8 +56,7 @@ export default function OwnerMaintenancePage() {
 
       {maintenance.map(m => (
         <div key={m.id} className="admin-card text-left">
-          <div className="font-medium">{m.title}</div>
-          <div>Parking Lot: {m.parkingLotId}</div>
+          <div className="font-medium">{m.reason ?? m.title}</div>
           <div>From: {new Date(m.startTime).toLocaleString()}</div>
           <div>To: {new Date(m.endTime).toLocaleString()}</div>
         </div>

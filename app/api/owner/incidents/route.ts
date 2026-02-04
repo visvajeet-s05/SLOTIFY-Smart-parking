@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import crypto from 'crypto';
 
 export async function GET(request: NextRequest) {
   try {
@@ -10,7 +11,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const ownerProfile = await prisma.ownerProfile.findUnique({
+    const ownerProfile = await prisma.ownerprofile.findUnique({
       where: { userId: session.user.id },
     });
 
@@ -18,8 +19,8 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Owner profile not found' }, { status: 404 });
     }
 
-    const incidents = await prisma.incident.findMany({
-      where: { ownerId: session.user.id },
+    const incidents = await prisma.ownerincident.findMany({
+      where: { ownerId: ownerProfile.id },
       orderBy: { createdAt: 'desc' },
     });
 
@@ -37,7 +38,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const ownerProfile = await prisma.ownerProfile.findUnique({
+    const ownerProfile = await prisma.ownerprofile.findUnique({
       where: { userId: session.user.id },
     });
 
@@ -45,16 +46,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Owner profile not found' }, { status: 404 });
     }
 
-    const { description, parkingId } = await request.json();
+    const { title, description } = await request.json();
 
-    if (!description || !parkingId) {
-      return NextResponse.json({ error: 'Description and parkingId are required' }, { status: 400 });
+    if (!title || !description) {
+      return NextResponse.json({ error: 'Title and description are required' }, { status: 400 });
     }
 
-    const incident = await prisma.incident.create({
+    const incident = await prisma.ownerincident.create({
       data: {
-        ownerId: session.user.id,
-        parkingId,
+        id: crypto.randomUUID(),
+        ownerId: ownerProfile.id,
+        title,
         description,
       },
     });

@@ -1,2 +1,2 @@
-export { default as createPayment } from './create-payment';
-export { default as confirmPayment } from './confirm-payment';
+export { createPayment } from './create-payment';
+export { confirmPayment } from './confirm-payment';

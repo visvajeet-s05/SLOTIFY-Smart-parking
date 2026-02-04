@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
 import { verifyCryptoPayment } from '@/lib/crypto';
+import { prisma } from '@/lib/prisma';
 
 const POLYGON_RPC_URL = process.env.POLYGON_RPC_URL;
 const SLOTIFY_WALLET = process.env.SLOTIFY_WALLET;
@@ -9,19 +9,14 @@ const USDC_ADDRESS = '0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174'; // USDC on Po
 
 export async function confirmPayment(request: NextRequest) {
   const { paymentId, txHash } = await request.json();
+  if (!SLOTIFY_WALLET) {
+    return NextResponse.json({ error: 'SLOTIFY_WALLET is not configured' }, { status: 500 });
+  }
 
   try {
-    // Get payment details
     const payment = await prisma.payment.findUnique({
       where: { id: paymentId },
-      include: {
-        booking: {
-          include: {
-            parkinglot: true,
-          },
-        },
-      },
-    });
+    })
 
     if (!payment) {
       return NextResponse.json({ error: 'Payment not found' }, { status: 404 });
@@ -34,22 +29,22 @@ export async function confirmPayment(request: NextRequest) {
         SLOTIFY_WALLET
       );
 
-      // Update payment status
       await prisma.payment.update({
         where: { id: paymentId },
         data: {
           status: 'CONFIRMED',
           txHash,
           confirmedAt: new Date(),
+          updatedAt: new Date(),
         },
-      });
+      })
 
       // Emit payment confirmed event
-      await emitPaymentConfirmedEvent(payment, txHash);
+      await emitPaymentConfirmedEvent({ id: paymentId }, txHash);
 
       return NextResponse.json({ success: true });
-    } catch (error) {
-      return NextResponse.json({ error: error.message }, { status: 400 });
+    } catch (error: any) {
+      return NextResponse.json({ error: error?.message ?? 'Payment verification failed' }, { status: 400 });
     }
   } catch (error) {
     console.error('Error confirming crypto payment:', error);
@@ -62,9 +57,6 @@ async function emitPaymentConfirmedEvent(payment: any, txHash: string) {
   console.log('Crypto payment confirmed event emitted:', {
     type: 'CRYPTO_PAYMENT_CONFIRMED',
     paymentId: payment.id,
-    bookingId: payment.bookingId,
-    amount: payment.amount,
     txHash,
-    region: payment.region,
   });
 }

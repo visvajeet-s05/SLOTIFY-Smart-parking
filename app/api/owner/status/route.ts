@@ -12,7 +12,7 @@ export async function GET(req: Request) {
   const owner = await prisma.user.findUnique({
     where: { id: ownerId },
     select: {
-      ownerProfile: {
+      ownerprofile: {
         select: {
           status: true,
         },
@@ -20,9 +20,9 @@ export async function GET(req: Request) {
     },
   })
 
-  if (!owner || !owner.ownerProfile) {
+  if (!owner || !owner.ownerprofile) {
     return NextResponse.json({ error: "Owner not found" }, { status: 404 })
   }
 
-  return NextResponse.json({ status: owner.ownerProfile.status })
+  return NextResponse.json({ status: owner.ownerprofile.status })
 }

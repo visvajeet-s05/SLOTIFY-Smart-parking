@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
 import { generatePaymentIntent } from '@/lib/crypto';
+import { prisma } from '@/lib/prisma';
+import crypto from 'crypto';
 
 const POLYGON_RPC_URL = process.env.POLYGON_RPC_URL;
 const SLOTIFY_WALLET = process.env.SLOTIFY_WALLET;
@@ -14,17 +15,18 @@ export async function createPayment(request: NextRequest) {
   try {
     const paymentIntent = await generatePaymentIntent(amount);
 
-    // Create a pending payment record
     await prisma.payment.create({
       data: {
+        id: crypto.randomUUID(),
+        bookingId,
         amount,
         currency,
-        bookingId,
         status: 'PENDING',
         region: region || 'us',
         cryptoToken: 'USDC',
         cryptoChain: 'Polygon',
         cryptoWallet: SLOTIFY_WALLET,
+        updatedAt: new Date(),
       },
     });
 

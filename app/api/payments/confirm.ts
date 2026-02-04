@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { stripe } from '@/lib/stripe';
 import { prisma } from '@/lib/prisma';
+import crypto from 'crypto';
 
 export async function POST(request: NextRequest) {
   const { paymentIntentId } = await request.json();
@@ -9,9 +10,22 @@ export async function POST(request: NextRequest) {
     const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
 
     if (paymentIntent.status === 'succeeded') {
-      await prisma.payment.update({
+      await prisma.payment.upsert({
         where: { stripeId: paymentIntentId },
-        data: { status: 'CONFIRMED' },
+        update: {
+          status: 'CONFIRMED',
+          updatedAt: new Date(),
+        },
+        create: {
+          id: crypto.randomUUID(),
+          stripeId: paymentIntentId,
+          amount: paymentIntent.amount,
+          currency: paymentIntent.currency,
+          bookingId: paymentIntent.metadata?.bookingId,
+          status: 'CONFIRMED',
+          region: paymentIntent.metadata?.region || 'us',
+          updatedAt: new Date(),
+        },
       });
 
       // Emit payment confirmed event

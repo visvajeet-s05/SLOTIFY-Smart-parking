@@ -1,12 +1,13 @@
 import { prisma } from "@/lib/prisma"
 import { NextResponse } from "next/server"
+import crypto from "crypto"
 
 export async function POST() {
   const currentDate = new Date()
   const month = currentDate.getMonth() + 1
   const year = currentDate.getFullYear()
 
-  const owners = await prisma.ownerProfile.findMany({
+  const owners = await prisma.ownerprofile.findMany({
     where: { status: "APPROVED" },
   })
 
@@ -27,15 +28,16 @@ export async function POST() {
     const fee = total * 0.1
     const tax = fee * 0.18
 
-    await prisma.invoice.create({
+    await prisma.ownerinvoice.create({
       data: {
-        ownerId: owner.userId,
+        id: crypto.randomUUID(),
+        ownerId: owner.id,
         month,
         year,
         grossAmount: total,
         platformFee: fee,
         taxAmount: tax,
-        netPayout: total - fee - tax,
+        netAmount: total - fee - tax,
       },
     })
   }

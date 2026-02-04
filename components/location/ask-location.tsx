@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from "react"
 
-export default function AskLocation(): JSX.Element | null {
+export default function AskLocation(): React.ReactElement | null {
   const [showRetry, setShowRetry] = useState(false)
 
   useEffect(() => {

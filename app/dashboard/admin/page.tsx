@@ -5,7 +5,6 @@ import { motion } from "framer-motion"
 import { BookingFilters } from "@/components/admin/bookings/booking-filters"
 import { BookingTable } from "@/components/admin/bookings/booking-table"
 import DashboardShell from "@/components/ui/DashboardShell"
-import OnlineIndicator from "@/components/ui/OnlineIndicator"
 
 export default function AdminGlobalBookingsPage() {
   return (

@@ -1,12 +1,19 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
+import { getServerSession } from "next-auth"
+import { Role } from "@/lib/auth/roles"
 
 export async function GET(req: Request) {
+  const session = await getServerSession()
+  if (!session || session.user.role !== Role.ADMIN) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+  }
+
   try {
-    const owners = await prisma.ownerProfile.findMany({
+    const owners = await prisma.ownerprofile.findMany({
       where: {
         status: {
-          in: ["KYC_PENDING", "REJECTED"],
+          in: ["KYC_PENDING", "KYC_REJECTED"],
         },
       },
       include: {
@@ -17,7 +24,6 @@ export async function GET(req: Request) {
             name: true,
           },
         },
-        verification: true,
       },
       orderBy: {
         createdAt: "desc",

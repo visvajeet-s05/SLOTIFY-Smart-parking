@@ -7,7 +7,9 @@ const SLOTIFY_PRIVATE_KEY = process.env.SLOTIFY_PRIVATE_KEY;
 const USDC_ADDRESS = '0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174'; // USDC on Polygon
 
 export const cryptoProvider = new ethers.JsonRpcProvider(POLYGON_RPC_URL);
-export const slotifyWallet = new ethers.Wallet(SLOTIFY_PRIVATE_KEY, cryptoProvider);
+export const slotifyWallet = SLOTIFY_PRIVATE_KEY
+  ? new ethers.Wallet(SLOTIFY_PRIVATE_KEY, cryptoProvider)
+  : null;
 
 export async function verifyCryptoPayment(txHash: string, expectedAmount: number, expectedWallet: string) {
   const transaction = await cryptoProvider.getTransaction(txHash);
@@ -16,7 +18,8 @@ export async function verifyCryptoPayment(txHash: string, expectedAmount: number
   }
 
   const receipt = await cryptoProvider.getTransactionReceipt(txHash);
-  if (!receipt || receipt.confirmations < 6) {
+  const confirmations = await transaction.confirmations();
+  if (!receipt || confirmations < 6) {
     throw new Error('Transaction not confirmed');
   }
 
@@ -24,15 +27,15 @@ export async function verifyCryptoPayment(txHash: string, expectedAmount: number
     throw new Error('Transaction not sent to expected wallet');
   }
 
-  const amountInWei = ethers.utils.parseUnits(expectedAmount.toString(), 6); // USDC has 6 decimals
-  if (transaction.value.lt(amountInWei)) {
+  const amountInWei = ethers.parseUnits(expectedAmount.toString(), 6); // USDC has 6 decimals
+  if (transaction.value < amountInWei) {
     throw new Error('Amount mismatch');
   }
 
   return {
     transaction,
     receipt,
-    amount: ethers.utils.formatUnits(transaction.value, 6),
+    amount: ethers.formatUnits(transaction.value, 6),
   };
 }
 

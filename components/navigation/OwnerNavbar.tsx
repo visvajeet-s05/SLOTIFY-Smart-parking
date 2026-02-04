@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
 import { useSession, signOut } from "next-auth/react"
+import { Role } from "@/lib/auth/roles"
 
 export default function OwnerNavbar() {
   const pathname = usePathname()
@@ -96,7 +97,7 @@ export default function OwnerNavbar() {
                 </Avatar>
                 <div className="hidden sm:flex flex-col items-start">
                   <span className="text-sm font-medium text-white">
-                    Owner
+                    👤 {Role.OWNER}
                   </span>
                   <span className="text-xs text-gray-400">
                     {session?.user?.email || userEmail}

@@ -2,7 +2,7 @@
 
 import { useAccount, useWriteContract } from "wagmi"
 import { parseUnits } from "viem"
-import ABI from "../abi/SlotifyPayments.json"
+import ABI from "../../abi/SlotifyPayments.json"
 
 export default function CryptoPay({ ownerWallet }: { ownerWallet: string }) {
   const { address } = useAccount()

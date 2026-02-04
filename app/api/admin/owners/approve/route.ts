@@ -4,7 +4,7 @@ import { NextResponse } from "next/server"
 export async function POST(req: Request) {
   const { ownerId } = await req.json()
 
-  await prisma.ownerProfile.update({
+  await prisma.ownerprofile.update({
     where: { userId: ownerId },
     data: { status: "APPROVED" },
   })

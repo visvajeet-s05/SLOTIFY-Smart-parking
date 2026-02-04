@@ -9,21 +9,22 @@ export async function POST(req: Request, { params }: { params: { id: string } })
 
   const { id } = params
 
-  await prisma.ownerVerification.update({
+  await prisma.ownerverification.update({
     where: { id },
     data: {
-      status: "APPROVED",
-      reviewedBy: session.user.id,
       reviewedAt: new Date(),
+      reviewedByAdmin: session.user.id,
+      rejectionReason: null,
     },
   })
 
-  const verification = await prisma.ownerVerification.findUnique({
+  const verification = await prisma.ownerverification.findUnique({
     where: { id },
+    include: { owner: true },
   })
 
   if (verification) {
-    await prisma.ownerProfile.update({
+    await prisma.ownerprofile.update({
       where: { id: verification.ownerId },
       data: { status: "APPROVED" },
     })

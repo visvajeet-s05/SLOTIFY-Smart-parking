@@ -8,7 +8,7 @@ const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET!
 export async function POST(request: NextRequest) {
   try {
     const body = await request.text()
-    const sig = headers().get("stripe-signature")!
+    const sig = (await headers()).get("stripe-signature")!
 
     let event: any
 
@@ -35,14 +35,7 @@ export async function POST(request: NextRequest) {
           data: { status: "ACTIVE" }
         })
 
-        // Log the activity
-        await prisma.activityLog.create({
-          data: {
-            userId: subscription.userId,
-            action: "Subscription activated",
-            metadata: { subscriptionId, invoiceId: invoice.id }
-          }
-        })
+        // TODO: add activity logging once the model is available
       }
     }
 

@@ -31,8 +31,7 @@ export default function ParkingAreaPage({ params }: { params: { id: string } }) 
   const [showSlotDetails, setShowSlotDetails] = useState(false)
   const [isLoaded, setIsLoaded] = useState(false)
 
-  // Unwrap the params Promise to access the id property
-  const parkingAreaId = React.use(params).id
+  const parkingAreaId = params.id
 
   useEffect(() => {
     const timer = setTimeout(() => {

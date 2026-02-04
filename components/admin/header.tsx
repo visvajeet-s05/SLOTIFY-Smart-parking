@@ -3,7 +3,7 @@
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import OnlinePulse from "@/components/ui/OnlinePulse"
+import { OnlinePulse } from "@/components/ui/OnlinePulse"
 
 export default function AdminHeader({ user }: { user: any }) {
   const router = useRouter()
@@ -13,7 +13,6 @@ export default function AdminHeader({ user }: { user: any }) {
         <h2 className="text-lg font-semibold">Welcome back, <span className="text-purple-300">{user?.name || 'Admin'}</span></h2>
         <div className="flex items-center gap-2 text-sm text-green-400">
           <OnlinePulse />
-          Online
         </div>
       </div>
 

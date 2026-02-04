@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma"
 import { predictDemand } from "@/lib/ai/demandPredictor"
+import crypto from "crypto"
 
 export async function POST() {
   const parkings = await prisma.parkinglot.findMany()
@@ -21,8 +22,9 @@ export async function POST() {
         dayOfWeek: new Date().getDay(),
       })
 
-      await prisma.demandPrediction.create({
+      await prisma.demandprediction.create({
         data: {
+          id: crypto.randomUUID(),
           parkingId: parking.id,
           hour,
           date: new Date(),

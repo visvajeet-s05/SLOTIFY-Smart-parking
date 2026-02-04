@@ -96,21 +96,15 @@ export class SurgePricingEngine {
       }
     })
 
-    const totalSlots = await prisma.parkingslot.count({
+    const slots = await prisma.parkingslot.findMany({
       where: {
-        parkingLotId: areaId,
-        isAvailable: true
+        parkingLotId: areaId
       }
     })
 
-    const occupiedSlots = await prisma.parkingslot.count({
-      where: {
-        parkingLotId: areaId,
-        isAvailable: false
-      }
-    })
-
-    const occupancyRate = totalSlots > 0 ? occupiedSlots / (totalSlots + occupiedSlots) : 0
+    const totalSlots = slots.length
+    const activeSlots = slots.filter((slot) => slot.isActive).length
+    const occupancyRate = totalSlots > 0 ? (totalSlots - activeSlots) / totalSlots : 0
     const bookingRate = bookings / (timeWindow / 3600)
 
     const rawMultiplier = this.calculateBaseMultiplier(occupancyRate, bookingRate)
@@ -156,15 +150,14 @@ export class SurgePricingEngine {
 
   private async getDemandScore(areaId: string): Promise<number> {
     try {
-      const slots = await prisma.parkingslot.findMany({
-        where: {
-          parkingLotId: areaId
-        },
-        take: 1
+      const rule = await prisma.pricingrule.findFirst({
+        where: { parkingLotId: areaId },
+        orderBy: { createdAt: "desc" }
       })
 
-      if (slots.length > 0) {
-        const pricePrediction = await demandModel.predictPrice(slots[0].id, slots[0].currentPrice || 0)
+      if (rule) {
+        const currentPrice = rule.currentPrice ?? rule.basePrice ?? 0
+        const pricePrediction = await demandModel.predictPrice(areaId, currentPrice)
         return Math.min(pricePrediction.confidence, 1.0)
       }
 
@@ -176,28 +169,28 @@ export class SurgePricingEngine {
   }
 
   private async updateAreaPrices(areaId: string, multiplier: number): Promise<void> {
-    const slots = await prisma.parkingslot.findMany({
-      where: {
-        parkingLotId: areaId,
-        isAvailable: true
-      }
+    const rule = await prisma.pricingrule.findFirst({
+      where: { parkingLotId: areaId },
+      orderBy: { createdAt: "desc" }
     })
 
-    for (const slot of slots) {
-      const currentPrice = slot.basePrice || slot.currentPrice || 10
-      const newPrice = Math.round(currentPrice * multiplier * 100) / 100
+    if (!rule) {
+      return
+    }
 
-      if (Math.abs(newPrice - (slot.currentPrice || 0)) > 0.5) {
-        await prisma.parkingslot.update({
-          where: { id: slot.id },
-          data: {
-            currentPrice: newPrice,
-            priceUpdatedAt: new Date()
-          }
-        })
+    const currentPrice = rule.currentPrice ?? rule.basePrice ?? 10
+    const newPrice = Math.round(currentPrice * multiplier * 100) / 100
 
-        this.notifyPriceUpdate(slot.id, newPrice, multiplier)
-      }
+    if (Math.abs(newPrice - (rule.currentPrice || 0)) > 0.5) {
+      await prisma.pricingrule.update({
+        where: { id: rule.id },
+        data: {
+          currentPrice: newPrice,
+          lastUpdated: new Date()
+        }
+      })
+
+      this.notifyPriceUpdate(areaId, newPrice, multiplier)
     }
   }
 
@@ -223,8 +216,8 @@ export class SurgePricingEngine {
     })
 
     const totalSlots = slots.length
-    const occupiedSlots = slots.filter((s: any) => !s.isAvailable).length
-    const occupancyRate = totalSlots > 0 ? occupiedSlots / totalSlots : 0
+    const activeSlots = slots.filter((s: any) => s.isActive).length
+    const occupancyRate = totalSlots > 0 ? (totalSlots - activeSlots) / totalSlots : 0
 
     const bookings = await prisma.booking.count({
       where: {
@@ -271,7 +264,7 @@ export class SurgePricingEngine {
 
       area.parkingslot.forEach((slot: any) => {
         totalSlots++
-        if (!slot.isAvailable) {
+        if (!slot.isActive) {
           occupiedSlots++
         }
       })

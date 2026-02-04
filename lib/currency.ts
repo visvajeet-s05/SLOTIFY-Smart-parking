@@ -239,7 +239,6 @@ export function getCurrencySymbol(currency: string): string {
     RSD: 'РСД',
     BAM: 'KM',
     HRK: 'kn',
-    CZK: 'Kč',
     SKK: 'Sk',
     SIT: 'SIT',
     LTL: 'Lt',

@@ -8,7 +8,8 @@ import {
   TrendingUp,
   Car,
   Clock,
-  DollarSign
+  DollarSign,
+  Settings
 } from "lucide-react"
 import { useSession } from "next-auth/react"
 

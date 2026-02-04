@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma"
 import bcrypt from "bcryptjs"
+import crypto from "crypto"
 
 export async function POST(req: Request) {
   try {
@@ -21,10 +22,12 @@ export async function POST(req: Request) {
 
     await prisma.user.create({
       data: {
+        id: crypto.randomUUID(),
         name,
         email,
         password: hashedPassword,
         role: "CUSTOMER",
+        updatedAt: new Date(),
       },
     })
 

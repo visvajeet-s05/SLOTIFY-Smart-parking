@@ -46,7 +46,50 @@ export function initSocket(server: any) {
       await redis.srem(`area:${areaId}:users`, socket.id)
     })
 
-    // Update parking availability
+    // Update parking slot status (unified for both customer and owner)
+    socket.on("update-slot-status", async (data: {
+      slotId: string
+      status: "AVAILABLE" | "OCCUPIED" | "RESERVED" | "DISABLED"
+      source?: "AI" | "OWNER" | "BOOKING" | "SYSTEM"
+      confidence?: number
+    }) => {
+      try {
+        // Update database using unified slotId
+        const updatedSlot = await prisma.parkingSlot.update({
+          where: { id: data.slotId },
+          data: {
+            status: data.status,
+            source: data.source || "OWNER",
+            confidence: data.confidence || 100.0,
+            updatedAt: new Date()
+          },
+          include: {
+            lot: true
+          }
+        })
+
+
+        // Broadcast SLOT_UPDATE event to all clients
+        io.emit("SLOT_UPDATE", {
+          slotId: data.slotId,
+          status: data.status,
+          source: data.source || "OWNER",
+          confidence: data.confidence || 100.0,
+          lotId: updatedSlot.lotId,
+          timestamp: new Date().toISOString()
+        })
+
+        // Clear cache for this parking lot
+        await redis.del(`parking:${updatedSlot.lotId}:slots`)
+
+        console.log(`Updated slot ${data.slotId} to ${data.status} by ${data.source}`)
+      } catch (error) {
+        console.error("Error updating slot status:", error)
+        socket.emit("error", { message: "Failed to update slot status" })
+      }
+    })
+
+    // Legacy support for old availability updates
     socket.on("update-availability", async (data: {
       areaId: string
       slotId: string
@@ -54,25 +97,36 @@ export function initSocket(server: any) {
       price?: number
     }) => {
       try {
-        // Update database
-        await prisma.parkingslot.update({
+        const status = data.isAvailable ? "AVAILABLE" : "OCCUPIED"
+
+        // Update database using unified slotId
+        const updatedSlot = await prisma.parkingSlot.update({
           where: { id: data.slotId },
-          data: { 
-            isActive: data.isAvailable
+          data: {
+            status: status,
+            source: "OWNER",
+            confidence: 100.0,
+            updatedAt: new Date()
+          },
+          include: {
+            lot: true
           }
         })
 
-        // Broadcast to all clients in the area
-        io.to(data.areaId).emit("availability:update", {
+
+        // Broadcast SLOT_UPDATE event
+        io.emit("SLOT_UPDATE", {
           slotId: data.slotId,
-          isAvailable: data.isAvailable,
-          price: data.price,
+          status: status,
+          source: "OWNER",
+          confidence: 100.0,
+          lotId: updatedSlot.lotId,
           timestamp: new Date().toISOString()
         })
 
-        // Clear cache for this area
-        await redis.del(`parking:${data.areaId}:nearby`)
-        
+        // Clear cache for this parking lot
+        await redis.del(`parking:${updatedSlot.lotId}:slots`)
+
         console.log(`Updated availability for slot ${data.slotId} in area ${data.areaId}`)
       } catch (error) {
         console.error("Error updating availability:", error)
@@ -116,14 +170,18 @@ export function initSocket(server: any) {
         // Update booking status
         await prisma.booking.update({
           where: { id: data.bookingId },
-          data: { status: "ACTIVE" }
+          data: { 
+            startTime: data.startTime,
+            endTime: data.endTime
+          }
         })
 
         // Update slot availability
-        await prisma.parkingslot.update({
+        await prisma.parkingSlot.update({
           where: { id: data.slotId },
-          data: { isActive: false }
+          data: { status: "RESERVED" }
         })
+
 
         // Broadcast booking confirmation
         io.emit("booking:confirmed", {
@@ -190,12 +248,13 @@ export async function getActiveUsersInArea(areaId: string): Promise<string[]> {
 // Get area statistics
 export async function getAreaStats(parkingLotId: string) {
   const users = await getActiveUsersInArea(parkingLotId)
-  const totalSlots = await prisma.parkingslot.count({
-    where: { parkingLotId }
+  const totalSlots = await prisma.parkingSlot.count({
+    where: { lotId: parkingLotId }
   })
-  const availableSlots = await prisma.parkingslot.count({
-    where: { parkingLotId, isActive: true }
+  const availableSlots = await prisma.parkingSlot.count({
+    where: { lotId: parkingLotId, status: "AVAILABLE" }
   })
+
 
   return {
     parkingLotId,

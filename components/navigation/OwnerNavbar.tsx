@@ -30,11 +30,11 @@ export default function OwnerNavbar() {
 
   const ownerLinks = [
     { name: "Home", href: "/dashboard/owner" },
-    { name: "Parking Lots", href: "/dashboard/owner/parking-lots" },
     { name: "Bookings", href: "/dashboard/owner/bookings" },
     { name: "Analytics", href: "/dashboard/owner/analytics" },
     { name: "Reports", href: "/dashboard/owner/reports" },
   ]
+
 
   return (
     <motion.nav
@@ -48,7 +48,7 @@ export default function OwnerNavbar() {
         <div className="flex items-center gap-8">
           <Link href="/dashboard/owner" className="flex items-center">
             <Image
-              src="/Slotify_logo.jpg"
+              src="/Logo.png"
               alt="Slotify"
               width={140}
               height={40}

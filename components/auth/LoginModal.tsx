@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
-import { signIn, getSession } from "next-auth/react"
+import { signIn, getSession, useSession } from "next-auth/react"
 import { motion, AnimatePresence } from "framer-motion"
 import { X, Eye, EyeOff, Mail, Lock } from "lucide-react"
 import { useRouter } from "next/navigation"
@@ -16,17 +16,19 @@ interface LoginModalProps {
   setPassword?: (password: string) => void
   isLoading?: boolean
   handleLogin?: () => Promise<void>
+  onShowRegister?: () => void
 }
 
-export default function LoginModal({ 
-  open, 
-  onClose, 
+export default function LoginModal({
+  open,
+  onClose,
   email: propsEmail,
   setEmail: propsSetEmail,
   password: propsPassword,
   setPassword: propsSetPassword,
   isLoading: propsIsLoading,
-  handleLogin: propsHandleLogin
+  handleLogin: propsHandleLogin,
+  onShowRegister
 }: LoginModalProps) {
   const [showPassword, setShowPassword] = useState(false)
   const [capsOn, setCapsOn] = useState(false)
@@ -37,6 +39,7 @@ export default function LoginModal({
   const [error, setError] = useState(false)
   const emailRef = useRef<HTMLInputElement>(null)
   const router = useRouter()
+  const { update } = useSession()
   
   // Use props if provided, otherwise use local state
   const email = propsEmail ?? localEmail
@@ -82,6 +85,9 @@ const defaultHandleLogin = async () => {
         setLocalIsLoading(false)
         return
       }
+
+      // Update session to ensure it's available immediately
+      await update()
 
       // Close modal first
       onClose()
@@ -312,6 +318,19 @@ const defaultHandleLogin = async () => {
                   "Sign In"
                 )}
               </button>
+
+              {/* Register Link */}
+              <div className="mt-6 text-center">
+                <button
+                  onClick={() => {
+                    onClose()
+                    onShowRegister?.()
+                  }}
+                  className="text-sm text-purple-400 hover:underline"
+                >
+                  New user? Register here
+                </button>
+              </div>
 
               {/* Footer */}
               <p className="mt-4 text-center text-xs text-gray-400">

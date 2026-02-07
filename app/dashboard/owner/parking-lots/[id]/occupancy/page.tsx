@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { Car, Activity, AlertTriangle } from "lucide-react"
+import { useParams } from "next/navigation"
 
 type Slot = {
   id: number
@@ -10,34 +11,31 @@ type Slot = {
 }
 
 export default function OwnerRealTimeOccupancyPage() {
+  const params = useParams()
+  const id = params.id as string
   const [slots, setSlots] = useState<Slot[]>([])
 
-  // Simulated real-time updates
+  const fetchSlots = async () => {
+    const res = await fetch(`/api/parking/${id}/slots`)
+    const data = await res.json()
+    setSlots(data)
+  }
+
+  const toggleSlotStatus = async (slotId: number) => {
+    await fetch(`/api/parking/${id}/slots`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ slotId }),
+    })
+
+    fetchSlots()
+  }
+
   useEffect(() => {
-    const initialSlots: Slot[] = Array.from({ length: 24 }).map((_, i) => ({
-      id: i + 1,
-      label: `S-${i + 1}`,
-      status: Math.random() > 0.6 ? "occupied" : "available",
-    }))
-
-    setSlots(initialSlots)
-
-    const interval = setInterval(() => {
-      setSlots(prev =>
-        prev.map(slot =>
-          Math.random() > 0.85
-            ? {
-                ...slot,
-                status:
-                  slot.status === "occupied" ? "available" : "occupied",
-              }
-            : slot
-        )
-      )
-    }, 4000)
-
-    return () => clearInterval(interval)
-  }, [])
+    fetchSlots()
+  }, [id])
 
   const total = slots.length
   const occupied = slots.filter(s => s.status === "occupied").length
@@ -85,7 +83,8 @@ export default function OwnerRealTimeOccupancyPage() {
           {slots.map(slot => (
             <div
               key={slot.id}
-              className={`rounded-md border text-xs text-center py-2 transition
+              onClick={() => toggleSlotStatus(slot.id)}
+              className={`rounded-md border text-xs text-center py-2 transition cursor-pointer hover:scale-105
                 ${
                   slot.status === "occupied"
                     ? "bg-red-500/10 border-red-500 text-red-400"

@@ -30,12 +30,12 @@ export default function CustomerNavbar() {
   const userEmail = session?.user?.email ?? ""
   const userInitial = userEmail ? userEmail.charAt(0).toUpperCase() : "U"
 
-  const dashboardLinks = [
-    { name: "Home", href: "/dashboard" },
-    { name: "Find Parking", href: "/dashboard/find" },
-    { name: "My Bookings", href: "/dashboard/bookings" },
-    { name: "Profile", href: "/dashboard/profile" },
-  ]
+const dashboardLinks = [
+  { name: "Home", href: "/dashboard" },
+  { name: "Find Parking", href: "/dashboard#available-parking" },
+  { name: "My Bookings", href: "/dashboard/bookings" },
+  { name: "Profile", href: "/dashboard/profile" },
+]
 
   return (
     <motion.nav

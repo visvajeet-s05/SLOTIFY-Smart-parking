@@ -89,51 +89,51 @@ border-b border-white/10 backdrop-blur-md shadow-lg"
 
           {/* Desktop links */}
           <div className="hidden md:flex items-center space-x-4">
-{activeLinks.map((link) => {
-  // For Find Parking, handle authentication check
-  if (link.name === "Find Parking") {
-    if (isAuthenticated) {
-      return (
-        <Link
-          key={link.name}
-          href={link.href}
-          className={`px-3 py-2 text-sm rounded-md ${
-            pathname === link.href
-              ? "text-purple-400"
-              : "text-gray-300 hover:text-white hover:bg-gray-800"
-          }`}
-        >
-          {link.name}
-        </Link>
-      )
-    } else {
-      return (
-        <button
-          key={link.name}
-          onClick={() => setShowLoginModal(true)}
-          className="px-3 py-2 text-sm text-gray-300 hover:text-white hover:bg-gray-800 rounded-md"
-        >
-          {link.name}
-        </button>
-      )
-    }
-  }
+            {activeLinks.map((link) => {
+              // For Find Parking, handle authentication check
+              if (link.name === "Find Parking") {
+                if (isAuthenticated) {
+                  return (
+                    <Link
+                      key={link.name}
+                      href={link.href}
+                      className={`px-3 py-2 text-sm rounded-md ${
+                        pathname === link.href
+                          ? "text-purple-400"
+                          : "text-gray-300 hover:text-white hover:bg-gray-800"
+                      }`}
+                    >
+                      {link.name}
+                    </Link>
+                  )
+                } else {
+                  return (
+                    <button
+                      key={link.name}
+                      onClick={() => setShowLoginModal(true)}
+                      className="px-3 py-2 text-sm text-gray-300 hover:text-white hover:bg-gray-800 rounded-md"
+                    >
+                      {link.name}
+                    </button>
+                  )
+                }
+              }
 
-  // For all other links, use Link component
-  return (
-    <Link
-      key={link.name}
-      href={link.href}
-      className={`px-3 py-2 text-sm rounded-md ${
-        pathname === link.href
-          ? "text-purple-400"
-          : "text-gray-300 hover:text-white hover:bg-gray-800"
-      }`}
-    >
-      {link.name}
-    </Link>
-  )
-})}
+              // For all other links, use Link component
+              return (
+                <Link
+                  key={link.name}
+                  href={link.href}
+                  className={`px-3 py-2 text-sm rounded-md ${
+                    pathname === link.href
+                      ? "text-purple-400"
+                      : "text-gray-300 hover:text-white hover:bg-gray-800"
+                  }`}
+                >
+                  {link.name}
+                </Link>
+              )
+            })}
 
             {isDashboard && (
               <div className="relative ml-4">

@@ -4,10 +4,10 @@ import { PrismaClient } from '@prisma/client'
 const prisma = new PrismaClient()
 
 // PATCH /api/staff/[id] - Update staff status
-export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
+export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { status, active } = await request.json()
-    const staffId = params.id
+    const { id: staffId } = await params
 
     // Get owner ID from auth (simplified for now)
     const ownerId = request.headers.get('owner-id')

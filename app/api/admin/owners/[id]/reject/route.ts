@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 
-export async function POST(req: Request, { params }: { params: { id: string } }) {
-  const { id } = params
+export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params
+
   const { reason } = await req.json()
 
   await prisma.ownerprofile.update({

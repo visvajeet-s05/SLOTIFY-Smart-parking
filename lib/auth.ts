@@ -47,9 +47,12 @@ export const authOptions: NextAuthOptions = {
         return {
           id: user.id,
           email: user.email,
+          name: user.name,
           role: user.role,
           ownerStatus,
+          stripeCustomerId: user.stripeCustomerId,
         }
+
       }
     })
   ],
@@ -60,17 +63,23 @@ export const authOptions: NextAuthOptions = {
     async jwt({ token, user }) {
       if (user) {
         token.id = user.id
+        token.name = user.name
         token.role = user.role
+        token.stripeCustomerId = user.stripeCustomerId
       }
       return token
     },
+
     async session({ session, token }) {
       if (token) {
         session.user.id = token.id as string
+        session.user.name = token.name as string
         session.user.role = token.role as string
+        session.user.stripeCustomerId = token.stripeCustomerId as string | null
       }
       return session
     }
+
   },
   pages: {
     signIn: "/login"
@@ -97,4 +106,8 @@ export async function getCurrentUser() {
 
 export async function getUserFromSession() {
   return await getCurrentUser()
+}
+
+export async function auth() {
+  return await getServerSession(authOptions)
 }

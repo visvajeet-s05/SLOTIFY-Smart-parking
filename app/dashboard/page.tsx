@@ -1,9 +1,9 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { motion } from "framer-motion"
 import dynamic from "next/dynamic"
-import { Search, Filter, MapPin, Clock, Car, Star, TrendingUp } from "lucide-react"
+import { Search, Filter, MapPin, Clock, Car, Star, TrendingUp, RefreshCw } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Slider } from "@/components/ui/slider"
@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge"
 import ParkingAreaCard from "@/components/parking/parking-area-card"
 import DashboardShell from "@/components/ui/DashboardShell"
 import MapSkeleton from "@/components/map/MapSkeleton"
+import CustomerNavbar from "@/components/navigation/CustomerNavbar"
 
 // Dynamically import the map to prevent SSR issues
 const ParkingMap = dynamic(() => import("@/components/map/parking-map"), {
@@ -19,27 +20,194 @@ const ParkingMap = dynamic(() => import("@/components/map/parking-map"), {
   loading: () => <MapSkeleton />,
 })
 
-// 🚗 Parking Data (Tamil Nadu, 12 locations)
-const parkingAreas = [
-  { id: "1", name: "Chennai Central Parking Complex", address: "Near Chennai Central Railway Station, Chennai", totalSpots: 120, availableSpots: 45, price: 30, rating: 4.5, distance: 0.8, coordinates: [13.0827, 80.2707], status: "available" as const },
-  { id: "2", name: "Coimbatore Gandhipuram Parking", address: "100 Feet Road, Gandhipuram, Coimbatore", totalSpots: 200, availableSpots: 12, price: 40, rating: 4.2, distance: 1.2, coordinates: [11.0168, 76.9558], status: "limited" as const },
-  { id: "3", name: "Madurai Meenakshi Temple Parking", address: "Near Meenakshi Amman Temple, Madurai", totalSpots: 80, availableSpots: 0, price: 25, rating: 3.8, distance: 1.5, coordinates: [9.9252, 78.1198], status: "full" as const },
-  { id: "4", name: "Marina Beach Parking", address: "Marina Beach Road, Chennai", totalSpots: 300, availableSpots: 150, price: 20, rating: 4.7, distance: 2.1, coordinates: [13.05, 80.2824], status: "available" as const },
-  { id: "5", name: "Anna Nagar Tower Park Parking", address: "Anna Nagar, Chennai", totalSpots: 100, availableSpots: 60, price: 35, rating: 4.3, distance: 3.0, coordinates: [13.0878, 80.2131], status: "available" as const },
-  { id: "6", name: "T Nagar Pondy Bazaar Parking", address: "T Nagar, Chennai", totalSpots: 150, availableSpots: 20, price: 50, rating: 4.1, distance: 2.5, coordinates: [13.0413, 80.2337], status: "limited" as const },
-  { id: "7", name: "Erode Central Parking", address: "Near Erode Central, Erode", totalSpots: 90, availableSpots: 30, price: 25, rating: 4.0, distance: 1.0, coordinates: [11.3410, 77.7172], status: "available" as const },
-  { id: "8", name: "Vellore Katpadi Parking", address: "Near Vellore Katpadi Railway Station", totalSpots: 70, availableSpots: 15, price: 20, rating: 3.9, distance: 1.3, coordinates: [12.9941, 79.1553], status: "limited" as const },
-  { id: "9", name: "Trichy Rockfort Parking", address: "Near Rockfort Temple, Trichy", totalSpots: 120, availableSpots: 50, price: 30, rating: 4.2, distance: 1.6, coordinates: [10.7905, 78.7047], status: "available" as const },
-  { id: "10", name: "Ooty Botanical Garden Parking", address: "Near Botanical Garden, Ooty", totalSpots: 80, availableSpots: 40, price: 35, rating: 4.5, distance: 2.8, coordinates: [11.4064, 76.6950], status: "available" as const },
-  { id: "11", name: "Salem Town Parking", address: "Near Salem Railway Station, Salem", totalSpots: 90, availableSpots: 30, price: 25, rating: 4.1, distance: 1.4, coordinates: [11.6643, 78.1460], status: "available" as const },
-  { id: "12", name: "Kanyakumari Beach Parking", address: "Near Kanyakumari Beach, Kanyakumari", totalSpots: 50, availableSpots: 20, price: 20, rating: 4.0, distance: 3.5, coordinates: [8.0883, 77.5385], status: "available" as const },
-]
+// WebSocket connection for real-time updates
+const WS_URL = process.env.NEXT_PUBLIC_WS_URL || "ws://localhost:4000"
+
+// Parking area type from database
+interface ParkingArea {
+  id: string
+  name: string
+  address: string
+  lat: number
+  lng: number
+  totalSlots: number
+  availableSlots: number
+  occupiedSlots: number
+  reservedSlots: number
+  price: number
+  status: "available" | "limited" | "full"
+  ownerName: string
+  ownerEmail: string
+  cameraUrl: string | null
+  features: string[]
+  distance: number
+  rating: number
+  openingHours: string
+  coordinates: [number, number]
+}
 
 export default function Dashboard() {
   const [searchQuery, setSearchQuery] = useState("")
-  const [priceRange, setPriceRange] = useState([0, 50])
+  const [priceRange, setPriceRange] = useState([0, 150])
   const [selectedParkingArea, setSelectedParkingArea] = useState<string | null>(null)
   const [sortBy, setSortBy] = useState<"distance" | "price" | "rating">("distance")
+  
+  // Database connection states
+  const [parkingAreas, setParkingAreas] = useState<ParkingArea[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [wsConnected, setWsConnected] = useState(false)
+  const [lastUpdate, setLastUpdate] = useState<Date | null>(null)
+
+  // Fetch parking areas from database
+  const fetchParkingAreas = useCallback(async () => {
+    try {
+      setIsLoading(true)
+      setError(null)
+      
+      const response = await fetch("/api/parking")
+      const data = await response.json()
+      
+      if (!data.success) {
+        throw new Error(data.error || "Failed to fetch parking areas")
+      }
+      
+      setParkingAreas(data.parkingAreas || [])
+      setLastUpdate(new Date())
+    } catch (err) {
+      console.error("Error fetching parking areas:", err)
+      setError(err instanceof Error ? err.message : "Failed to load parking areas")
+    } finally {
+      setIsLoading(false)
+    }
+  }, [])
+
+  // Initial fetch
+  useEffect(() => {
+    fetchParkingAreas()
+  }, [fetchParkingAreas])
+
+  // WebSocket connection for real-time updates
+  useEffect(() => {
+    let ws: WebSocket | null = null
+    let reconnectTimeout: NodeJS.Timeout | null = null
+    let reconnectAttempts = 0
+    const MAX_RECONNECT_ATTEMPTS = 5
+    const BASE_RECONNECT_DELAY = 3000
+
+    const connectWebSocket = () => {
+      // Prevent duplicate connections
+      if (ws?.readyState === WebSocket.OPEN || ws?.readyState === WebSocket.CONNECTING) {
+        return
+      }
+
+      // Stop trying after max attempts
+      if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
+        console.log("⚠️ Max WebSocket reconnection attempts reached. Stopping reconnection.")
+        return
+      }
+
+      try {
+        ws = new WebSocket(WS_URL)
+
+        ws.onopen = () => {
+          console.log("✅ Customer Dashboard WebSocket connected")
+          setWsConnected(true)
+          reconnectAttempts = 0 // Reset counter on successful connection
+          
+          // Subscribe to all parking lot updates
+          ws?.send(JSON.stringify({
+            type: "SUBSCRIBE",
+            role: "CUSTOMER"
+          }))
+        }
+
+        ws.onmessage = (event) => {
+          try {
+            const data = JSON.parse(event.data)
+            
+            // Handle slot updates
+            if (data.type === "SLOT_UPDATE" && data.lotId) {
+              setParkingAreas(prev => prev.map(area => {
+                if (area.id === data.lotId) {
+                  // Update slot counts based on the status change
+                  const newArea = { ...area }
+                  
+                  if (data.status === "AVAILABLE") {
+                    newArea.availableSlots = Math.min(area.availableSlots + 1, area.totalSlots)
+                    newArea.occupiedSlots = Math.max(area.occupiedSlots - 1, 0)
+                  } else if (data.status === "OCCUPIED") {
+                    newArea.availableSlots = Math.max(area.availableSlots - 1, 0)
+                    newArea.occupiedSlots = Math.min(area.occupiedSlots + 1, area.totalSlots)
+                  } else if (data.status === "RESERVED") {
+                    newArea.availableSlots = Math.max(area.availableSlots - 1, 0)
+                    newArea.reservedSlots = Math.min(area.reservedSlots + 1, area.totalSlots)
+                  }
+                  
+                  // Recalculate status
+                  const availabilityRatio = newArea.totalSlots > 0 ? newArea.availableSlots / newArea.totalSlots : 0
+                  newArea.status = availabilityRatio > 0.5 ? "available" : 
+                                   availabilityRatio > 0.2 ? "limited" : "full"
+                  
+                  return newArea
+                }
+                return area
+              }))
+              
+              setLastUpdate(new Date())
+            }
+            
+            // Handle bulk updates
+            if (data.type === "BULK_UPDATE" && data.lotId) {
+              // Refresh all data for accuracy
+              fetchParkingAreas()
+            }
+          } catch (err) {
+            console.error("Error processing WebSocket message:", err)
+          }
+        }
+
+        ws.onclose = (event) => {
+          console.log(`❌ Customer Dashboard WebSocket disconnected (code: ${event.code}, reason: ${event.reason || 'No reason provided'})`)
+          setWsConnected(false)
+          
+          // Attempt to reconnect with exponential backoff
+          reconnectAttempts++
+          const delay = Math.min(BASE_RECONNECT_DELAY * Math.pow(2, reconnectAttempts - 1), 30000)
+          console.log(`🔄 Reconnecting in ${delay}ms (attempt ${reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS})`)
+          
+          reconnectTimeout = setTimeout(connectWebSocket, delay)
+        }
+
+        ws.onerror = (error) => {
+          // Log error details without causing console error spam
+          const errorInfo = {
+            type: error?.type || 'unknown',
+            timestamp: new Date().toISOString(),
+            readyState: ws?.readyState,
+            url: WS_URL
+          }
+          console.warn("WebSocket connection issue:", errorInfo)
+          setWsConnected(false)
+          // Don't close here - let onclose handle reconnection
+        }
+      } catch (err) {
+        console.error("Failed to create WebSocket connection:", err instanceof Error ? err.message : String(err))
+        setWsConnected(false)
+      }
+    }
+
+    connectWebSocket()
+
+    // Cleanup
+    return () => {
+      if (reconnectTimeout) clearTimeout(reconnectTimeout)
+      if (ws) {
+        ws.onclose = null // Prevent reconnection attempts during cleanup
+        ws.close()
+      }
+    }
+  }, [fetchParkingAreas])
 
   // Filter logic
   let filteredAreas = parkingAreas.filter(
@@ -64,28 +232,56 @@ export default function Dashboard() {
   const stats = {
     total: parkingAreas.length,
     available: parkingAreas.filter(a => a.status === "available").length,
-    totalSpots: parkingAreas.reduce((sum, a) => sum + a.availableSpots, 0),
-    avgRating: (parkingAreas.reduce((sum, a) => sum + a.rating, 0) / parkingAreas.length).toFixed(1),
+    totalSpots: parkingAreas.reduce((sum, a) => sum + a.totalSlots, 0),
+    avgRating: parkingAreas.length > 0 
+      ? (parkingAreas.reduce((sum, a) => sum + a.rating, 0) / parkingAreas.length).toFixed(1)
+      : "0.0",
   }
 
   return (
     <DashboardShell>
-      {/* Header */}
-      <motion.div
-        initial={{ y: -20, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        transition={{ duration: 0.5 }}
-        className="bg-gray-900/50 backdrop-blur-md border-b border-gray-800 sticky top-0 z-20 py-4"
-      >
-        <div className="px-4 max-w-7xl mx-auto">
+      <CustomerNavbar />
+
+      {/* Page Header – STATIC */}
+      <div className="bg-gradient-to-b from-gray-900 to-gray-900/70 border-b border-gray-800">
+        <div className="px-4 max-w-7xl mx-auto py-8">
           <h1 className="text-3xl font-bold text-white mb-2">
             Find Your Parking
           </h1>
-          <p className="text-gray-300">Search and book the perfect parking spot in Tamil Nadu</p>
+          <p className="text-gray-300">
+            Search and book the perfect parking spot in Tamil Nadu
+          </p>
         </div>
-      </motion.div>
+      </div>
 
-      <div className="px-4 max-w-7xl mx-auto py-6 space-y-6 pt-20">
+      <div className="px-4 max-w-7xl mx-auto py-8 space-y-8">
+        {/* Connection Status Bar */}
+        <div className="flex items-center justify-between bg-gray-800/50 border border-gray-700 rounded-lg p-3">
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              <div className={`w-2 h-2 rounded-full ${wsConnected ? "bg-green-500 animate-pulse" : "bg-red-500"}`} />
+              <span className="text-sm text-gray-400">
+                {wsConnected ? "Live Updates" : "Offline Mode"}
+              </span>
+            </div>
+            {lastUpdate && (
+              <span className="text-xs text-gray-500">
+                Last updated: {lastUpdate.toLocaleTimeString()}
+              </span>
+            )}
+          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={fetchParkingAreas}
+            disabled={isLoading}
+            className="text-gray-400 hover:text-white"
+          >
+            <RefreshCw className={`h-4 w-4 mr-1 ${isLoading ? "animate-spin" : ""}`} />
+            Refresh
+          </Button>
+        </div>
+
         {/* Quick Stats */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -165,9 +361,9 @@ export default function Dashboard() {
                 <div className="space-y-4">
                   <h4 className="font-semibold text-white">Price Range (₹/hr)</h4>
                   <Slider
-                    defaultValue={[0, 50]}
-                    max={50}
-                    step={1}
+                    defaultValue={[0, 150]}
+                    max={150}
+                    step={5}
                     value={priceRange}
                     onValueChange={setPriceRange}
                     className="py-2"
@@ -211,48 +407,78 @@ export default function Dashboard() {
           />
         </motion.div>
 
-        {/* Parking Areas Grid */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.4 }}
-        >
-          <h2 className="text-2xl font-bold text-white mb-6">
-            {filteredAreas.length === 0 ? "No Parking Areas Found" : `Available Parking Areas (${filteredAreas.length})`}
-          </h2>
+        {/* Loading State */}
+        {isLoading && (
+          <div className="text-center py-12">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-500 mx-auto mb-4"></div>
+            <p className="text-gray-400">Loading parking areas from database...</p>
+          </div>
+        )}
 
-          {filteredAreas.length === 0 ? (
-            <div className="text-center py-12">
-              <p className="text-gray-400 mb-4">No parking areas match your criteria</p>
-              <Button
-                onClick={() => {
-                  setSearchQuery("")
-                  setPriceRange([0, 50])
-                }}
-                className="bg-purple-600 hover:bg-purple-700"
-              >
-                Reset Filters
-              </Button>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {filteredAreas.map((area, index) => (
-                <motion.div
-                  key={area.id}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.3, delay: index * 0.05 }}
+        {/* Error State */}
+        {error && !isLoading && (
+          <div className="text-center py-12 bg-red-900/20 border border-red-800 rounded-xl">
+            <p className="text-red-400 mb-4">⚠️ {error}</p>
+            <Button
+              onClick={fetchParkingAreas}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              Try Again
+            </Button>
+          </div>
+        )}
+
+        {/* Parking Areas Grid */}
+        {!isLoading && !error && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.4 }}
+          >
+            <h2
+              id="available-parking"
+              className="text-2xl font-bold text-white mb-6 scroll-mt-24"
+            >
+              {filteredAreas.length === 0 ? "No Parking Areas Found" : `Available Parking Areas (${filteredAreas.length})`}
+            </h2>
+
+            {filteredAreas.length === 0 ? (
+              <div className="text-center py-12">
+                <p className="text-gray-400 mb-4">No parking areas match your criteria</p>
+                <Button
+                  onClick={() => {
+                    setSearchQuery("")
+                    setPriceRange([0, 150])
+                  }}
+                  className="bg-purple-600 hover:bg-purple-700"
                 >
-                  <ParkingAreaCard
-                    parkingArea={area}
-                    isSelected={selectedParkingArea === area.id}
-                    onSelect={() => setSelectedParkingArea(area.id)}
-                  />
-                </motion.div>
-              ))}
-            </div>
-          )}
-        </motion.div>
+                  Reset Filters
+                </Button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                {filteredAreas.map((area, index) => (
+                  <motion.div
+                    key={area.id}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.3, delay: index * 0.05 }}
+                  >
+                    <ParkingAreaCard
+                      parkingArea={{
+                        ...area,
+                        availableSpots: area.availableSlots,
+                        totalSpots: area.totalSlots,
+                      }}
+                      isSelected={selectedParkingArea === area.id}
+                      onSelect={() => setSelectedParkingArea(area.id)}
+                    />
+                  </motion.div>
+                ))}
+              </div>
+            )}
+          </motion.div>
+        )}
       </div>
     </DashboardShell>
   )

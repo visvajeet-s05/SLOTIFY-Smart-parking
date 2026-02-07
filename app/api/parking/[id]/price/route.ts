@@ -5,11 +5,12 @@ import { authOptions } from '@/lib/auth'
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions)
-    const parkingLotId = params.id
+    const { id: parkingLotId } = await params
+
 
     if (!parkingLotId) {
       return NextResponse.json(

@@ -10,7 +10,7 @@ export default function AdminBookingDetailPage({
   return (
     <div className="max-w-4xl mx-auto bg-gray-900 border border-gray-800 rounded-lg p-6 space-y-4">
       <h2 className="text-lg font-semibold">
-        Booking: {params.bookingId}
+        Booking: {bookingId}
       </h2>
 
       <div className="text-sm text-gray-400 space-y-1">

@@ -1,79 +1,34 @@
-import Redis from "ioredis"
+import Redis from "ioredis";
 
-export const redis = new Redis(process.env.REDIS_URL!, {
-  maxRetriesPerRequest: null,
-  enableReadyCheck: true,
-  lazyConnect: true,
-})
+const REDIS_URL = process.env.REDIS_URL || "redis://localhost:6379";
 
-// Cache nearby parking (25km)
-export async function getCachedParking(key: string) {
-  const cached = await redis.get(key)
-  return cached ? JSON.parse(cached) : null
-}
+export const redis = new Redis(REDIS_URL, {
+  retryStrategy: (times) => {
+    const delay = Math.min(times * 50, 2000);
+    return delay;
+  },
+  maxRetriesPerRequest: 3,
+});
 
-export async function setCachedParking(key: string, data: any) {
-  await redis.set(key, JSON.stringify(data), "EX", 60) // 1 min
-}
+redis.on("connect", () => {
+  console.log("🟢 Redis connected");
+});
 
-// Cache owner dashboard metrics
-export async function getCachedOwnerMetrics(key: string) {
-  const cached = await redis.get(key)
-  return cached ? JSON.parse(cached) : null
-}
+redis.on("error", (err) => {
+  console.error("❌ Redis error:", err);
+});
 
-export async function setCachedOwnerMetrics(key: string, data: any) {
-  await redis.set(key, JSON.stringify(data), "EX", 300) // 5 minutes
-}
+// Cache keys
+export const CACHE_KEYS = {
+  slotStatus: (lotSlug: string, slotNumber: number) => `slot:${lotSlug}:${slotNumber}`,
+  lotSlots: (lotSlug: string) => `lot:${lotSlug}:slots`,
+  slotBatch: "slot:batch:updates",
+};
 
-// Cache admin analytics
-export async function getCachedAdminAnalytics(key: string) {
-  const cached = await redis.get(key)
-  return cached ? JSON.parse(cached) : null
-}
+// Cache TTL in seconds
+export const CACHE_TTL = {
+  slotStatus: 10, // 10 seconds for individual slot
+  lotSlots: 5,    // 5 seconds for lot data
+};
 
-export async function setCachedAdminAnalytics(key: string, data: any) {
-  await redis.set(key, JSON.stringify(data), "EX", 600) // 10 minutes
-}
-
-// Session management
-export async function setSession(userId: string, sessionData: any) {
-  await redis.set(`session:${userId}`, JSON.stringify(sessionData), "EX", 86400) // 24 hours
-}
-
-export async function getSession(userId: string) {
-  const session = await redis.get(`session:${userId}`)
-  return session ? JSON.parse(session) : null
-}
-
-export async function deleteSession(userId: string) {
-  await redis.del(`session:${userId}`)
-}
-
-// Rate limiting
-export async function incrementRateLimit(key: string, windowMs: number = 60000) {
-  const now = Date.now()
-  const pipeline = redis.pipeline()
-  
-  pipeline.zremrangebyscore(key, 0, now - windowMs)
-  pipeline.zadd(key, now, `${now}-${Math.random()}`)
-  pipeline.zcard(key)
-  pipeline.expire(key, Math.ceil(windowMs / 1000))
-  
-  const results = await pipeline.exec()
-  return results?.[2]?.[1] as number
-}
-
-// WebSocket presence tracking
-export async function joinArea(userId: string, areaId: string) {
-  await redis.sadd(`area:${areaId}:users`, userId)
-  await redis.expire(`area:${areaId}:users`, 300) // 5 minutes
-}
-
-export async function leaveArea(userId: string, areaId: string) {
-  await redis.srem(`area:${areaId}:users`, userId)
-}
-
-export async function getAreaUsers(areaId: string) {
-  return await redis.smembers(`area:${areaId}:users`)
-}
+export default redis;

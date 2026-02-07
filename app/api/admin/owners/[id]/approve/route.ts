@@ -3,10 +3,11 @@ import { prisma } from "@/lib/prisma"
 
 export async function POST(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = params
+    const { id } = await params
+
 
     await prisma.ownerprofile.update({
       where: { userId: id },

@@ -162,7 +162,7 @@ export default function BookingPage({ params }: { params: { id: string } }) {
           Please select a parking slot first
         </p>
         <Button
-          onClick={() => router.push(`/dashboard/parking/${params.id}`)}
+          onClick={() => router.push(`/dashboard/parking/${parkingAreaId}`)}
           className="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700"
         >
           Go Back to Parking Slots

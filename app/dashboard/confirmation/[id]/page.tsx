@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, use } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { motion } from "framer-motion"
 import { ArrowLeft, Calendar, Check, Download, Home, MapPin, Share2 } from "lucide-react"
@@ -10,10 +10,11 @@ import { Badge } from "@/components/ui/badge"
 import QRCode from "@/components/booking/qr-code"
 import ConfettiEffect from "@/components/ui/confetti"
 
-export default function ConfirmationPage({ params }: { params: { id: string } }) {
+export default function ConfirmationPage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const slotId = searchParams.get("slot")
+  const { id } = use(params)
 
   const [isLoaded, setIsLoaded] = useState(false)
   const [showConfetti, setShowConfetti] = useState(true)
@@ -45,13 +46,13 @@ export default function ConfirmationPage({ params }: { params: { id: string } })
         licensePlate: parsedData.licensePlate || "",
         vehicleModel: parsedData.vehicleModel || "",
         paymentMethod: parsedData.paymentMethod || "card",
-        qrData: `PARKING-${params.id}-${slotId}-${Date.now()}`,
+        qrData: `PARKING-${id}-${slotId}-${Date.now()}`,
       })
     } else {
       // Fallback data if no session data
       setBookingData({
         bookingId: "BK" + Math.floor(Math.random() * 10000000),
-        parkingAreaId: params.id,
+        parkingAreaId: id,
         parkingAreaName: "Downtown Parking Complex",
         address: "123 Main St, Downtown",
         slotId: slotId || "A12",
@@ -62,7 +63,7 @@ export default function ConfirmationPage({ params }: { params: { id: string } })
         licensePlate: "",
         vehicleModel: "",
         paymentMethod: "card",
-        qrData: `PARKING-${params.id}-${slotId}-${Date.now()}`,
+        qrData: `PARKING-${id}-${slotId}-${Date.now()}`,
       })
     }
 
@@ -70,7 +71,7 @@ export default function ConfirmationPage({ params }: { params: { id: string } })
       clearTimeout(timer)
       clearTimeout(confettiTimer)
     }
-  }, [params.id, slotId])
+  }, [id, slotId])
 
   if (!isLoaded || !bookingData) {
     return (

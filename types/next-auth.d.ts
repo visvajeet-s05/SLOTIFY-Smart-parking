@@ -5,16 +5,21 @@ declare module "next-auth" {
     user: {
       id: string
       email: string
+      name?: string
       role: string
       ownerStatus?: string
+      stripeCustomerId?: string | null
     }
   }
 
   interface User {
     id: string
     email: string
+    name?: string
     role: string
+    stripeCustomerId?: string | null
   }
+
 }
 
 declare module "next-auth/jwt" {
@@ -23,5 +28,6 @@ declare module "next-auth/jwt" {
     role: string
     name?: string
     ownerStatus?: string
+    stripeCustomerId?: string | null
   }
 }

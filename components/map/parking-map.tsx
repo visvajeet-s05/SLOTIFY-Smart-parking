@@ -62,6 +62,11 @@ interface ParkingMapProps {
 export default function ParkingMap({ parkingAreas, selectedId, onSelectParkingArea }: ParkingMapProps) {
   const router = useRouter()
   const [showHeatmap, setShowHeatmap] = useState(false)
+  const [isMounted, setIsMounted] = useState(false)
+
+  useEffect(() => {
+    setIsMounted(true)
+  }, [])
 
   // Calculate initial center based on parking areas or use Chennai as default
   const getInitialCenter = () => {
@@ -140,7 +145,7 @@ export default function ParkingMap({ parkingAreas, selectedId, onSelectParkingAr
                   <span
                     className={`font-medium ${area.status === "available" ? "text-green-600" : area.status === "limited" ? "text-yellow-600" : "text-red-600"}`}
                   >
-                    {area.availableSpots} / {area.totalSpots} spots available
+                    {area.availableSlots} / {area.totalSlots} spots available
                   </span>
                 </p>
                 <p className="text-sm mt-1">${area.price}/hr</p>

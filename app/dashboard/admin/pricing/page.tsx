@@ -13,7 +13,27 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { TrendingUp, TrendingDown, AlertTriangle, Settings, Activity, DollarSign, Users, MapPin } from 'lucide-react'
-import { format } from 'date-fns'
+// Native date formatting helper to avoid date-fns dependency issues
+function formatDate(date: Date, formatStr: string): string {
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const month = months[date.getMonth()];
+  const day = date.getDate().toString().padStart(2, '0');
+  const hours = date.getHours().toString().padStart(2, '0');
+  const minutes = date.getMinutes().toString().padStart(2, '0');
+  
+  if (formatStr === 'MMM dd, HH:mm') {
+    return `${month} ${day}, ${hours}:${minutes}`;
+  }
+  if (formatStr === 'HH:mm') {
+    return `${hours}:${minutes}`;
+  }
+  return date.toISOString();
+}
+
+
+
+
+
 
 interface PricingStats {
   totalParkingLots: number
@@ -400,9 +420,9 @@ export default function AdminPricingDashboard() {
                     </TableCell>
                     <TableCell>{event.surgeMultiplier}x</TableCell>
                     <TableCell>
-                      {format(new Date(event.startTime), 'MMM dd, HH:mm')} -
-                      {format(new Date(event.endTime), 'HH:mm')}
+                      {formatDate(new Date(event.startTime), 'MMM dd, HH:mm')} - {formatDate(new Date(event.endTime), 'HH:mm')}
                     </TableCell>
+
                     <TableCell>
                       <Badge variant={event.active ? "default" : "secondary"}>
                         {event.active ? "Active" : "Inactive"}
@@ -457,7 +477,8 @@ export default function AdminPricingDashboard() {
                       <Badge variant="outline">{audit.reason}</Badge>
                     </TableCell>
                     <TableCell>{audit.triggeredBy || 'SYSTEM'}</TableCell>
-                    <TableCell>{format(new Date(audit.createdAt), 'MMM dd, HH:mm')}</TableCell>
+                    <TableCell>{formatDate(new Date(audit.createdAt), 'MMM dd, HH:mm')}</TableCell>
+
                   </TableRow>
                 ))}
               </TableBody>

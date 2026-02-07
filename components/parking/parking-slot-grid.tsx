@@ -48,7 +48,7 @@ const ParkingSlotGrid = memo<ParkingSlotGridProps>(({
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-4 gap-2">
+      <div className="grid grid-cols-2 sm:grid-cols-4 xl:grid-cols-8 gap-4">
         {slots.map((slot) => (
           <motion.button
             key={slot.id}

@@ -78,7 +78,7 @@ export default function LandingPage() {
               Slotify
             </h1>
 
-            <p className="text-lg text-gray-200 mb-10 leading-relaxed">
+            <p className="text-lg text-gray-200 mb-14 leading-relaxed max-w-3xl">
               Find and book parking spots in real-time with our interactive platform.
               Get access to thousands of parking spaces with just a few clicks.
             </p>
@@ -87,7 +87,7 @@ export default function LandingPage() {
             <button
               onClick={() => setShowLogin(true)}
               className="
-                inline-flex items-center justify-center
+                mt-4
                 px-10 py-4 text-lg font-semibold
                 rounded-xl
                 bg-gradient-to-r from-purple-600 to-indigo-600
@@ -109,7 +109,7 @@ export default function LandingPage() {
                 })
               }}
               className="
-                mt-12
+                mt-16
                 flex justify-center
                 cursor-pointer
                 animate-bounce
@@ -297,11 +297,8 @@ export default function LandingPage() {
             <p className="text-lg text-gray-300 mb-8">
               Join thousands of users who have simplified their parking experience with Smart Parking.
             </p>
-            <Button
-              onClick={() => {
-                const { login } = useAuth()
-                login()
-              }}
+              <Button
+              onClick={() => setShowLogin(true)}
               size="lg"
               className="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white px-8 py-6 rounded-lg text-lg shadow-[0_0_15px_rgba(168,85,247,0.5)] hover:shadow-[0_0_25px_rgba(168,85,247,0.7)] transition-all duration-300"
             >

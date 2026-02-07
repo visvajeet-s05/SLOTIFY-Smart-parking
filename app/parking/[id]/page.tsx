@@ -1,20 +1,24 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { useParams, useRouter } from "next/navigation"
-import { ArrowLeft, Car, Clock, DollarSign, Shield, Camera, Info, X } from "lucide-react"
+import { ArrowLeft, Car, Clock, DollarSign, Shield, Camera, Info, X, Wifi, WifiOff } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import Link from "next/link"
+import { parkingAreas } from "@/data/parking"
+
+const WS_URL = "ws://localhost:4000"
 
 // Define parking slot interface
 interface ParkingSlot {
-  id: string
-  number: string
-  status: "free" | "occupied" | "reserved" | "ev"
-  type: "standard" | "compact" | "large" | "handicap" | "ev"
-  price: number
+  id: number
+  slotNumber: number
+  label: string
+  status: "available" | "occupied" | "reserved" | "disabled"
+  type?: "standard" | "compact" | "large" | "handicap" | "ev"
+  price?: number
 }
 
 // Define parking location interface
@@ -29,90 +33,6 @@ interface ParkingLocation {
   slots: ParkingSlot[]
 }
 
-// Mock parking locations data
-const parkingLocationsData: Record<string, ParkingLocation> = {
-  downtown: {
-    id: "downtown",
-    name: "Downtown Parking Garage",
-    address: "123 Main St, Downtown",
-    totalSlots: 50,
-    availableSlots: 15,
-    pricePerHour: 2.5,
-    features: ["CCTV", "24/7 Security", "Covered Parking", "EV Charging"],
-    slots: Array.from({ length: 50 }, (_, i) => ({
-      id: `dt-${i + 1}`,
-      number: `A${i + 1}`,
-      status: i < 15 ? "free" : i < 18 ? "reserved" : i < 20 ? "ev" : "occupied",
-      type: i < 5 ? "compact" : i < 40 ? "standard" : i < 45 ? "large" : i < 48 ? "handicap" : "ev",
-      price: i < 5 ? 2.0 : i < 40 ? 2.5 : i < 45 ? 3.0 : i < 48 ? 2.5 : 3.5,
-    })),
-  },
-  mall: {
-    id: "mall",
-    name: "Central Mall Parking",
-    address: "456 Shopping Ave, Central District",
-    totalSlots: 100,
-    availableSlots: 3,
-    pricePerHour: 3.0,
-    features: ["CCTV", "Covered Parking", "EV Charging", "Car Wash"],
-    slots: Array.from({ length: 100 }, (_, i) => ({
-      id: `mall-${i + 1}`,
-      number: `B${i + 1}`,
-      status: i < 3 ? "free" : i < 5 ? "reserved" : i < 10 ? "ev" : "occupied",
-      type: i < 20 ? "compact" : i < 80 ? "standard" : i < 95 ? "large" : i < 98 ? "handicap" : "ev",
-      price: i < 20 ? 2.5 : i < 80 ? 3.0 : i < 95 ? 3.5 : i < 98 ? 3.0 : 4.0,
-    })),
-  },
-  station: {
-    id: "station",
-    name: "Metro Station P1",
-    address: "789 Transit Rd, Metro District",
-    totalSlots: 30,
-    availableSlots: 0,
-    pricePerHour: 1.75,
-    features: ["CCTV", "24/7 Security"],
-    slots: Array.from({ length: 30 }, (_, i) => ({
-      id: `station-${i + 1}`,
-      number: `C${i + 1}`,
-      status: "occupied",
-      type: i < 20 ? "standard" : i < 28 ? "compact" : "handicap",
-      price: i < 20 ? 1.75 : i < 28 ? 1.5 : 1.75,
-    })),
-  },
-  riverside: {
-    id: "riverside",
-    name: "Riverside Parking",
-    address: "321 River View, East Side",
-    totalSlots: 40,
-    availableSlots: 22,
-    pricePerHour: 2.0,
-    features: ["Open Air", "CCTV", "EV Charging"],
-    slots: Array.from({ length: 40 }, (_, i) => ({
-      id: `river-${i + 1}`,
-      number: `D${i + 1}`,
-      status: i < 22 ? "free" : i < 25 ? "reserved" : i < 28 ? "ev" : "occupied",
-      type: i < 30 ? "standard" : i < 35 ? "compact" : i < 38 ? "large" : i < 39 ? "handicap" : "ev",
-      price: i < 30 ? 2.0 : i < 35 ? 1.75 : i < 38 ? 2.5 : i < 39 ? 2.0 : 3.0,
-    })),
-  },
-  airport: {
-    id: "airport",
-    name: "Airport Terminal P3",
-    address: "100 Airport Blvd, Terminal 3",
-    totalSlots: 200,
-    availableSlots: 8,
-    pricePerHour: 4.5,
-    features: ["CCTV", "24/7 Security", "Covered Parking", "Valet", "EV Charging"],
-    slots: Array.from({ length: 200 }, (_, i) => ({
-      id: `airport-${i + 1}`,
-      number: `E${i + 1}`,
-      status: i < 8 ? "free" : i < 15 ? "reserved" : i < 25 ? "ev" : "occupied",
-      type: i < 100 ? "standard" : i < 150 ? "compact" : i < 180 ? "large" : i < 190 ? "handicap" : "ev",
-      price: i < 100 ? 4.5 : i < 150 ? 4.0 : i < 180 ? 5.0 : i < 190 ? 4.5 : 6.0,
-    })),
-  },
-}
-
 export default function ParkingDetailPage() {
   const params = useParams()
   const router = useRouter()
@@ -122,20 +42,116 @@ export default function ParkingDetailPage() {
   const [selectedSlot, setSelectedSlot] = useState<ParkingSlot | null>(null)
   const [showBookingModal, setShowBookingModal] = useState(false)
   const [hours, setHours] = useState(1)
+  const [isConnected, setIsConnected] = useState(false)
+  const wsRef = useRef<WebSocket | null>(null)
+  const selectedSlotRef = useRef<ParkingSlot | null>(null)
 
+  // Fetch initial data
   useEffect(() => {
-    // Fetch parking location data
-    const location = parkingLocationsData[id]
-    if (location) {
-      setParkingLocation(location)
+    const locationData = parkingAreas.find(area => area.id === id)
+    if (locationData) {
+      fetch(`/api/parking/${id}/slots`)
+        .then(res => res.json())
+        .then(slots => {
+          const availableSlots = slots.filter((slot: ParkingSlot) => slot.status === "available").length
+          
+          setParkingLocation({
+            id: locationData.id,
+            name: locationData.name,
+            address: locationData.address,
+            totalSlots: locationData.totalSpots,
+            availableSlots: availableSlots,
+            pricePerHour: locationData.price,
+            features: locationData.features,
+            slots: slots,
+          })
+        })
     } else {
-      // Redirect to dashboard if location not found
       router.push("/dashboard")
     }
   }, [id, router])
 
+  // Keep selectedSlotRef in sync with selectedSlot state
+  useEffect(() => {
+    selectedSlotRef.current = selectedSlot
+  }, [selectedSlot])
+
+  // WebSocket connection for real-time updates
+  useEffect(() => {
+    // ⛔ Prevent duplicate connections
+    if (wsRef.current) return
+
+    const ws = new WebSocket(WS_URL)
+    wsRef.current = ws
+
+    ws.onopen = () => {
+      console.log("✅ Customer connected to WebSocket")
+      setIsConnected(true)
+      
+      // Subscribe to this parking lot
+      ws.send(JSON.stringify({
+        type: "SUBSCRIBE",
+        lotId: id,
+        role: "CUSTOMER"
+      }))
+    }
+
+    ws.onmessage = (event) => {
+      try {
+        const update = JSON.parse(event.data)
+        console.log("📥 Customer received update:", update)
+
+        setParkingLocation((prev) => {
+          if (!prev) return prev
+
+          const updatedSlots = prev.slots.map((slot) =>
+            slot.slotNumber === update.slotNumber
+              ? { ...slot, status: update.status.toLowerCase() as ParkingSlot["status"] }
+              : slot
+          )
+
+          const availableSlots = updatedSlots.filter(
+            (slot) => slot.status === "available"
+          ).length
+
+          return {
+            ...prev,
+            slots: updatedSlots,
+            availableSlots,
+          }
+        })
+
+        // Close modal if selected slot becomes unavailable
+        // Use ref to avoid dependency on selectedSlot state
+        const currentSelectedSlot = selectedSlotRef.current
+        if (currentSelectedSlot?.slotNumber === update.slotNumber && update.status !== "AVAILABLE") {
+          setShowBookingModal(false)
+          setSelectedSlot(null)
+        }
+      } catch (error) {
+        console.error("Failed to parse WebSocket message:", error)
+      }
+    }
+
+    ws.onclose = () => {
+      console.warn("🔌 Customer disconnected from WebSocket")
+      setIsConnected(false)
+      wsRef.current = null
+    }
+
+    ws.onerror = (error) => {
+      console.error("❌ WebSocket error:", error)
+      setIsConnected(false)
+    }
+
+    return () => {
+      ws.close()
+      wsRef.current = null
+    }
+  }, [id]) // ✅ ONLY id - prevents infinite loop when selecting slots
+
   const handleSlotClick = (slot: ParkingSlot) => {
-    if (slot.status === "free") {
+    if (slot.status === "available") {
       setSelectedSlot(slot)
       setShowBookingModal(true)
     }
@@ -148,7 +164,7 @@ export default function ParkingDetailPage() {
 
   const getSlotColor = (status: string) => {
     switch (status) {
-      case "free":
+      case "available":
         return "bg-green-500"
       case "occupied":
         return "bg-red-500"
@@ -162,7 +178,7 @@ export default function ParkingDetailPage() {
   }
 
   const getSlotCursor = (status: string) => {
-    return status === "free" ? "cursor-pointer" : "cursor-not-allowed"
+    return status === "available" ? "cursor-pointer" : "cursor-not-allowed"
   }
 
   if (!parkingLocation) {
@@ -214,9 +230,19 @@ export default function ParkingDetailPage() {
                   {parkingLocation.totalSlots} slots available
                 </span>
               </div>
+              <div className="flex items-center gap-2">
+                {isConnected ? (
+                  <Wifi className="h-4 w-4 text-green-400" />
+                ) : (
+                  <WifiOff className="h-4 w-4 text-red-400" />
+                )}
+                <span className="text-sm text-gray-400">
+                  {isConnected ? 'Live Updates' : 'Offline'}
+                </span>
+              </div>
               <div className="flex items-center gap-2 mb-1">
                 <DollarSign className="h-4 w-4 text-purple-400" />
-                <span>${parkingLocation.pricePerHour.toFixed(2)}/hour</span>
+                <span>₹{parkingLocation.pricePerHour.toFixed(2)}/hour</span>
               </div>
               <div className="flex items-center gap-2">
                 <Clock className="h-4 w-4 text-purple-400" />
@@ -238,7 +264,7 @@ export default function ParkingDetailPage() {
             <div className="flex flex-wrap gap-4 mb-4">
               <div className="flex items-center gap-2">
                 <div className="w-4 h-4 rounded-full bg-green-500"></div>
-                <span className="text-sm">Free</span>
+                <span className="text-sm">Available</span>
               </div>
               <div className="flex items-center gap-2">
                 <div className="w-4 h-4 rounded-full bg-red-500"></div>
@@ -247,6 +273,10 @@ export default function ParkingDetailPage() {
               <div className="flex items-center gap-2">
                 <div className="w-4 h-4 rounded-full bg-yellow-500"></div>
                 <span className="text-sm">Reserved</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-4 h-4 rounded-full bg-gray-500"></div>
+                <span className="text-sm">Disabled</span>
               </div>
               <div className="flex items-center gap-2">
                 <div className="w-4 h-4 rounded-full bg-blue-500"></div>
@@ -262,11 +292,11 @@ export default function ParkingDetailPage() {
                   <motion.div
                     key={slot.id}
                     className={`${getSlotColor(slot.status)} ${getSlotCursor(slot.status)} rounded-md h-12 flex items-center justify-center transition-colors`}
-                    whileHover={slot.status === "free" ? { scale: 1.05 } : {}}
+                    whileHover={slot.status === "available" ? { scale: 1.05 } : {}}
                     onClick={() => handleSlotClick(slot)}
-                    title={`Slot ${slot.number} - ${slot.type} - $${slot.price.toFixed(2)}/hr`}
+                    title={`Slot ${slot.label} - ${slot.type || 'Standard'} - ₹${parkingLocation.pricePerHour}/hr`}
                   >
-                    <span className="font-bold text-sm">{slot.number}</span>
+                    <span className="font-bold text-sm">{slot.label}</span>
                   </motion.div>
                 ))}
               </div>
@@ -286,9 +316,9 @@ export default function ParkingDetailPage() {
                 <div>
                   <h4 className="font-medium mb-2">Pricing</h4>
                   <ul className="text-gray-400 space-y-1">
-                    <li>Standard: ${parkingLocation.pricePerHour.toFixed(2)}/hour</li>
-                    <li>Daily Maximum: $24.00</li>
-                    <li>Monthly Pass: $180.00</li>
+                    <li>Standard: ₹{parkingLocation.pricePerHour.toFixed(2)}/hour</li>
+                    <li>Daily Maximum: ₹240.00</li>
+                    <li>Monthly Pass: ₹1,800.00</li>
                   </ul>
                 </div>
 
@@ -345,11 +375,11 @@ export default function ParkingDetailPage() {
               <div className="space-y-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <h3 className="text-lg font-semibold">Slot {selectedSlot.number}</h3>
+                    <h3 className="text-lg font-semibold">Slot {selectedSlot.label}</h3>
                     <p className="text-gray-400">{parkingLocation.name}</p>
                   </div>
                   <div className="h-16 w-16 rounded-lg bg-green-500 flex items-center justify-center">
-                    <span className="font-bold text-xl">{selectedSlot.number}</span>
+                    <span className="font-bold text-xl">{selectedSlot.label}</span>
                   </div>
                 </div>
 
@@ -359,7 +389,7 @@ export default function ParkingDetailPage() {
                       <Car className="h-4 w-4 text-purple-400" />
                       <span className="text-sm text-gray-400">Type</span>
                     </div>
-                    <p className="font-medium capitalize">{selectedSlot.type}</p>
+                    <p className="font-medium capitalize">{selectedSlot.type || 'Standard'}</p>
                   </div>
 
                   <div className="bg-gray-800 p-3 rounded-lg">
@@ -367,7 +397,7 @@ export default function ParkingDetailPage() {
                       <DollarSign className="h-4 w-4 text-purple-400" />
                       <span className="text-sm text-gray-400">Price</span>
                     </div>
-                    <p className="font-medium">${selectedSlot.price.toFixed(2)}/hour</p>
+                    <p className="font-medium">₹{parkingLocation.pricePerHour}/hour</p>
                   </div>
 
                   <div className="bg-gray-800 p-3 rounded-lg">
@@ -417,19 +447,19 @@ export default function ParkingDetailPage() {
                   <div className="space-y-2">
                     <div className="flex justify-between">
                       <span className="text-gray-400">Parking Fee</span>
-                      <span>${(selectedSlot.price * hours).toFixed(2)}</span>
+                      <span>₹{(parkingLocation.pricePerHour * hours).toFixed(2)}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-400">Service Fee</span>
-                      <span>${(selectedSlot.price * hours * 0.1).toFixed(2)}</span>
+                      <span>₹{(parkingLocation.pricePerHour * hours * 0.1).toFixed(2)}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-400">Tax</span>
-                      <span>${(selectedSlot.price * hours * 0.08).toFixed(2)}</span>
+                      <span>₹{(parkingLocation.pricePerHour * hours * 0.08).toFixed(2)}</span>
                     </div>
                     <div className="border-t border-gray-700 my-2 pt-2 flex justify-between font-bold">
                       <span>Total</span>
-                      <span>${(selectedSlot.price * hours * 1.18).toFixed(2)}</span>
+                      <span>₹{(parkingLocation.pricePerHour * hours * 1.18).toFixed(2)}</span>
                     </div>
                   </div>
                 </div>
@@ -453,4 +483,3 @@ export default function ParkingDetailPage() {
     </div>
   )
 }
-

@@ -1,6 +1,15 @@
 import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
 import { getToken } from "next-auth/jwt"
+import { withAuth } from "next-auth/middleware"
+
+interface NextRequestWithAuth extends NextRequest {
+  nextAuth?: {
+    token?: {
+      role?: string
+    }
+  }
+}
 
 const roleRoutes = {
   ADMIN: "/dashboard/admin",
@@ -9,23 +18,18 @@ const roleRoutes = {
   STAFF: "/dashboard/staff",
 }
 
-export async function middleware(req: NextRequest) {
-  const token = await getToken({ req })
-  const path = req.nextUrl.pathname
-
-  if (!token && path.startsWith("/dashboard")) {
-    return NextResponse.redirect(new URL("/login", req.url))
-  }
-
-  if (token) {
-    const allowedBase = roleRoutes[token.role as keyof typeof roleRoutes]
-    if (!path.startsWith(allowedBase)) {
-      return NextResponse.redirect(new URL(allowedBase, req.url))
+export default withAuth(
+  function middleware(req: NextRequestWithAuth) {
+    if (!req.nextAuth?.token) {
+      return NextResponse.redirect(new URL("/", req.url))
     }
+  },
+  {
+    callbacks: {
+      authorized: ({ token }) => !!token,
+    },
   }
-
-  return NextResponse.next()
-}
+)
 
 export const config = {
   matcher: ["/dashboard/:path*"],

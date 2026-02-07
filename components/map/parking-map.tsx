@@ -95,7 +95,7 @@ export default function ParkingMap({ parkingAreas, selectedId, onSelectParkingAr
   }
 
   return (
-    <div className="relative rounded-xl overflow-hidden">
+    <div className="h-full w-full z-0">
       <div className="absolute inset-0 z-10 pointer-events-none animate-pulse bg-gradient-to-r from-transparent via-white/10 to-transparent" />
       
       {/* Heatmap Toggle Button */}

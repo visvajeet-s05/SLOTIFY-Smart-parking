@@ -11,6 +11,7 @@ import { useUserLocation } from "@/hooks/useUserLocation"
 import UserMap from "@/components/map/UserMap"
 import ScrollDownArrow from "@/components/ui/ScrollDownArrow"
 import { useAuth } from "@/components/auth/auth-provider"
+import LoginModal from "@/components/auth/LoginModal"
 // Dynamically import the map component to avoid SSR issues with Leaflet
 const MapBackground = dynamic(() => import("@/components/map/map-background"), {
   ssr: false,
@@ -73,13 +74,59 @@ export default function LandingPage() {
             transition={{ delay: 0.3, duration: 0.8 }}
             className="text-center max-w-3xl"
           >
-<h1 className="text-4xl md:text-6xl font-bold mb-6 text-purple-600 drop-shadow-lg">
-  Slotify
-</h1>
-            <p className="text-lg md:text-xl text-gray-200 drop-shadow mb-8">
-              Find and book parking spots in real-time with our interactive platform. Get access to thousands of parking
-              spaces with just a few clicks.
+            <h1 className="text-5xl font-bold text-purple-500 mb-6">
+              Slotify
+            </h1>
+
+            <p className="text-lg text-gray-200 mb-10 leading-relaxed">
+              Find and book parking spots in real-time with our interactive platform.
+              Get access to thousands of parking spaces with just a few clicks.
             </p>
+
+            {/* Get Started Button */}
+            <button
+              onClick={() => setShowLogin(true)}
+              className="
+                inline-flex items-center justify-center
+                px-10 py-4 text-lg font-semibold
+                rounded-xl
+                bg-gradient-to-r from-purple-600 to-indigo-600
+                text-white
+                shadow-lg
+                hover:from-purple-700 hover:to-indigo-700
+                hover:scale-105
+                transition-all duration-300
+              "
+            >
+              Get Started
+            </button>
+
+            {/* Scroll Down Arrow */}
+            <div
+              onClick={() => {
+                document.getElementById("home-section-2")?.scrollIntoView({
+                  behavior: "smooth",
+                })
+              }}
+              className="
+                mt-12
+                flex justify-center
+                cursor-pointer
+                animate-bounce
+              "
+            >
+              <div className="
+                w-10 h-10
+                rounded-full
+                border-2 border-purple-500
+                flex items-center justify-center
+                text-purple-500
+                hover:bg-purple-500 hover:text-white
+                transition-all duration-300
+              ">
+                ↓
+              </div>
+            </div>
           </motion.div>
         </motion.div>
       </section>
@@ -219,8 +266,8 @@ export default function LandingPage() {
               <div className="relative mx-auto w-full max-w-[300px]">
                 <div className="absolute inset-0 bg-gradient-to-r from-purple-600 to-indigo-600 rounded-[40px] blur-xl opacity-30 transform scale-105"></div>
                 <Image
-                  src="/placeholder.svg?height=600&width=300"
-                  alt="Mobile App Preview"
+                  src="/Logo.png"
+                  alt="Slotify Logo"
                   width={300}
                   height={600}
                   className="relative z-10 rounded-[30px] border-8 border-gray-800 shadow-xl"
@@ -332,6 +379,11 @@ export default function LandingPage() {
         </div>
       </footer>
 
+      {/* Login Modal */}
+      <LoginModal
+        open={showLogin}
+        onClose={() => setShowLogin(false)}
+      />
     </main>
   )
 }

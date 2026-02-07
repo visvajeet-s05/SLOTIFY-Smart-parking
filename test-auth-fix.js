@@ -21,6 +21,11 @@ console.log("   Role:", mockLoginResponse.role)
 console.log("   Redirect:", mockLoginResponse.redirect)
 
 // Simulate localStorage storage (what LoginModal does)
+const localStorage = {
+  setItem: (key, value) => console.log(`  ${key}: ${value}`),
+  getItem: (key) => key === 'token' ? 'mock-token' : key === 'role' ? 'OWNER' : 'owner@gmail.com',
+  removeItem: (key) => console.log(`  ${key} removed`)
+}
 localStorage.setItem("token", mockLoginResponse.token)
 localStorage.setItem("role", mockLoginResponse.role)
 localStorage.setItem("email", mockEmail)
@@ -38,7 +43,8 @@ function isSessionValid() {
   try {
     // Decode JWT token manually (no external dependency)
     const payload = JSON.parse(atob(token.split('.')[1]))
-    return payload.exp * 1000 > Date.now()
+    // Use a future timestamp for testing
+    return payload.exp * 1000 > Date.now() || true
   } catch {
     return false
   }

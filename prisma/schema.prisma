@@ -303,6 +303,14 @@ model vehicle {
   @@map("Vehicle")
 }
 
+model PasswordResetToken {
+  id        String   @id @default(uuid())
+  email     String
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+}
+
 model payment {
   id            String   @id
   bookingId     String?  @unique

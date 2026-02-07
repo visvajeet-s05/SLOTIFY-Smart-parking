@@ -30,36 +30,36 @@ export default function Navbar() {
 
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const [showLoginModal, setShowLoginModal] = useState(false)
+  const [isHydrated, setIsHydrated] = useState(false)
 
   const isDashboard = pathname.startsWith("/dashboard")
 
   // ✅ Check authentication status - support both NextAuth and localStorage tokens
-  const isAuthenticated = status === "authenticated" || isSessionValid()
+  const isAuthenticated = isHydrated && (status === "authenticated" || isSessionValid())
+
+  // Set hydrated state after component mounts
+  useEffect(() => {
+    setIsHydrated(true)
+  }, [])
   
   // ✅ Get user info from either NextAuth session or localStorage
   const userEmail = session?.user?.email || (typeof window !== 'undefined' ? localStorage.getItem("email") : "") || ""
   const userRole = session?.user?.role || (typeof window !== 'undefined' ? localStorage.getItem("role") : "") || ""
   const userInitial = userEmail ? userEmail.charAt(0).toUpperCase() : "U"
 
-  const navLinks: Array<{ name: string; href: string; onClick?: () => void; component?: string; serverComponent?: any }> = [
-    { name: "Home", href: "/", onClick: undefined },
-{
-  name: "Find Parking",
-  href: isAuthenticated ? "/find" : "#",
-  onClick: isAuthenticated ? undefined : () => setShowLoginModal(true),
-  component: isAuthenticated ? "link" : "button",
-  serverComponent: isAuthenticated ? Link : "button",
-},
-    { name: "How It Works", href: "/how-it-works", onClick: undefined },
-    { name: "Pricing", href: "/pricing", onClick: undefined },
-    { name: "About Us", href: "/about", onClick: undefined },
+  const navLinks = [
+    { name: "Home", href: "/" },
+    { name: "Find Parking", href: "/find" },
+    { name: "How It Works", href: "/how-it-works" },
+    { name: "Pricing", href: "/pricing" },
+    { name: "About Us", href: "/about" },
   ]
 
-  const dashboardLinks: Array<{ name: string; href: string; onClick?: () => void; serverComponent?: any }> = [
-    { name: "Home", href: "/dashboard", onClick: undefined },
-    { name: "Find Parking", href: "/dashboard/find", onClick: undefined },
-    { name: "My Bookings", href: "/dashboard/bookings", onClick: undefined },
-    { name: "Profile", href: "/dashboard/profile", onClick: undefined },
+  const dashboardLinks = [
+    { name: "Home", href: "/dashboard" },
+    { name: "Find Parking", href: "/dashboard/find" },
+    { name: "My Bookings", href: "/dashboard/bookings" },
+    { name: "Profile", href: "/dashboard/profile" },
   ]
 
   const activeLinks = isDashboard ? dashboardLinks : navLinks
@@ -89,29 +89,11 @@ border-b border-white/10 backdrop-blur-md shadow-lg"
 
           {/* Desktop links */}
           <div className="hidden md:flex items-center space-x-4">
-{activeLinks.map((link) =>
-  link.onClick ? (
-    <button
-      key={link.name}
-      onClick={link.onClick}
-      className="px-3 py-2 text-sm text-gray-300 hover:text-white hover:bg-gray-800 rounded-md"
-    >
-      {link.name}
-    </button>
-  ) : (
-    link.serverComponent === "button" ? (
-      <button
-        key={link.name}
-        className={`px-3 py-2 text-sm rounded-md ${
-          pathname === link.href
-            ? "text-purple-400"
-            : "text-gray-300 hover:text-white hover:bg-gray-800"
-        }`}
-      >
-        {link.name}
-      </button>
-    ) : (
-      link.serverComponent === Link ? (
+{activeLinks.map((link) => {
+  // For Find Parking, handle authentication check
+  if (link.name === "Find Parking") {
+    if (isAuthenticated) {
+      return (
         <Link
           key={link.name}
           href={link.href}
@@ -123,21 +105,35 @@ border-b border-white/10 backdrop-blur-md shadow-lg"
         >
           {link.name}
         </Link>
-      ) : (
+      )
+    } else {
+      return (
         <button
           key={link.name}
-          className={`px-3 py-2 text-sm rounded-md ${
-            pathname === link.href
-              ? "text-purple-400"
-              : "text-gray-300 hover:text-white hover:bg-gray-800"
-          }`}
+          onClick={() => setShowLoginModal(true)}
+          className="px-3 py-2 text-sm text-gray-300 hover:text-white hover:bg-gray-800 rounded-md"
         >
           {link.name}
         </button>
       )
-    )
+    }
+  }
+
+  // For all other links, use Link component
+  return (
+    <Link
+      key={link.name}
+      href={link.href}
+      className={`px-3 py-2 text-sm rounded-md ${
+        pathname === link.href
+          ? "text-purple-400"
+          : "text-gray-300 hover:text-white hover:bg-gray-800"
+      }`}
+    >
+      {link.name}
+    </Link>
   )
-)}
+})}
 
             {isDashboard && (
               <div className="relative ml-4">
@@ -192,10 +188,12 @@ border-b border-white/10 backdrop-blur-md shadow-lg"
                     <DropdownMenuItem
                       className="text-red-400 cursor-pointer"
                       onClick={() => {
-                        // Clear localStorage tokens
-                        localStorage.removeItem("token")
-                        localStorage.removeItem("role")
-                        localStorage.removeItem("email")
+                        // Clear localStorage tokens only after hydration
+                        if (isHydrated) {
+                          localStorage.removeItem("token")
+                          localStorage.removeItem("role")
+                          localStorage.removeItem("email")
+                        }
                         // Sign out from NextAuth
                         signOut({ callbackUrl: "/" })
                       }}

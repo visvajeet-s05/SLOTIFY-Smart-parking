@@ -1,5 +1,6 @@
 import NextAuth from "next-auth"
 import CredentialsProvider from "next-auth/providers/credentials"
+import GoogleProvider from "next-auth/providers/google"
 import { PrismaClient } from "@prisma/client"
 import bcrypt from "bcryptjs"
 import { Role } from "@/lib/auth/roles"
@@ -13,6 +14,7 @@ const handler = NextAuth({
       credentials: {
         email: { label: "Email", type: "email" },
         password: { label: "Password", type: "password" },
+        rememberMe: { label: "Remember Me", type: "text" },
       },
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) {
@@ -32,18 +34,27 @@ const handler = NextAuth({
 
         if (!isValid) return null
 
+        // Check if remember-me was requested
+        const rememberMe = credentials.rememberMe === 'true'
+        
         return {
           id: user.id,
           email: user.email,
           role: user.role as Role,
           name: user.name,
+          sessionMaxAge: rememberMe ? 60 * 60 * 24 * 30 : undefined, // 30 days if remember-me
         }
       },
+    }),
+    GoogleProvider({
+      clientId: process.env.GOOGLE_CLIENT_ID!,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
     }),
   ],
 
   session: {
     strategy: "jwt",
+    maxAge: 60 * 60 * 24, // default 1 day
   },
 
   callbacks: {
@@ -51,6 +62,10 @@ const handler = NextAuth({
       if (user) {
         token.id = user.id
         token.role = user.role
+        // Set session max age if remember-me was requested
+        if ('sessionMaxAge' in user && user.sessionMaxAge) {
+          token.exp = Math.floor(Date.now() / 1000) + (user.sessionMaxAge as number)
+        }
       }
       return token
     },
@@ -63,11 +78,8 @@ const handler = NextAuth({
     },
   },
 
-  pages: {
-    signIn: "/", // your modal login
-  },
 
-  secret: process.env.NEXTAUTH_SECRET,
+  secret: "super-secret-jwt-key-change-in-production-123456789",
 })
 
 export { handler as GET, handler as POST }

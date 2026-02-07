@@ -4,12 +4,14 @@ import type React from "react"
 import { Inter } from "next/font/google"
 import { usePathname } from "next/navigation"
 import "./globals.css"
+import "leaflet/dist/leaflet.css"
 import { Toaster } from "@/components/ui/toaster"
 import { Toaster as SonnerToaster } from "@/components/ui/sonner"
 import Navbar from "@/components/navigation/navbar"
 import AskLocation from "@/components/location/ask-location"
 import { AuthProvider } from "@/components/auth/auth-provider"
 import { SessionProvider } from "next-auth/react"
+import AuthRedirect from "@/components/auth/AuthRedirect"
 import { metadata } from "./metadata"
 
 const inter = Inter({ subsets: ["latin"] })
@@ -44,11 +46,9 @@ export default function RootLayout({
           `}} />
         <SessionProvider>
           <AuthProvider>
-            {!hideGlobalNavbar && <Navbar />}
-            <AskLocation />
-            <main className="min-h-screen">{children}</main>
-            <Toaster />
-            <SonnerToaster />
+            <Navbar />
+            <AuthRedirect />
+            {children}
           </AuthProvider>
         </SessionProvider>
       </body>

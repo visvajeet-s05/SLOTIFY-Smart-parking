@@ -13,6 +13,7 @@ import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import ParkingAreaCard from "@/components/parking/parking-area-card"
 import { useParkingSocket } from "@/hooks/useParkingSocket"
+import HeroText from "@/components/hero/HeroText"
 
 // Dynamically import the map to prevent SSR issues
 const ParkingMap = dynamic(() => import("@/components/map/parking-map"), {
@@ -172,17 +173,25 @@ export default function FindParkingPage() {
         </div>
       </motion.div>
 
-      <div className="px-4 max-w-7xl mx-auto py-6 space-y-6">
-        {/* Quick Stats */}
+      {/* Hero Text */}
+
+      <section className="px-6 pt-6 pb-10">
+
+        <HeroText />
+
+      </section>
+
+      <div className="pt-20 px-4 max-w-7xl mx-auto space-y-6">
+          {/* Quick Stats */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.1 }}
-          className="grid grid-cols-2 md:grid-cols-4 gap-4"
+          className="grid grid-cols-2 md:grid-cols-4 gap-6"
         >
-          <motion.div 
+          <motion.div
             whileHover={{ y: -4 }}
-            className="bg-gradient-to-br from-blue-900/30 to-blue-800/10 border border-blue-700/30 rounded-lg p-4 backdrop-blur"
+            className="bg-gray-800/60 backdrop-blur-sm border border-blue-700/30 rounded-lg p-4"
           >
             <div className="flex items-center justify-between">
               <div>
@@ -206,9 +215,9 @@ export default function FindParkingPage() {
             </div>
           </motion.div>
 
-          <motion.div 
+          <motion.div
             whileHover={{ y: -4 }}
-            className="bg-gradient-to-br from-purple-900/30 to-purple-800/10 border border-purple-700/30 rounded-lg p-4 backdrop-blur"
+            className="bg-gray-800/60 backdrop-blur-sm border border-purple-700/30 rounded-lg p-4"
           >
             <div className="flex items-center justify-between">
               <div>
@@ -219,9 +228,9 @@ export default function FindParkingPage() {
             </div>
           </motion.div>
 
-          <motion.div 
+          <motion.div
             whileHover={{ y: -4 }}
-            className="bg-gradient-to-br from-yellow-900/30 to-yellow-800/10 border border-yellow-700/30 rounded-lg p-4 backdrop-blur"
+            className="bg-gray-800/60 backdrop-blur-sm border border-yellow-700/30 rounded-lg p-4"
           >
             <div className="flex items-center justify-between">
               <div>
@@ -238,7 +247,7 @@ export default function FindParkingPage() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.2 }}
-          className="space-y-4"
+          className="sticky top-[72px] z-30 bg-gray-900/80 backdrop-blur border border-gray-700 rounded-lg p-6 space-y-4"
         >
           {/* Search Bar */}
           <div className="relative">
@@ -371,7 +380,7 @@ export default function FindParkingPage() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.3 }}
-          className="bg-gray-800/30 border border-gray-700 rounded-lg overflow-hidden"
+          className="relative border border-gray-700 rounded-xl h-[520px] overflow-hidden bg-black"
         >
           <div className="relative">
             <ParkingMap 

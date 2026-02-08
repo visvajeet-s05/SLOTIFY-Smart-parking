@@ -122,8 +122,8 @@ function ParkingAreaCard({
                 availabilityPercent > 50
                   ? "bg-gradient-to-r from-green-500 to-green-400"
                   : availabilityPercent > 20
-                  ? "bg-gradient-to-r from-yellow-500 to-yellow-400"
-                  : "bg-gradient-to-r from-red-500 to-red-400"
+                    ? "bg-gradient-to-r from-yellow-500 to-yellow-400"
+                    : "bg-gradient-to-r from-red-500 to-red-400"
               )}
             />
           </div>
@@ -177,13 +177,19 @@ function ParkingAreaCard({
                 handleViewDetails()
               }}
               className={cn(
-                "w-full font-semibold transition-all duration-300",
+                "w-full font-bold tracking-wide transition-all duration-300 py-6",
                 isSelected
-                  ? "bg-purple-600 hover:bg-purple-700 text-white shadow-lg shadow-purple-600/50"
-                  : "bg-gray-700 hover:bg-purple-600 text-white"
+                  ? "bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white shadow-lg shadow-purple-500/40 ring-1 ring-white/20"
+                  : "bg-gradient-to-r from-gray-700 to-gray-800 hover:from-purple-600 hover:to-indigo-600 text-gray-100 hover:text-white border border-gray-600 hover:border-purple-500/50 hover:shadow-lg hover:shadow-purple-500/20"
               )}
             >
-              {isSelected ? "Viewing Details..." : "View Details"}
+              {isSelected ? (
+                <span className="flex items-center gap-2">
+                  Viewing Details <Zap className="w-4 h-4 fill-white" />
+                </span>
+              ) : (
+                "View Details"
+              )}
             </Button>
           </motion.div>
         </div>

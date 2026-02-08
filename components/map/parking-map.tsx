@@ -1,57 +1,104 @@
 "use client"
 
-import { useEffect, useState } from "react"
-import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet"
-import L from "leaflet"
-import "leaflet/dist/leaflet.css"
-import "leaflet-defaulticon-compatibility"
-import "leaflet-defaulticon-compatibility/dist/leaflet-defaulticon-compatibility.css"
+import { useState, useCallback, useMemo, useEffect } from "react"
+import { GoogleMap, useJsApiLoader, MarkerF, InfoWindowF, HeatmapLayerF } from "@react-google-maps/api"
 import { useRouter } from "next/navigation"
-import ParkingHeatmap from "./ParkingHeatmap"
 import { Button } from "@/components/ui/button"
 import { Map as MapIcon, Thermometer } from "lucide-react"
 
-// Fix for default marker icons in react-leaflet v4+
-delete (L.Icon.Default.prototype as any)._getIconUrl
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
-  iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
-  shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
-})
-
-// Define marker icons
-const createMarkerIcon = (color: string) => {
-  return L.divIcon({
-    className: "custom-marker",
-    html: `<div style="background-color: ${color}; width: 24px; height: 24px; border-radius: 50%; border: 2px solid white; box-shadow: 0 0 10px rgba(0,0,0,0.3);"></div>`,
-    iconSize: [24, 24],
-    iconAnchor: [12, 12],
-    popupAnchor: [0, -12],
-  })
+// Map container style
+const containerStyle = {
+  width: "100%",
+  height: "100%",
 }
 
-const availableIcon = createMarkerIcon("#22c55e") // green
-const limitedIcon = createMarkerIcon("#eab308") // yellow
-const fullIcon = createMarkerIcon("#ef4444") // red
-
-// Map center component
-function MapCenter({ parkingAreas }: { parkingAreas: any[] }) {
-  const map = useMap()
-
-  useEffect(() => {
-    if (parkingAreas.length > 0 && map) {
-      try {
-        // Create bounds from all parking areas
-        const bounds = L.latLngBounds(parkingAreas.map((area) => area.coordinates))
-        map.fitBounds(bounds, { padding: [50, 50] })
-      } catch (error) {
-        console.warn('Error fitting bounds:', error)
-      }
-    }
-  }, [map, parkingAreas])
-
-  return null
+// Default center (Chennai)
+const defaultCenter = {
+  lat: 13.0827,
+  lng: 80.2707,
 }
+
+// Custom Dark Map Style
+const darkMapStyle = [
+  { elementType: "geometry", stylers: [{ color: "#242f3e" }] },
+  { elementType: "labels.text.stroke", stylers: [{ color: "#242f3e" }] },
+  { elementType: "labels.text.fill", stylers: [{ color: "#746855" }] },
+  {
+    featureType: "administrative.locality",
+    elementType: "labels.text.fill",
+    stylers: [{ color: "#d59563" }],
+  },
+  {
+    featureType: "poi",
+    elementType: "labels.text.fill",
+    stylers: [{ color: "#d59563" }],
+  },
+  {
+    featureType: "poi.park",
+    elementType: "geometry",
+    stylers: [{ color: "#263c3f" }],
+  },
+  {
+    featureType: "poi.park",
+    elementType: "labels.text.fill",
+    stylers: [{ color: "#6b9a76" }],
+  },
+  {
+    featureType: "road",
+    elementType: "geometry",
+    stylers: [{ color: "#38414e" }],
+  },
+  {
+    featureType: "road",
+    elementType: "geometry.stroke",
+    stylers: [{ color: "#212a37" }],
+  },
+  {
+    featureType: "road",
+    elementType: "labels.text.fill",
+    stylers: [{ color: "#9ca5b3" }],
+  },
+  {
+    featureType: "road.highway",
+    elementType: "geometry",
+    stylers: [{ color: "#746855" }],
+  },
+  {
+    featureType: "road.highway",
+    elementType: "geometry.stroke",
+    stylers: [{ color: "#1f2835" }],
+  },
+  {
+    featureType: "road.highway",
+    elementType: "labels.text.fill",
+    stylers: [{ color: "#f3d19c" }],
+  },
+  {
+    featureType: "transit",
+    elementType: "geometry",
+    stylers: [{ color: "#2f3948" }],
+  },
+  {
+    featureType: "transit.station",
+    elementType: "labels.text.fill",
+    stylers: [{ color: "#d59563" }],
+  },
+  {
+    featureType: "water",
+    elementType: "geometry",
+    stylers: [{ color: "#17263c" }],
+  },
+  {
+    featureType: "water",
+    elementType: "labels.text.fill",
+    stylers: [{ color: "#515c6d" }],
+  },
+  {
+    featureType: "water",
+    elementType: "labels.text.stroke",
+    stylers: [{ color: "#17263c" }],
+  },
+]
 
 interface ParkingMapProps {
   parkingAreas: any[]
@@ -62,36 +109,33 @@ interface ParkingMapProps {
 export default function ParkingMap({ parkingAreas, selectedId, onSelectParkingArea }: ParkingMapProps) {
   const router = useRouter()
   const [showHeatmap, setShowHeatmap] = useState(false)
-  const [isMounted, setIsMounted] = useState(false)
+  const [map, setMap] = useState<google.maps.Map | null>(null)
+  const [activeMarker, setActiveMarker] = useState<string | null>(null)
 
-  useEffect(() => {
-    setIsMounted(true)
+  const { isLoaded, loadError } = useJsApiLoader({
+    id: "google-map-script",
+    googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY || "",
+    libraries: ["visualization"], // Required for HeatmapLayer
+  })
+
+  const onLoad = useCallback((map: google.maps.Map) => {
+    // Fit bounds to show all markers
+    if (parkingAreas.length > 0) {
+      const bounds = new window.google.maps.LatLngBounds()
+      parkingAreas.forEach((area) => {
+        bounds.extend({ lat: area.coordinates[0], lng: area.coordinates[1] })
+      })
+      map.fitBounds(bounds)
+    }
+    setMap(map)
+  }, [parkingAreas])
+
+  const onUnmount = useCallback(() => {
+    setMap(null)
   }, [])
 
-  // Calculate initial center based on parking areas or use Chennai as default
-  const getInitialCenter = () => {
-    if (parkingAreas.length > 0) {
-      // Use first parking area as center
-      return parkingAreas[0].coordinates
-    }
-    // Default to Chennai, Tamil Nadu
-    return [13.0827, 80.2707]
-  }
-
-  const getMarkerIcon = (status: string) => {
-    switch (status) {
-      case "available":
-        return availableIcon
-      case "limited":
-        return limitedIcon
-      case "full":
-        return fullIcon
-      default:
-        return availableIcon
-    }
-  }
-
   const handleMarkerClick = (id: string) => {
+    setActiveMarker(id)
     onSelectParkingArea(id)
   }
 
@@ -99,12 +143,37 @@ export default function ParkingMap({ parkingAreas, selectedId, onSelectParkingAr
     router.push(`/dashboard/parking/${id}`)
   }
 
+  const heatmapData = useMemo(() => {
+    if (!window.google) return []
+    return parkingAreas.map(area => ({
+      location: new google.maps.LatLng(area.coordinates[0], area.coordinates[1]),
+      weight: area.availableSlots // Higher weight = more available spots (cooler/hotter depending on logic)
+    }))
+  }, [parkingAreas])
+
+  // Custom marker icons based on status
+  const getMarkerIcon = (status: string) => {
+    const baseUrl = "http://maps.google.com/mapfiles/ms/icons/"
+    switch (status) {
+      case "available": return baseUrl + "green-dot.png"
+      case "limited": return baseUrl + "yellow-dot.png"
+      case "full": return baseUrl + "red-dot.png"
+      default: return baseUrl + "blue-dot.png"
+    }
+  }
+
+  if (loadError) {
+    return <div className="flex items-center justify-center h-full text-red-500 bg-gray-900">Error loading Google Maps</div>
+  }
+
+  if (!isLoaded) {
+    return <div className="flex items-center justify-center h-full text-gray-400 bg-gray-900 animate-pulse">Loading Maps...</div>
+  }
+
   return (
-    <div className="h-full w-full z-0">
-      <div className="absolute inset-0 z-10 pointer-events-none animate-pulse bg-gradient-to-r from-transparent via-white/10 to-transparent" />
-      
+    <div className="relative h-full w-full">
       {/* Heatmap Toggle Button */}
-      <div className="absolute top-4 right-4 z-20">
+      <div className="absolute top-4 right-4 z-10">
         <Button
           variant="outline"
           size="sm"
@@ -115,51 +184,87 @@ export default function ParkingMap({ parkingAreas, selectedId, onSelectParkingAr
           {showHeatmap ? "Show Markers" : "Show Heatmap"}
         </Button>
       </div>
-      
-      <MapContainer center={getInitialCenter()} zoom={13} style={{ height: "100%", width: "100%" }} zoomControl={true}>
-        <TileLayer
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-        />
 
-        <MapCenter parkingAreas={parkingAreas} />
-
+      <GoogleMap
+        mapContainerStyle={containerStyle}
+        center={defaultCenter}
+        zoom={12}
+        onLoad={onLoad}
+        onUnmount={onUnmount}
+        options={{
+          styles: darkMapStyle,
+          disableDefaultUI: false,
+          zoomControl: true,
+          streetViewControl: false,
+          mapTypeControl: false,
+          fullscreenControl: true,
+        }}
+      >
         {/* Heatmap Layer */}
-        {showHeatmap && <ParkingHeatmap parkingAreas={parkingAreas} />}
+        {showHeatmap && heatmapData.length > 0 && (
+          <HeatmapLayerF
+            data={heatmapData}
+            options={{
+              radius: 40,
+              opacity: 0.8,
+            }}
+          />
+        )}
 
         {/* Markers Layer */}
         {!showHeatmap && parkingAreas.map((area) => (
-          <Marker
+          <MarkerF
             key={area.id}
-            position={area.coordinates}
+            position={{ lat: area.coordinates[0], lng: area.coordinates[1] }}
             icon={getMarkerIcon(area.status)}
-            eventHandlers={{
-              click: () => handleMarkerClick(area.id),
-            }}
+            onClick={() => handleMarkerClick(area.id)}
           >
-            <Popup>
-              <div className="p-1">
-                <h3 className="font-semibold">{area.name}</h3>
-                <p className="text-sm">{area.address}</p>
-                <p className="text-sm mt-1">
-                  <span
-                    className={`font-medium ${area.status === "available" ? "text-green-600" : area.status === "limited" ? "text-yellow-600" : "text-red-600"}`}
+            {activeMarker === area.id && (
+              <InfoWindowF
+                onCloseClick={() => setActiveMarker(null)}
+                position={{ lat: area.coordinates[0], lng: area.coordinates[1] }}
+              >
+                <div className="p-2 min-w-[200px] text-gray-900">
+                  <h3 className="font-bold text-lg mb-1">{area.name}</h3>
+                  <p className="text-sm text-gray-600 mb-2">{area.address}</p>
+
+                  <div className="flex justify-between items-center mb-2">
+                    <span className={`font-bold px-2 py-0.5 rounded text-xs ${area.status === 'available' ? 'bg-green-100 text-green-700' :
+                        area.status === 'limited' ? 'bg-yellow-100 text-yellow-700' :
+                          'bg-red-100 text-red-700'
+                      }`}>
+                      {area.status.toUpperCase()}
+                    </span>
+                    <span className="font-semibold text-gray-700">₹{area.price}/hr</span>
+                  </div>
+
+                  <div className="mb-3">
+                    <div className="flex justify-between text-xs text-gray-500 mb-1">
+                      <span>Availability</span>
+                      <span>{area.availableSlots}/{area.totalSlots}</span>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-1.5">
+                      <div
+                        className={`h-1.5 rounded-full ${area.status === 'available' ? 'bg-green-500' :
+                            area.status === 'limited' ? 'bg-yellow-500' : 'bg-red-500'
+                          }`}
+                        style={{ width: `${(area.availableSlots / area.totalSlots) * 100}%` }}
+                      />
+                    </div>
+                  </div>
+
+                  <button
+                    className="w-full bg-slate-900 hover:bg-slate-800 text-white font-medium py-2 px-3 rounded text-sm transition-colors"
+                    onClick={() => handleViewDetails(area.id)}
                   >
-                    {area.availableSlots} / {area.totalSlots} spots available
-                  </span>
-                </p>
-                <p className="text-sm mt-1">${area.price}/hr</p>
-                <button
-                  className="mt-2 w-full bg-purple-600 hover:bg-purple-700 text-white px-2 py-1 rounded text-sm"
-                  onClick={() => handleViewDetails(area.id)}
-                >
-                  View Details
-                </button>
-              </div>
-            </Popup>
-          </Marker>
+                    View Details
+                  </button>
+                </div>
+              </InfoWindowF>
+            )}
+          </MarkerF>
         ))}
-      </MapContainer>
+      </GoogleMap>
     </div>
   )
 }

@@ -45,20 +45,32 @@ export async function GET() {
       const availableSlots = lot.slots.filter((s) => s.status === "AVAILABLE").length
       const occupiedSlots = lot.slots.filter((s) => s.status === "OCCUPIED").length
       const reservedSlots = lot.slots.filter((s) => s.status === "RESERVED").length
-      
+
       // Calculate average price from slots
-      const avgPrice = lot.slots.length > 0 
+      const avgPrice = lot.slots.length > 0
         ? Math.round(lot.slots.reduce((sum, s) => sum + (s.price || 0), 0) / lot.slots.length)
         : 50
 
       // Determine status based on availability
       const availabilityRatio = totalSlots > 0 ? availableSlots / totalSlots : 0
-      const status = availabilityRatio > 0.5 ? "available" : 
-                     availabilityRatio > 0.2 ? "limited" : "full"
+      const status = availabilityRatio > 0.5 ? "available" :
+        availabilityRatio > 0.2 ? "limited" : "full"
 
-      // Use owner's name for parking area name
+      // Use parking lot name if available, otherwise fallback to owner's name
       const ownerName = lot.ownerprofile?.user?.name || "Unknown Owner"
-      const parkingName = `${ownerName} Parking`
+
+      let parkingName = lot.name
+      if (!parkingName) {
+        // Smart suffixing: Only add " Parking" if not already present
+        parkingName = ownerName.match(/parking$/i)
+          ? ownerName
+          : `${ownerName} Parking`
+      }
+
+      // Safety cleanup: Remove double "Parking" if it somehow exists
+      if (parkingName) {
+        parkingName = parkingName.replace(/ parking parking$/i, " Parking");
+      }
 
       return {
         id: lot.id,
@@ -95,8 +107,8 @@ export async function GET() {
   } catch (error) {
     console.error("Error fetching parking lots:", error)
     return NextResponse.json(
-      { 
-        success: false, 
+      {
+        success: false,
         error: "Failed to fetch parking lots",
         details: error instanceof Error ? error.message : String(error)
       },

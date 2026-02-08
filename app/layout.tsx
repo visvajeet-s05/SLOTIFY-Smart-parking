@@ -4,7 +4,7 @@ import type React from "react"
 import { Inter } from "next/font/google"
 import { usePathname } from "next/navigation"
 import "./globals.css"
-import "leaflet/dist/leaflet.css"
+
 import { Toaster } from "@/components/ui/toaster"
 import { Toaster as SonnerToaster } from "@/components/ui/sonner"
 import Navbar from "@/components/navigation/navbar"
@@ -33,12 +33,13 @@ export default function RootLayout({
         <link rel="preload" href="/dashboard" as="document" />
         <link rel="dns-prefetch" href="//fonts.googleapis.com" />
         <link rel="dns-prefetch" href="//fonts.gstatic.com" />
-<meta httpEquiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
-<meta httpEquiv="Pragma" content="no-cache" />
-<meta httpEquiv="Expires" content="0" />
-        </head>
-        <body className={`${inter.className} bg-black text-white antialiased`}>
-          <script dangerouslySetInnerHTML={{ __html: `
+        <meta httpEquiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+        <meta httpEquiv="Pragma" content="no-cache" />
+        <meta httpEquiv="Expires" content="0" />
+      </head>
+      <body className={`${inter.className} bg-black text-white antialiased`}>
+        <script dangerouslySetInnerHTML={{
+          __html: `
             if ('scrollRestoration' in window.history) {
               window.history.scrollRestoration = 'manual';
             }

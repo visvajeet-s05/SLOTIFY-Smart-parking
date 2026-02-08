@@ -1,16 +1,8 @@
 "use client"
 
-import { MapContainer, TileLayer, Marker, Popup, Circle } from "react-leaflet"
-import "leaflet/dist/leaflet.css"
-import L from "leaflet"
-
-// Fix for Leaflet default icon issue
-delete (L.Icon.Default.prototype as any)._getIconUrl
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: require("leaflet/dist/images/marker-icon-2x.png"),
-  iconUrl: require("leaflet/dist/images/marker-icon.png"),
-  shadowUrl: require("leaflet/dist/images/marker-shadow.png"),
-})
+import { GoogleMap, useJsApiLoader, MarkerF, Circle, InfoWindowF } from "@react-google-maps/api"
+import { useState } from "react"
+import { Loader2 } from "lucide-react"
 
 interface Parking {
   id: string
@@ -25,43 +17,71 @@ interface Props {
   parkings?: Parking[]
 }
 
+const containerStyle = {
+  width: "100%",
+  height: "100vh",
+}
+
 export default function UserMap({ lat, lng, parkings = [] }: Props) {
+  const [selectedParking, setSelectedParking] = useState<Parking | null>(null)
+
+  const { isLoaded } = useJsApiLoader({
+    id: "google-map-script",
+    googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY || "",
+  })
+
+  if (!isLoaded) return (
+    <div className="w-full h-screen flex items-center justify-center bg-gray-100">
+      <Loader2 className="w-10 h-10 animate-spin text-purple-600" />
+    </div>
+  )
+
+  const center = { lat, lng }
+
   return (
-    <MapContainer
-      center={[lat, lng]}
+    <GoogleMap
+      mapContainerStyle={containerStyle}
+      center={center}
       zoom={13}
-      style={{ height: "100vh", width: "100%" }}
-      className="z-0"
     >
-      <TileLayer
-        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+      {/* User Location Marker */}
+      <MarkerF
+        position={center}
+        label={{ text: "You", color: "white", fontWeight: "bold" }}
       />
-      <Marker position={[lat, lng]}>
-        <Popup>You are here</Popup>
-      </Marker>
-      
+
       {/* 25km radius circle */}
       <Circle
-        center={[lat, lng]}
+        center={center}
         radius={25000}
-        pathOptions={{ 
-          color: "purple",
-          weight: 2,
-          opacity: 0.8,
-          fillOpacity: 0.1
+        options={{
+          strokeColor: "#9333ea", // purple-600
+          strokeOpacity: 0.8,
+          strokeWeight: 2,
+          fillColor: "#9333ea",
+          fillOpacity: 0.1,
         }}
       />
-      
+
       {parkings.map((parking) => (
-        <Marker key={parking.id} position={[parking.latitude, parking.longitude]}>
-          <Popup>
-            <div>
-              <h3 className="font-bold">{parking.name}</h3>
-              <p className="text-sm text-gray-600">Available parking spot</p>
-            </div>
-          </Popup>
-        </Marker>
+        <MarkerF
+          key={parking.id}
+          position={{ lat: parking.latitude, lng: parking.longitude }}
+          onClick={() => setSelectedParking(parking)}
+        />
       ))}
-    </MapContainer>
+
+      {selectedParking && (
+        <InfoWindowF
+          position={{ lat: selectedParking.latitude, lng: selectedParking.longitude }}
+          onCloseClick={() => setSelectedParking(null)}
+        >
+          <div className="p-2">
+            <h3 className="font-bold text-gray-900">{selectedParking.name}</h3>
+            <p className="text-sm text-gray-600">Available parking spot</p>
+          </div>
+        </InfoWindowF>
+      )}
+    </GoogleMap>
   )
 }

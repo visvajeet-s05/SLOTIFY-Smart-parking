@@ -1,0 +1,22 @@
+<svg width="160" height="40" viewBox="0 0 160 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#22D3EE;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#3B82F6;stop-opacity:1" />
+    </linearGradient>
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="1.5" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+  </defs>
+  
+  <!-- Icon: Modern Parking Slot Symbol -->
+  <rect x="2" y="8" width="28" height="24" rx="6" fill="url(#grad1)" fill-opacity="0.1" stroke="url(#grad1)" stroke-width="2.5"/>
+  <path d="M10 20H20M15 15V25" stroke="white" stroke-width="2.5" stroke-linecap="round" />
+  <circle cx="24" cy="14" r="2" fill="#22D3EE" filter="url(#glow)" />
+  
+  <!-- Text: Slotify -->
+  <text x="40" y="30" fill="white" style="font-family: 'Outfit', 'Inter', -apple-system, sans-serif; font-weight: 800; font-size: 26px; letter-spacing: -0.04em;">
+    Slotify<tspan fill="#22D3EE" style="font-weight: 400;">.</tspan>
+  </text>
+</svg>

@@ -89,14 +89,14 @@ border-b border-white/10 backdrop-blur-md shadow-lg"
       >
         <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
           {/* Logo */}
-          <Link href="/" className="flex items-center">
+          <Link href="/" className="flex items-center group">
             <Image
-              src="/Slotify_logo.jpg"
+              src="/Logo.png"
               alt="Slotify"
               width={140}
               height={40}
               priority
-              className="max-h-10 object-contain filter invert"
+              className="max-h-10 object-contain brightness-110 group-hover:brightness-125 transition-all"
             />
           </Link>
 

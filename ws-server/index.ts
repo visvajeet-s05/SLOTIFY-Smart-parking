@@ -31,7 +31,7 @@ type SlotUpdate = {
 const PORT = 4000;
 
 
-// Create HTTP server for health checks
+// Create HTTP server for health checks and broadcasting
 const server = createServer((req: IncomingMessage, res: ServerResponse) => {
   if (req.url === '/health' && req.method === 'GET') {
     res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -41,6 +41,29 @@ const server = createServer((req: IncomingMessage, res: ServerResponse) => {
       service: 'smart-parking-ws-server',
       connections: wss.clients.size
     }));
+  } else if (req.url === '/broadcast' && req.method === 'POST') {
+    let body = '';
+    req.on('data', chunk => {
+      body += chunk.toString();
+    });
+    req.on('end', () => {
+      try {
+        const data = JSON.parse(body);
+        console.log("📢 Received broadcast request:", data.type);
+
+        if (data.type === "SLOT_UPDATE" || data.type === "BULK_SLOT_UPDATE") {
+          broadcastUpdate(data);
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ success: true }));
+        } else {
+          res.writeHead(400);
+          res.end(JSON.stringify({ error: "Invalid broadcast type" }));
+        }
+      } catch (err) {
+        res.writeHead(400);
+        res.end(JSON.stringify({ error: "Invalid JSON" }));
+      }
+    });
   } else {
     res.writeHead(404);
     res.end();
@@ -89,7 +112,7 @@ wss.on("connection", (ws: WebSocket) => {
         if (role === "CUSTOMER" && !lotId) {
           globalCustomers.add(ws);
           console.log(`✅ CUSTOMER subscribed to ALL parking lots globally`);
-          
+
           // Send confirmation
           ws.send(JSON.stringify({
             type: "SUBSCRIBED",
@@ -112,7 +135,7 @@ wss.on("connection", (ws: WebSocket) => {
 
           subscriptions[lotId][role].add(ws);
           console.log(`✅ ${role} subscribed to ${lotId}`);
-          
+
           // Send confirmation
           ws.send(JSON.stringify({
             type: "SUBSCRIBED",
@@ -128,7 +151,7 @@ wss.on("connection", (ws: WebSocket) => {
       // Handle slot updates (existing functionality)
       if (data.lotSlug && data.slotNumber !== undefined) {
         const slotData = data as SlotUpdate;
-        
+
         // Priority check: OWNER updates bypass batching
         if (slotData.source === "OWNER") {
           await processImmediateUpdate(slotData);
@@ -147,13 +170,13 @@ wss.on("connection", (ws: WebSocket) => {
 
   ws.on("close", () => {
     console.log("🔌 Client disconnected");
-    
+
     // Cleanup: Remove from all subscriptions
     for (const lotId in subscriptions) {
       subscriptions[lotId].OWNER.delete(ws);
       subscriptions[lotId].CUSTOMER.delete(ws);
     }
-    
+
     // Cleanup: Remove from global customers
     globalCustomers.delete(ws);
   });
@@ -229,7 +252,7 @@ async function processImmediateUpdate(data: SlotUpdate) {
     });
 
     // Broadcast update
-    broadcastUpdate(data);
+    broadcastUpdate({ ...data, slotId: slot.id });
     console.log(`✅ Immediate update processed: Slot ${data.slotNumber} -> ${data.status}`);
   } catch (error) {
     console.error("❌ Error in immediate update:", error);
@@ -305,7 +328,7 @@ async function processBatchUpdates() {
         });
 
         // Broadcast update
-        broadcastUpdate(data);
+        broadcastUpdate({ ...data, slotId: slot.id });
       } catch (error) {
         console.error("❌ Error in batch update:", error);
       }
@@ -317,21 +340,23 @@ async function processBatchUpdates() {
 
 
 // Broadcast update to all connected clients
-function broadcastUpdate(data: SlotUpdate) {
+function broadcastUpdate(data: any) {
+  const lotId = data.lotId || data.lotSlug;
   const broadcastData = JSON.stringify({
-    type: "SLOT_UPDATE",
+    type: data.type || "SLOT_UPDATE",
     ...data,
+    lotId, // Ensure lotId is present
     timestamp: new Date().toISOString(),
   });
 
   // Broadcast to specific lot subscribers
-  if (data.lotSlug && subscriptions[data.lotSlug]) {
-    subscriptions[data.lotSlug].OWNER.forEach((client) => {
+  if (lotId && subscriptions[lotId]) {
+    subscriptions[lotId].OWNER.forEach((client) => {
       if (client.readyState === WebSocket.OPEN) {
         client.send(broadcastData);
       }
     });
-    subscriptions[data.lotSlug].CUSTOMER.forEach((client) => {
+    subscriptions[lotId].CUSTOMER.forEach((client) => {
       if (client.readyState === WebSocket.OPEN) {
         client.send(broadcastData);
       }
@@ -352,15 +377,15 @@ function broadcastUpdate(data: SlotUpdate) {
 // Broadcast to specific lot subscribers by role
 function broadcastToLot(lotId: string, role: Role, message: any) {
   if (!subscriptions[lotId]) return;
-  
+
   const data = JSON.stringify(message);
   const subscribers = subscriptions[lotId][role];
-  
+
   subscribers.forEach((client) => {
     if (client.readyState === WebSocket.OPEN) {
       client.send(data);
     }
   });
-  
+
   console.log(`📤 Broadcasted to ${role}s of ${lotId}`);
 }

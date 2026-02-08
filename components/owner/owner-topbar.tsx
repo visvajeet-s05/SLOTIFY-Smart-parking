@@ -39,15 +39,15 @@ export default function OwnerTopbar() {
     <header className="h-16 border-b border-slate-800 px-6 flex items-center justify-between bg-slate-950">
       {/* LEFT: Logo */}
       <div className="flex items-center">
-        <Link href="/dashboard/owner" className="flex items-center space-x-2">
+        <Link href="/dashboard/owner" className="flex items-center group">
           <Image
-            src="/Slotify_logo.jpg"
+            src="/Logo.png"
             alt="Slotify"
-            width={32}
+            width={120}
             height={32}
-            className="rounded"
+            priority
+            className="h-8 w-auto object-contain brightness-110 group-hover:brightness-125 transition-all"
           />
-          <span className="text-lg font-bold text-white">Slotify</span>
         </Link>
       </div>
 

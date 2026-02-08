@@ -78,12 +78,12 @@ export default function LandingPage() {
         <div className="max-w-7xl mx-auto px-6 flex items-center justify-between">
           <div className="flex items-center group cursor-pointer" onClick={() => router.push("/")}>
             <Image
-              src="/Slotify_logo.jpg"
+              src="/Logo.png"
               alt="Slotify"
               width={160}
               height={45}
               priority
-              className="h-10 w-auto object-contain mix-blend-screen brightness-125"
+              className="h-10 w-auto object-contain brightness-110 group-hover:brightness-125 transition-all"
             />
           </div>
 
@@ -417,11 +417,11 @@ export default function LandingPage() {
             <div className="col-span-1 lg:col-span-1">
               <div className="flex items-center group cursor-pointer" onClick={() => router.push("/")}>
                 <Image
-                  src="/Slotify_logo.jpg"
+                  src="/Logo.png"
                   alt="Slotify"
                   width={180}
                   height={50}
-                  className="h-12 w-auto object-contain mix-blend-screen brightness-125"
+                  className="h-12 w-auto object-contain brightness-110 group-hover:brightness-125 transition-all"
                 />
               </div>
               <p className="text-gray-500 leading-relaxed mb-8 max-w-sm">

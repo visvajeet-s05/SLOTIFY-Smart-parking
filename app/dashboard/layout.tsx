@@ -1,8 +1,7 @@
 "use client"
 
-import { useEffect } from "react"
-import { useRouter } from "next/navigation"
 import { useSession } from "next-auth/react"
+import { usePathname } from "next/navigation"
 
 import CustomerNavbar from "@/components/navigation/CustomerNavbar"
 
@@ -11,33 +10,31 @@ export default function DashboardLayout({
 }: {
   children: React.ReactNode
 }) {
-  const router = useRouter()
+  const pathname = usePathname()
   const { data: session, status } = useSession()
 
-  useEffect(() => {
-    if (status === "loading") return // Still loading
-
-    if (!session) {
-      router.replace("/")
-    }
-  }, [session, status, router])
+  // Only show customer navbar if NOT on an owner or admin route
+  const isOwnerRoute = pathname.startsWith("/dashboard/owner")
+  const isAdminRoute = pathname.startsWith("/dashboard/admin")
+  const showCustomerNavbar = !isOwnerRoute && !isAdminRoute
 
   if (status === "loading") {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-950">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-purple-500"></div>
+        <div className="relative">
+          <div className="w-20 h-20 border-4 border-purple-500/20 border-t-purple-500 rounded-full animate-spin" />
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="w-10 h-10 border-4 border-cyan-500/20 border-b-cyan-500 rounded-full animate-spin-slow" />
+          </div>
+        </div>
       </div>
     )
   }
 
-  if (!session) {
-    return null // Will redirect
-  }
-
   return (
     <div className="min-h-screen bg-slate-950">
-      <CustomerNavbar />
-      <main className="pt-16">
+      {showCustomerNavbar && <CustomerNavbar />}
+      <main className={showCustomerNavbar ? "pt-16" : ""}>
         {children}
       </main>
     </div>

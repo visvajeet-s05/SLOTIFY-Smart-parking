@@ -1,18 +1,33 @@
-import NextAuth from "next-auth"
+import NextAuth, { DefaultSession } from "next-auth"
 import CredentialsProvider from "next-auth/providers/credentials"
 import GoogleProvider from "next-auth/providers/google"
-import { PrismaClient } from "@prisma/client"
 import bcrypt from "bcryptjs"
-import { Role } from "@/lib/auth/roles"
+import { prisma } from "@/lib/prisma"
 
-let prisma: PrismaClient
+// Define types for session and token augmentation
+declare module "next-auth" {
+  interface Session {
+    user: {
+      id: string
+      role: string
+      parkingLotId?: string
+    } & DefaultSession["user"]
+  }
+  interface User {
+    id: string
+    role: string
+    parkingLotId?: string
+    sessionMaxAge?: number
+  }
+}
 
-try {
-  prisma = new PrismaClient()
-  console.log("🔴 Prisma client initialized")
-} catch (error) {
-  console.error("🔴 Prisma client initialization error:", error)
-  prisma = new PrismaClient() // fallback
+declare module "next-auth/jwt" {
+  interface JWT {
+    id: string
+    role: string
+    parkingLotId?: string
+    redirectUrl?: string
+  }
 }
 
 const handler = NextAuth({
@@ -35,14 +50,6 @@ const handler = NextAuth({
 
           const email = credentials.email
           const password = credentials.password
-
-          console.log("🔴 EMAIL:", email)
-
-          // Ensure prisma client is connected
-          if (!prisma) {
-            console.log("❌ Prisma client not initialized")
-            return null
-          }
 
           const user = await prisma.user.findUnique({
             where: { email },
@@ -82,7 +89,6 @@ const handler = NextAuth({
 
           console.log("✅ AUTH SUCCESS - RETURNING USER", parkingLotId ? `with Lot: ${parkingLotId}` : "")
 
-          // Return user object in NextAuth expected format
           return {
             id: user.id,
             email: user.email,
@@ -113,9 +119,10 @@ const handler = NextAuth({
       if (user) {
         token.id = user.id
         token.role = user.role
-        token.parkingLotId = (user as any).parkingLotId
+        token.parkingLotId = user.parkingLotId
+
         // Set redirect URL based on role
-        const roleRedirects = {
+        const roleRedirects: Record<string, string> = {
           CUSTOMER: '/dashboard',
           OWNER: '/dashboard/owner',
           ADMIN: '/dashboard/admin',
@@ -124,25 +131,24 @@ const handler = NextAuth({
           SUPERVISOR: '/dashboard',
           MANAGER: '/dashboard'
         }
-        token.redirectUrl = roleRedirects[user.role as keyof typeof roleRedirects] || '/dashboard'
+        token.redirectUrl = roleRedirects[user.role] || '/dashboard'
+
         // Set session max age if remember-me was requested
-        if ('sessionMaxAge' in user && user.sessionMaxAge) {
-          token.exp = Math.floor(Date.now() / 1000) + (user.sessionMaxAge as number)
+        if (user.sessionMaxAge) {
+          token.exp = Math.floor(Date.now() / 1000) + user.sessionMaxAge
         }
       }
       return token
     },
     async session({ session, token }) {
       if (session.user) {
-        session.user.id = token.id as string
-        session.user.role = token.role as string
-        session.user.parkingLotId = token.parkingLotId as string
+        session.user.id = token.id
+        session.user.role = token.role
+        session.user.parkingLotId = token.parkingLotId
       }
       return session
     },
     async redirect({ url, baseUrl }) {
-      // After successful login, redirect to /dashboard
-      // The middleware will handle role-based redirection from there
       if (url === baseUrl || url === `${baseUrl}/`) {
         return `${baseUrl}/dashboard`
       }
@@ -151,7 +157,6 @@ const handler = NextAuth({
       return baseUrl
     },
   },
-
 
   secret: process.env.NEXTAUTH_SECRET || "super-secret-jwt-key-change-in-production-123456789",
 })

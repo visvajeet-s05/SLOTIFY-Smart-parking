@@ -340,7 +340,7 @@ model user {
   role                             user_role
   createdAt                        DateTime              @default(now())
   lastLoginAt                      DateTime?
-  preferredCurrency                String                @default("USD")
+  preferredCurrency                String                @default("INR")
   phone                            String?
   walletBalance                    Float                 @default(0.0)
   booking_booking_customerIdTouser booking[]             @relation("booking_customerIdTouser")

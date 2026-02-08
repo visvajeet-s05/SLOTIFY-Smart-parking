@@ -15,8 +15,19 @@ function OwnerLayoutContent({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (status === "loading") return
 
-    if (status === "unauthenticated" || (session && session.user.role !== "OWNER")) {
+    if (status === "unauthenticated") {
+      // Check for local token to prevent false redirects
+      const token = localStorage.getItem("token")
+      if (!token) {
+        // Only redirect if no token exists at all
+        // router.replace("/") // Commented out to prevent redirect loops, let middleware handle it
+      }
+      return
+    }
+
+    if (session && session.user.role !== "OWNER") {
       router.replace("/dashboard")
+      return
     }
   }, [session, status, router])
 
@@ -25,23 +36,42 @@ function OwnerLayoutContent({ children }: { children: React.ReactNode }) {
   const ownerEmail = (session?.user?.email || "").toLowerCase()
   const lotId = session?.user?.parkingLotId || OWNER_PARKING_MAPPING[ownerEmail]
 
-  // Don't render until we have session data
-  if (status === "loading" || !lotId) {
+  // Show a clean loading state while session is being verified
+  if (status === "loading") {
     return (
-      <div className="min-h-screen bg-black flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-cyan-500"></div>
+      <div className="min-h-screen bg-[#030303] flex items-center justify-center">
+        <div className="relative">
+          <div className="w-16 h-16 border-4 border-purple-500/20 border-t-purple-500 rounded-full animate-spin" />
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="w-8 h-8 border-4 border-cyan-500/20 border-b-cyan-500 rounded-full animate-spin-slow" />
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // If unauthenticated or wrong role, the useEffect will handle it
+  if (status === "unauthenticated" || (session && session.user.role !== "OWNER")) {
+    return null
+  }
+
+  // If we don't have a lotId yet but are authenticated as owner, show loader
+  if (!lotId) {
+    return (
+      <div className="min-h-screen bg-[#030303] flex items-center justify-center">
+        <div className="text-center space-y-4">
+          <div className="w-16 h-16 border-4 border-purple-500/20 border-t-purple-500 rounded-full animate-spin mx-auto" />
+          <p className="text-gray-400 font-medium">Verifying parking lot access...</p>
+        </div>
       </div>
     )
   }
 
   return (
     <OwnerWebSocketProvider lotId={lotId}>
-      <div className="min-h-screen bg-black">
-        {/* OWNER NAVBAR ONLY */}
+      <div className="min-h-screen bg-[#030303]">
         <OwnerNavbar />
-
-        {/* PAGE CONTENT */}
-        <main className="pt-10">
+        <main className="pt-16">
           {children}
         </main>
       </div>
@@ -54,9 +84,5 @@ export default function OwnerLayout({
 }: {
   children: React.ReactNode
 }) {
-  return (
-    <SessionProvider>
-      <OwnerLayoutContent>{children}</OwnerLayoutContent>
-    </SessionProvider>
-  )
+  return <OwnerLayoutContent>{children}</OwnerLayoutContent>
 }

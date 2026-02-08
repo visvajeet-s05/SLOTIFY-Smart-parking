@@ -20,7 +20,7 @@ function formatDate(date: Date, formatStr: string): string {
   const day = date.getDate().toString().padStart(2, '0');
   const hours = date.getHours().toString().padStart(2, '0');
   const minutes = date.getMinutes().toString().padStart(2, '0');
-  
+
   if (formatStr === 'MMM dd, HH:mm') {
     return `${month} ${day}, ${hours}:${minutes}`;
   }
@@ -258,7 +258,7 @@ export default function AdminPricingDashboard() {
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">${stats?.totalRevenue?.toFixed(2) || '0.00'}</div>
+            <div className="text-2xl font-bold">₹{stats?.totalRevenue?.toFixed(2) || '0.00'}</div>
           </CardContent>
         </Card>
 
@@ -305,7 +305,7 @@ export default function AdminPricingDashboard() {
                       <Input
                         id="name"
                         value={newEvent.name}
-                        onChange={(e) => setNewEvent({...newEvent, name: e.target.value})}
+                        onChange={(e) => setNewEvent({ ...newEvent, name: e.target.value })}
                         placeholder="Concert at Stadium"
                       />
                     </div>
@@ -316,7 +316,7 @@ export default function AdminPricingDashboard() {
                         type="number"
                         step="0.1"
                         value={newEvent.surgeMultiplier}
-                        onChange={(e) => setNewEvent({...newEvent, surgeMultiplier: e.target.value})}
+                        onChange={(e) => setNewEvent({ ...newEvent, surgeMultiplier: e.target.value })}
                       />
                     </div>
                   </div>
@@ -326,7 +326,7 @@ export default function AdminPricingDashboard() {
                     <Input
                       id="description"
                       value={newEvent.description}
-                      onChange={(e) => setNewEvent({...newEvent, description: e.target.value})}
+                      onChange={(e) => setNewEvent({ ...newEvent, description: e.target.value })}
                       placeholder="Major event causing high demand"
                     />
                   </div>
@@ -339,7 +339,7 @@ export default function AdminPricingDashboard() {
                         type="number"
                         step="0.000001"
                         value={newEvent.lat}
-                        onChange={(e) => setNewEvent({...newEvent, lat: e.target.value})}
+                        onChange={(e) => setNewEvent({ ...newEvent, lat: e.target.value })}
                       />
                     </div>
                     <div>
@@ -349,7 +349,7 @@ export default function AdminPricingDashboard() {
                         type="number"
                         step="0.000001"
                         value={newEvent.lng}
-                        onChange={(e) => setNewEvent({...newEvent, lng: e.target.value})}
+                        onChange={(e) => setNewEvent({ ...newEvent, lng: e.target.value })}
                       />
                     </div>
                     <div>
@@ -358,7 +358,7 @@ export default function AdminPricingDashboard() {
                         id="radius"
                         type="number"
                         value={newEvent.radiusKm}
-                        onChange={(e) => setNewEvent({...newEvent, radiusKm: e.target.value})}
+                        onChange={(e) => setNewEvent({ ...newEvent, radiusKm: e.target.value })}
                       />
                     </div>
                   </div>
@@ -370,7 +370,7 @@ export default function AdminPricingDashboard() {
                         id="startTime"
                         type="datetime-local"
                         value={newEvent.startTime}
-                        onChange={(e) => setNewEvent({...newEvent, startTime: e.target.value})}
+                        onChange={(e) => setNewEvent({ ...newEvent, startTime: e.target.value })}
                       />
                     </div>
                     <div>
@@ -379,7 +379,7 @@ export default function AdminPricingDashboard() {
                         id="endTime"
                         type="datetime-local"
                         value={newEvent.endTime}
-                        onChange={(e) => setNewEvent({...newEvent, endTime: e.target.value})}
+                        onChange={(e) => setNewEvent({ ...newEvent, endTime: e.target.value })}
                       />
                     </div>
                   </div>
@@ -470,7 +470,7 @@ export default function AdminPricingDashboard() {
                         ) : (
                           <TrendingDown className="h-4 w-4 text-green-500" />
                         )}
-                        ${audit.oldPrice.toFixed(2)} → ${audit.newPrice.toFixed(2)}
+                        ₹{audit.oldPrice.toFixed(2)} → ₹{audit.newPrice.toFixed(2)}
                       </div>
                     </TableCell>
                     <TableCell>

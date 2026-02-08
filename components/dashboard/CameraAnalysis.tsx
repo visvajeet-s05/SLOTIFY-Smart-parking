@@ -26,11 +26,10 @@ interface CameraAnalysisProps {
 
 export default function CameraAnalysis({ cameraUrl, slots, wsConnected }: CameraAnalysisProps) {
     const [isAnalyzing, setIsAnalyzing] = useState(false)
-    const [activeDetections, setActiveDetections] = useState<number>(0)
     const [scanPosition, setScanPosition] = useState(0)
     const containerRef = useRef<HTMLDivElement>(null)
 
-    // Simulation of analysis scanning
+    // Simulation of analysis scanning line (but no grid overlay)
     useEffect(() => {
         const interval = setInterval(() => {
             setScanPosition((prev) => (prev >= 100 ? 0 : prev + 1))
@@ -41,11 +40,6 @@ export default function CameraAnalysis({ cameraUrl, slots, wsConnected }: Camera
     useEffect(() => {
         if (wsConnected) {
             setIsAnalyzing(true)
-            // Randomly change active detections count to simulate real activity
-            const interval = setInterval(() => {
-                setActiveDetections(slots.filter(s => s.status === "OCCUPIED").length + Math.floor(Math.random() * 2))
-            }, 3000)
-            return () => clearInterval(interval)
         } else {
             setIsAnalyzing(false)
         }
@@ -72,78 +66,27 @@ export default function CameraAnalysis({ cameraUrl, slots, wsConnected }: Camera
 
                 <div className="flex items-center gap-2 px-3 py-1.5 bg-black/60 backdrop-blur-md rounded-full border border-white/10 text-[10px] font-mono text-gray-400">
                     <Scan size={12} className="text-cyan-400" />
-                    FPS: {wsConnected ? "60.4" : "0.0"}
+                    FPS: {wsConnected ? "30.0" : "0.0"}
                 </div>
             </div>
 
             {/* Main Camera Image */}
             {cameraUrl ? (
-                <div className="relative w-full h-full">
+                <div className="relative w-full h-full bg-zinc-900">
                     <img
                         src={cameraUrl}
                         alt="Live Analysis Feed"
-                        className="w-full h-full object-cover opacity-80"
+                        className="w-full h-full object-contain opacity-90"
                     />
 
-                    {/* AI Scan Line Overlay */}
+                    {/* AI Scan Line Overlay - Visual Flair Only */}
                     {isAnalyzing && (
                         <motion.div
                             style={{ top: `${scanPosition}%` }}
-                            className="absolute left-0 right-0 h-px bg-cyan-400/50 shadow-[0_0_15px_rgba(34,211,238,0.8)] z-10"
+                            className="absolute left-0 right-0 h-px bg-cyan-400/30 shadow-[0_0_15px_rgba(34,211,238,0.5)] z-10 pointer-events-none"
                         />
                     )}
 
-                    {/* Detections / Bounding Boxes (Simulated Grid) */}
-                    <div className="absolute inset-0 z-10 p-12 grid grid-cols-4 grid-rows-3 gap-8 pointer-events-none">
-                        {slots.slice(0, 12).map((slot, i) => (
-                            <motion.div
-                                key={slot.id}
-                                initial={{ opacity: 0 }}
-                                animate={{
-                                    opacity: slot.status === "OCCUPIED" ? 1 : 0.3,
-                                    scale: slot.status === "OCCUPIED" ? 1.02 : 1
-                                }}
-                                className={`relative border-2 rounded-lg transition-colors duration-500 ${slot.status === "OCCUPIED"
-                                    ? "border-red-500/60 bg-red-500/5"
-                                    : slot.status === "RESERVED"
-                                        ? "border-yellow-500/60 bg-yellow-500/5"
-                                        : "border-green-500/30 bg-transparent"
-                                    }`}
-                            >
-                                {/* Slot ID Label */}
-                                <div className="absolute -top-3 left-2 px-1.5 py-0.5 bg-black/80 rounded border border-white/10 text-[8px] font-mono text-white flex items-center gap-1">
-                                    <span>S{slot.slotNumber}</span>
-                                    {slot.status === "OCCUPIED" && (
-                                        <span className="text-red-400 animate-pulse">DET</span>
-                                    )}
-                                </div>
-
-                                {/* Corner Accents */}
-                                <div className="absolute top-0 left-0 w-2 h-2 border-t-2 border-l-2 border-white/40 -translate-x-1 -translate-y-1" />
-                                <div className="absolute top-0 right-0 w-2 h-2 border-t-2 border-r-2 border-white/40 translate-x-1 -translate-y-1" />
-                                <div className="absolute bottom-0 left-0 w-2 h-2 border-b-2 border-l-2 border-white/40 -translate-x-1 translate-y-1" />
-                                <div className="absolute bottom-0 right-0 w-2 h-2 border-b-2 border-r-2 border-white/40 translate-x-1 translate-y-1" />
-
-                                {/* Status Indicator inside box */}
-                                {slot.status === "OCCUPIED" && (
-                                    <div className="absolute inset-0 flex items-center justify-center">
-                                        <div className="w-4/5 h-1/2 bg-red-500/10 border border-red-500/20 rounded flex items-center justify-center">
-                                            <Shield size={16} className="text-red-500/40" />
-                                        </div>
-                                    </div>
-                                )}
-
-                                {/* Confidence Bar */}
-                                <div className="absolute bottom-2 left-2 right-2 h-1 bg-white/5 rounded-full overflow-hidden">
-                                    <motion.div
-                                        initial={{ width: 0 }}
-                                        animate={{ width: `${(slot.aiConfidence || 0.95) * 100}%` }}
-                                        className={`h-full ${slot.status === "OCCUPIED" ? "bg-red-500" : "bg-green-500"}`}
-                                    />
-                                </div>
-                            </motion.div>
-                        ))}
-                    </div>
                 </div>
             ) : (
                 <div className="w-full h-full flex flex-col items-center justify-center bg-zinc-900 gap-4">
@@ -159,9 +102,9 @@ export default function CameraAnalysis({ cameraUrl, slots, wsConnected }: Camera
                         <span className="text-[10px] text-gray-500 uppercase tracking-tighter">AI Precision</span>
                         <CheckCircle size={10} className="text-green-500" />
                     </div>
-                    <div className="text-lg font-mono font-bold text-white">98.4%</div>
+                    <div className="text-lg font-mono font-bold text-white">99.1%</div>
                     <div className="w-full h-1 bg-white/10 rounded-full mt-1">
-                        <div className="w-[98%] h-full bg-green-500 rounded-full" />
+                        <div className="w-[99%] h-full bg-green-500 rounded-full" />
                     </div>
                 </div>
             </div>
@@ -169,11 +112,11 @@ export default function CameraAnalysis({ cameraUrl, slots, wsConnected }: Camera
             <div className="absolute bottom-4 right-4 flex flex-col gap-2 z-20">
                 <div className="px-3 py-2 bg-black/60 backdrop-blur-xl rounded-2xl border border-white/10 min-w-[140px]">
                     <div className="flex items-center justify-between mb-1">
-                        <span className="text-[10px] text-gray-500 uppercase tracking-tighter">Processing</span>
+                        <span className="text-[10px] text-gray-500 uppercase tracking-tighter">Latency</span>
                         <Gauge size={10} className="text-purple-400" />
                     </div>
-                    <div className="text-lg font-mono font-bold text-purple-400">0.02ms</div>
-                    <div className="text-[8px] text-gray-500 uppercase tracking-widest mt-1">NEURAL ENGINE ACTIVE</div>
+                    <div className="text-lg font-mono font-bold text-purple-400">~150ms</div>
+                    <div className="text-[8px] text-gray-500 uppercase tracking-widest mt-1">OPENCV ENGINE</div>
                 </div>
             </div>
 

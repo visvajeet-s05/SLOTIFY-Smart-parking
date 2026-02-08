@@ -306,14 +306,13 @@ export default function OwnerSlotsPage({ params }: { params: Promise<{ id: strin
 
         <div className="grid grid-cols-1 xl:grid-cols-12 gap-8">
 
-          {/* Main Workspace (Left/Center) */}
+          {/* Main Workspac (Left/Center) */}
           <div className="xl:col-span-8 space-y-8">
 
-            {/* Camera Analysis Simulated View */}
             {/* Live Camera Feed Button */}
             <section className="flex justify-end">
               <Link
-                href="/dashboard/owner/camera"
+                href={`/dashboard/owner/parking-lots/${lotId}/camera`}
                 className="group flex items-center gap-3 px-6 py-3 bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/20 hover:border-cyan-500/40 rounded-xl transition-all duration-300"
               >
                 <div className="relative">

@@ -58,6 +58,19 @@ export function useParkingSocket({
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const heartbeatIntervalRef = useRef<NodeJS.Timeout | null>(null)
 
+  const onSlotUpdateRef = useRef(onSlotUpdate)
+  const onBulkUpdateRef = useRef(onBulkUpdate)
+  const onConnectRef = useRef(onConnect)
+  const onDisconnectRef = useRef(onDisconnect)
+
+  // Update refs when callbacks change
+  useEffect(() => {
+    onSlotUpdateRef.current = onSlotUpdate
+    onBulkUpdateRef.current = onBulkUpdate
+    onConnectRef.current = onConnect
+    onDisconnectRef.current = onDisconnect
+  }, [onSlotUpdate, onBulkUpdate, onConnect, onDisconnect])
+
   useEffect(() => {
     if (!lotId) return
 
@@ -73,7 +86,7 @@ export function useParkingSocket({
         ws.onopen = () => {
           console.log('✅ Customer portal connected to WebSocket')
           setIsConnected(true)
-          onConnect?.()
+          onConnectRef.current?.()
 
           // Subscribe to this parking lot as CUSTOMER
           ws.send(JSON.stringify({
@@ -98,13 +111,13 @@ export function useParkingSocket({
               // Only process updates for this parking lot
               if (data.lotId === lotId) {
                 console.log(`📝 Customer received slot update: ${data.slotId} -> ${data.status}`)
-                onSlotUpdate?.(data)
+                onSlotUpdateRef.current?.(data)
               }
             } else if (data.type === 'BULK_SLOT_UPDATE') {
               // Only process bulk updates for this parking lot
               if (data.lotId === lotId) {
                 console.log(`📦 Customer received bulk update: ${data.action} (${data.updatedCount} slots)`)
-                onBulkUpdate?.(data)
+                onBulkUpdateRef.current?.(data)
               }
             } else if (data.type === 'HEARTBEAT') {
               setLastHeartbeat(new Date())
@@ -121,7 +134,7 @@ export function useParkingSocket({
         ws.onclose = () => {
           console.log('⚠️ Customer portal disconnected from WebSocket')
           setIsConnected(false)
-          onDisconnect?.()
+          onDisconnectRef.current?.()
 
           // Clear heartbeat interval
           if (heartbeatIntervalRef.current) {
@@ -166,7 +179,7 @@ export function useParkingSocket({
 
       setIsConnected(false)
     }
-  }, [lotId]) // Only depend on lotId - removed the duplicate useEffect
+  }, [lotId])
 
   return {
     isConnected,

@@ -8,8 +8,9 @@ declare module "next-auth" {
       name?: string
       role: string
       ownerStatus?: string
-      stripeCustomerId?: string | null
+      parkingLotId?: string | null
     }
+
   }
 
   interface User {
@@ -17,7 +18,6 @@ declare module "next-auth" {
     email: string
     name?: string
     role: string
-    stripeCustomerId?: string | null
   }
 
 }
@@ -28,6 +28,6 @@ declare module "next-auth/jwt" {
     role: string
     name?: string
     ownerStatus?: string
-    stripeCustomerId?: string | null
+    parkingLotId?: string | null
   }
 }

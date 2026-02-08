@@ -8,7 +8,25 @@ export async function GET() {
 
   const owner = await prisma.ownerprofile.findUnique({
     where: { userId: session.user.id },
-    include: { ownerverification: true, parkingsetupprogress: true },
+    include: {
+      user: {
+        select: {
+          name: true,
+          email: true,
+          role: true,
+          createdAt: true,
+        }
+      },
+      ownerverification: true,
+      parkingsetupprogress: true,
+      parkinglot: {
+        select: {
+          id: true,
+          name: true,
+          status: true,
+        }
+      }
+    },
   })
 
   return Response.json(owner)

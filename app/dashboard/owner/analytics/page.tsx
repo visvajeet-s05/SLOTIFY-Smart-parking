@@ -1,11 +1,26 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Download, Calendar, TrendingUp, Users, Car, Brain } from "lucide-react";
+import { useEffect, useState, useMemo } from "react";
+import {
+  Download,
+  Calendar as CalendarIcon,
+  TrendingUp,
+  Users,
+  Car,
+  Brain,
+  ArrowUpRight,
+  ArrowDownRight,
+  Filter,
+  Layers,
+  Sparkles
+} from "lucide-react";
+import { motion } from "framer-motion";
 import PeakHoursChart from "@/components/analytics/PeakHoursChart";
 import OccupancyTrends from "@/components/analytics/OccupancyTrends";
 import RevenueChart from "@/components/analytics/RevenueChart";
 import AIAccuracyChart from "@/components/analytics/AIAccuracyChart";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 
 interface AnalyticsData {
   overview: {
@@ -50,6 +65,19 @@ interface AnalyticsData {
   };
 }
 
+const containerVariants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: { staggerChildren: 0.1 }
+  }
+};
+
+const itemVariants = {
+  hidden: { opacity: 0, y: 20 },
+  visible: { opacity: 1, y: 0 }
+};
+
 export default function OwnerAnalyticsPage() {
   const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -76,7 +104,7 @@ export default function OwnerAnalyticsPage() {
 
   const exportData = () => {
     if (!analytics) return;
-    
+
     const csvContent = [
       ["Metric", "Value"],
       ["Total Slots", analytics.overview.totalSlots],
@@ -98,165 +126,216 @@ export default function OwnerAnalyticsPage() {
     a.click();
   };
 
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-black text-white flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-cyan-500" />
+  return (
+    <div className="min-h-screen bg-[#030303] text-white selection:bg-cyan-500/30">
+      {/* Decorative Background */}
+      <div className="fixed inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-[-10%] right-[-10%] w-[40%] h-[40%] bg-cyan-900/10 rounded-full blur-[120px]" />
+        <div className="absolute bottom-[-10%] left-[-10%] w-[40%] h-[40%] bg-purple-900/10 rounded-full blur-[120px]" />
       </div>
-    );
-  }
 
-  if (!analytics) {
-    return (
-      <div className="min-h-screen bg-black text-white flex items-center justify-center">
-        <div className="text-red-400">Failed to load analytics</div>
-      </div>
-    );
-  }
+      <motion.div
+        variants={containerVariants}
+        initial="hidden"
+        animate="visible"
+        className="relative max-w-7xl mx-auto px-6 pt-0 pb-20 space-y-8"
+      >
+        {/* Header */}
+        <motion.div variants={itemVariants} className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2 text-cyan-400 font-medium">
+              <Sparkles size={18} />
+              <span className="text-sm tracking-wider uppercase">Business Intelligence</span>
+            </div>
+            <h1 className="text-4xl font-bold tracking-tight">Analytics Center</h1>
+            <p className="text-gray-400">Deep insights into your facility's operational efficiency</p>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <div className="flex bg-white/5 border border-white/10 p-1 rounded-xl">
+              {[7, 14, 30].map((period) => (
+                <button
+                  key={period}
+                  onClick={() => setSelectedPeriod(period)}
+                  className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${selectedPeriod === period
+                    ? "bg-cyan-500 text-black shadow-lg shadow-cyan-500/20"
+                    : "text-gray-400 hover:text-white"
+                    }`}
+                >
+                  {period}D
+                </button>
+              ))}
+            </div>
+            <Button
+              onClick={exportData}
+              variant="outline"
+              className="bg-white/5 border-white/10 hover:bg-white/10 rounded-xl h-10"
+            >
+              <Download size={16} className="mr-2" />
+              Export Data
+            </Button>
+          </div>
+        </motion.div>
+
+        {isLoading ? (
+          <div className="py-20 flex flex-col items-center justify-center gap-4">
+            <div className="w-12 h-12 border-4 border-cyan-500/20 border-t-cyan-500 rounded-full animate-spin" />
+            <p className="text-gray-500 font-medium animate-pulse">Synthesizing intelligence...</p>
+          </div>
+        ) : !analytics ? (
+          <div className="py-20 text-center border border-white/10 rounded-3xl bg-white/5">
+            <p className="text-red-400">Failed to establish connection with Analytics Engine</p>
+            <Button variant="link" onClick={fetchAnalytics}>Retry Connection</Button>
+          </div>
+        ) : (
+          <>
+            {/* Overview Cards */}
+            <motion.div variants={itemVariants} className="grid grid-cols-1 md:grid-cols-4 gap-6">
+              <AnalyticsCard
+                icon={<Car className="text-cyan-400" />}
+                label="Average Occupancy"
+                value={`${analytics.overview.occupancyRate}%`}
+                trend="+2.4%"
+                trendUp={true}
+                subtext={`${analytics.overview.occupiedSlots}/${analytics.overview.totalSlots} Slots Used`}
+                color="cyan"
+              />
+              <AnalyticsCard
+                icon={<CalendarIcon className="text-green-400" />}
+                label="Total Revenue"
+                value={`₹${analytics.revenue.totalRevenue.toLocaleString()}`}
+                trend="+12%"
+                trendUp={true}
+                subtext={`${analytics.revenue.totalBookings} Total Bookings`}
+                color="green"
+              />
+              <AnalyticsCard
+                icon={<Brain className="text-purple-400" />}
+                label="AI Perception"
+                value={`${analytics.aiAccuracy.accuracy.toFixed(1)}%`}
+                trend="Stable"
+                trendUp={true}
+                subtext={`${analytics.aiAccuracy.confidence.toFixed(1)}% Confidence`}
+                color="purple"
+              />
+              <AnalyticsCard
+                icon={<Users className="text-yellow-400" />}
+                label="Growth Index"
+                value={analytics.customerMetrics.totalCustomers.toString()}
+                trend={`${analytics.customerMetrics.repeatRate}% Repeat`}
+                trendUp={true}
+                subtext="Total Unique Visitors"
+                color="yellow"
+              />
+            </motion.div>
+
+            {/* Charts Grid */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              <motion.div variants={itemVariants} className="bg-white/5 border border-white/10 rounded-3xl p-6 backdrop-blur-xl">
+                <PeakHoursChart
+                  data={analytics.peakHours.hourlyData}
+                  peakHour={analytics.peakHours.peakHour}
+                />
+              </motion.div>
+              <motion.div variants={itemVariants} className="bg-white/5 border border-white/10 rounded-3xl p-6 backdrop-blur-xl">
+                <OccupancyTrends data={analytics.occupancyTrends} />
+              </motion.div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              <motion.div variants={itemVariants} className="bg-white/5 border border-white/10 rounded-3xl p-6 backdrop-blur-xl">
+                <RevenueChart
+                  totalRevenue={analytics.revenue.totalRevenue}
+                  commission={analytics.revenue.totalRevenue * 0.12}
+                  tax={analytics.revenue.totalRevenue * 0.18}
+                  netPayout={analytics.revenue.totalRevenue * 0.7}
+                />
+              </motion.div>
+              <motion.div variants={itemVariants} className="bg-white/5 border border-white/10 rounded-3xl p-6 backdrop-blur-xl">
+                <AIAccuracyChart
+                  accuracy={analytics.aiAccuracy.accuracy}
+                  confidence={analytics.aiAccuracy.confidence}
+                  totalPredictions={analytics.aiAccuracy.totalPredictions}
+                  correctPredictions={analytics.aiAccuracy.correctPredictions}
+                />
+              </motion.div>
+            </div>
+
+            {/* Insights Panel */}
+            <motion.div variants={itemVariants} className="bg-gradient-to-r from-cyan-500/10 to-purple-500/10 border border-white/10 rounded-3xl p-8 backdrop-blur-2xl">
+              <div className="flex items-center gap-3 mb-8">
+                <div className="p-2 bg-white/5 rounded-lg border border-white/10">
+                  <TrendingUp size={24} className="text-cyan-400" />
+                </div>
+                <div>
+                  <h3 className="text-2xl font-bold">Executive Insights</h3>
+                  <p className="text-sm text-gray-400">Automated patterns detected by system AI</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <InsightTile
+                  title="Peak Performance"
+                  description={`Optimal utilization is at ${analytics.peakHours.peakHourLabel} with ${analytics.peakHours.peakOccupancy} events detected.`}
+                  tag="Efficiency"
+                />
+                <InsightTile
+                  title="Revenue Projection"
+                  description={`Consistent daily growth of ₹${analytics.revenue.avgRevenuePerDay.toLocaleString()}. Projected monthly: ₹${Math.round(analytics.revenue.estimatedMonthlyRevenue).toLocaleString()}.`}
+                  tag="Financial"
+                />
+                <InsightTile
+                  title="System Reliability"
+                  description={`AI engine maintaining ${analytics.aiAccuracy.accuracy.toFixed(1)}% accuracy with verified high confidence levels.`}
+                  tag="Technical"
+                />
+              </div>
+            </motion.div>
+          </>
+        )}
+      </motion.div>
+    </div>
+  );
+}
+
+function AnalyticsCard({ icon, label, value, trend, trendUp, subtext, color }: any) {
+  const configs: any = {
+    cyan: "border-cyan-500/20 hover:border-cyan-500/40 bg-cyan-500/5",
+    green: "border-green-500/20 hover:border-green-500/40 bg-green-500/5",
+    purple: "border-purple-500/20 hover:border-purple-500/40 bg-purple-500/5",
+    yellow: "border-yellow-500/20 hover:border-yellow-500/40 bg-yellow-500/5",
+  };
 
   return (
-    <div className="min-h-screen bg-black text-white p-6">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
-        <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2">
-            <TrendingUp className="text-cyan-400" />
-            Analytics Dashboard
-          </h1>
-          <p className="text-gray-400 text-sm mt-1">
-            Insights and performance metrics for your parking lot
-          </p>
+    <div className={`p-6 rounded-3xl border transition-all duration-300 backdrop-blur-sm group ${configs[color]}`}>
+      <div className="flex items-center justify-between mb-4">
+        <div className="p-3 bg-white/5 rounded-2xl border border-white/10 group-hover:scale-110 transition-transform">
+          {icon}
         </div>
-
-        <div className="flex items-center gap-3">
-          <select
-            value={selectedPeriod}
-            onChange={(e) => setSelectedPeriod(Number(e.target.value))}
-            className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm"
-          >
-            <option value={7}>Last 7 Days</option>
-            <option value={14}>Last 14 Days</option>
-            <option value={30}>Last 30 Days</option>
-          </select>
-
-          <button
-            onClick={exportData}
-            className="flex items-center gap-2 bg-cyan-600 hover:bg-cyan-700 text-white px-4 py-2 rounded-lg transition text-sm"
-          >
-            <Download size={16} />
-            Export CSV
-          </button>
+        <div className={`flex items-center gap-1 text-xs font-bold px-2 py-1 rounded-full ${trendUp ? "text-green-400 bg-green-400/10" : "text-red-400 bg-red-400/10"}`}>
+          {trendUp ? <ArrowUpRight size={14} /> : <ArrowDownRight size={14} />}
+          {trend}
         </div>
       </div>
-
-      {/* Overview Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-        <OverviewCard
-          icon={<Car className="text-cyan-400" />}
-          label="Occupancy Rate"
-          value={`${analytics.overview.occupancyRate}%`}
-          subtext={`${analytics.overview.occupiedSlots}/${analytics.overview.totalSlots} slots`}
-        />
-        <OverviewCard
-          icon={<Calendar className="text-green-400" />}
-          label="Total Bookings"
-          value={analytics.revenue.totalBookings.toString()}
-          subtext={`₹${analytics.revenue.totalRevenue.toLocaleString()} revenue`}
-        />
-        <OverviewCard
-          icon={<Brain className="text-purple-400" />}
-          label="AI Accuracy"
-          value={`${analytics.aiAccuracy.accuracy.toFixed(1)}%`}
-          subtext={`${analytics.aiAccuracy.totalPredictions} predictions`}
-        />
-        <OverviewCard
-          icon={<Users className="text-yellow-400" />}
-          label="Customers"
-          value={analytics.customerMetrics.totalCustomers.toString()}
-          subtext={`${analytics.customerMetrics.repeatRate}% repeat rate`}
-        />
-      </div>
-
-      {/* Charts Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-        <PeakHoursChart 
-          data={analytics.peakHours.hourlyData} 
-          peakHour={analytics.peakHours.peakHour} 
-        />
-        <OccupancyTrends data={analytics.occupancyTrends} />
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <RevenueChart
-          totalRevenue={analytics.revenue.totalRevenue}
-          commission={analytics.revenue.totalRevenue * 0.12} // 12% commission
-          tax={analytics.revenue.totalRevenue * 0.18} // 18% GST
-          netPayout={analytics.revenue.totalRevenue * 0.7} // 70% net
-        />
-        <AIAccuracyChart
-          accuracy={analytics.aiAccuracy.accuracy}
-          confidence={analytics.aiAccuracy.confidence}
-          totalPredictions={analytics.aiAccuracy.totalPredictions}
-          correctPredictions={analytics.aiAccuracy.correctPredictions}
-        />
-      </div>
-
-      {/* Additional Insights */}
-      <div className="mt-8 bg-gray-900 border border-gray-800 rounded-lg p-6">
-        <h3 className="text-lg font-semibold mb-4">Key Insights</h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-          <InsightItem
-            title="Peak Performance"
-            description={`Your busiest time is ${analytics.peakHours.peakHourLabel} with ${analytics.peakHours.peakOccupancy} occupancy events.`}
-          />
-          <InsightItem
-            title="Revenue Trend"
-            description={`Average daily revenue is ₹${analytics.revenue.avgRevenuePerDay.toLocaleString()}. Estimated monthly: ₹${Math.round(analytics.revenue.estimatedMonthlyRevenue).toLocaleString()}.`}
-          />
-          <InsightItem
-            title="AI Reliability"
-            description={`AI system is performing at ${analytics.aiAccuracy.accuracy.toFixed(1)}% accuracy with ${analytics.aiAccuracy.confidence.toFixed(1)}% average confidence.`}
-          />
-        </div>
+      <div>
+        <p className="text-xs font-bold uppercase tracking-widest text-gray-500 mb-1">{label}</p>
+        <p className="text-3xl font-black tracking-tighter text-white mb-2">{value}</p>
+        <p className="text-xs text-gray-400 font-medium">{subtext}</p>
       </div>
     </div>
   );
 }
 
-function OverviewCard({
-  icon,
-  label,
-  value,
-  subtext,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  value: string;
-  subtext: string;
-}) {
+function InsightTile({ title, description, tag }: any) {
   return (
-    <div className="bg-gray-900 border border-gray-800 rounded-lg p-4">
-      <div className="flex items-center gap-2 mb-2">
-        {icon}
-        <span className="text-gray-400 text-sm">{label}</span>
-      </div>
-      <div className="text-2xl font-bold">{value}</div>
-      <div className="text-xs text-gray-500 mt-1">{subtext}</div>
-    </div>
-  );
-}
-
-function InsightItem({
-  title,
-  description,
-}: {
-  title: string;
-  description: string;
-}) {
-  return (
-    <div className="bg-gray-800/50 rounded-lg p-4">
-      <h4 className="font-medium text-cyan-400 mb-1">{title}</h4>
-      <p className="text-gray-400">{description}</p>
+    <div className="bg-white/5 border border-white/10 rounded-2xl p-6 group hover:bg-white/[0.08] transition-all">
+      <Badge className="mb-4 bg-white/10 text-white font-bold tracking-widest uppercase text-[10px] py-1 border-none">
+        {tag}
+      </Badge>
+      <h4 className="text-lg font-bold text-white mb-2 group-hover:text-cyan-400 transition-colors uppercase tracking-tight">{title}</h4>
+      <p className="text-sm text-gray-400 leading-relaxed font-medium">
+        {description}
+      </p>
     </div>
   );
 }

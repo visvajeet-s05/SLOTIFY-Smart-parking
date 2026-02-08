@@ -1,164 +1,70 @@
-import { NextRequest, NextResponse } from "next/server"
+import { NextResponse } from "next/server"
+import { getServerSession } from "next-auth"
+import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 
-export async function POST(request: NextRequest) {
+export async function GET() {
   try {
-    const body = await request.json()
-    const { slotId, lotId, startTime, endTime, vehicleType = "CAR" } = body
+    const session = await getServerSession(authOptions)
 
-    // Validate required fields
-    if (!slotId || !lotId || !startTime || !endTime) {
-      return NextResponse.json(
-        { error: "Missing required fields: slotId, lotId, startTime, endTime" },
-        { status: 400 }
-      )
+    if (!session?.user?.email) {
+      return new NextResponse("Unauthorized", { status: 401 })
     }
 
-    // Find the slot
-    const slot = await prisma.slot.findUnique({
-      where: { id: slotId },
-      include: { parkingLot: { include: { ownerprofile: { include: { user: true } } } } }
+    const user = await prisma.user.findUnique({
+      where: { email: session.user.email },
+      select: { id: true }
     })
 
-    if (!slot) {
-      return NextResponse.json(
-        { error: "Slot not found" },
-        { status: 404 }
-      )
+    if (!user) {
+      return new NextResponse("User not found", { status: 404 })
     }
-
-    // Check if slot is available
-    if (slot.status !== "AVAILABLE") {
-      return NextResponse.json(
-        { error: `Slot is not available. Current status: ${slot.status}` },
-        { status: 400 }
-      )
-    }
-
-    // Get customer (in real app, this would come from session)
-    const customer = await prisma.user.findFirst({
-      where: { role: "CUSTOMER" }
-    })
-
-    if (!customer) {
-      return NextResponse.json(
-        { error: "No customer found" },
-        { status: 400 }
-      )
-    }
-
-    // Get owner
-    const owner = slot.parkingLot?.ownerprofile?.user
-    if (!owner) {
-      return NextResponse.json(
-        { error: "Parking lot owner not found" },
-        { status: 400 }
-      )
-    }
-
-    // Calculate amount
-    const start = new Date(startTime)
-    const end = new Date(endTime)
-    const hours = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60))
-    const amount = (slot.price || 50) * hours
-
-    // Create booking
-    const booking = await prisma.booking.create({
-      data: {
-        id: crypto.randomUUID(),
-        customerId: customer.id,
-        ownerId: owner.id,
-        parkingLotId: lotId,
-        slotId: slotId,
-        status: "UPCOMING",
-        amount: amount,
-        startTime: start,
-        endTime: end,
-        vehicleType: vehicleType,
-      }
-    })
-
-    // Update slot status to RESERVED
-    await prisma.slot.update({
-      where: { id: slotId },
-      data: { 
-        status: "RESERVED",
-        updatedBy: "CUSTOMER"
-      }
-    })
-
-    // Create status log
-    await prisma.slotStatusLog.create({
-      data: {
-        id: crypto.randomUUID(),
-        slotId: slotId,
-        oldStatus: "AVAILABLE",
-        newStatus: "RESERVED",
-        updatedBy: "CUSTOMER",
-        aiConfidence: 100
-      }
-    })
-
-    // Broadcast WebSocket update
-    try {
-      const WebSocket = (await import("ws")).default
-      const ws = new WebSocket("ws://localhost:4000")
-      
-      ws.on("open", () => {
-        ws.send(JSON.stringify({
-          type: "SLOT_UPDATE",
-          slotId: slotId,
-          status: "RESERVED",
-          source: "CUSTOMER",
-          timestamp: new Date().toISOString()
-        }))
-        ws.close()
-      })
-    } catch (wsError) {
-      console.error("WebSocket broadcast error:", wsError)
-    }
-
-    return NextResponse.json({
-      success: true,
-      booking: booking,
-      message: "Booking created successfully"
-    })
-
-  } catch (error) {
-    console.error("Error creating booking:", error)
-    return NextResponse.json(
-      { error: "Failed to create booking" },
-      { status: 500 }
-    )
-  }
-}
-
-export async function GET(request: NextRequest) {
-  try {
-    const { searchParams } = new URL(request.url)
-    const customerId = searchParams.get("customerId")
-    const ownerId = searchParams.get("ownerId")
-
-    const where: any = {}
-    if (customerId) where.customerId = customerId
-    if (ownerId) where.ownerId = ownerId
 
     const bookings = await prisma.booking.findMany({
-      where,
-      include: {
-        slot: true,
-        parkinglot: true
+      where: {
+        customerId: user.id
       },
-      orderBy: { createdAt: "desc" }
+      orderBy: {
+        createdAt: 'desc'
+      },
+      include: {
+        parkinglot: {
+          select: {
+            name: true,
+            address: true
+          }
+        },
+        slot: {
+          select: {
+            slotNumber: true,
+            row: true
+          }
+        }
+      }
     })
 
-    return NextResponse.json({ bookings })
+    // Transform to match UI interface if needed, or update UI to match this
+    // The UI `Booking` interface has `parkingLocation`, `slotId`, etc.
+    // Let's map it here to be safe and clean.
+    const mappedBookings = bookings.map(b => ({
+      id: b.id,
+      bookingId: b.id.substring(0, 8).toUpperCase(), // or a real booking ID field if exists
+      parkingLocation: b.parkinglot.name,
+      slotId: b.slot ? `${b.slot.row}-${b.slot.slotNumber}` : "N/A",
+      bookingDate: b.startTime.toISOString(),
+      bookingTime: new Date(b.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      duration: Math.round((new Date(b.endTime).getTime() - new Date(b.startTime).getTime()) / (1000 * 60 * 60)),
+      licensePlate: "TN-XX-XXXX", // Placeholder as vehicle relation might be complex
+      vehicleModel: b.vehicleType,
+      amount: b.amount,
+      paymentMethod: "Online", // default
+      status: b.status, // Enum matches somewhat? UI expects "UPCOMING" etc. Prisma enum is usually uppercase.
+      createdAt: b.createdAt.toISOString(),
+    }))
 
+    return NextResponse.json(mappedBookings)
   } catch (error) {
-    console.error("Error fetching bookings:", error)
-    return NextResponse.json(
-      { error: "Failed to fetch bookings" },
-      { status: 500 }
-    )
+    console.error("[BOOKINGS_GET]", error)
+    return new NextResponse("Internal Error", { status: 500 })
   }
 }

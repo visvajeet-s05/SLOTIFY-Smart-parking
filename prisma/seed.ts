@@ -17,21 +17,21 @@ async function main() {
 
   // Create Admin
   await prisma.user.create({
-    data: { 
+    data: {
       id: crypto.randomUUID(),
       name: "Admin",
-      email: "admin@slotify.com", 
-      password: hash("admin@slotify"), 
+      email: "admin@slotify.com",
+      password: hash("admin@slotify"),
       role: "ADMIN",
     },
   })
 
   // Define 8 unique parking lots with different pricing, slot totals, and camera URLs
   const parkings = [
-    { 
-      id: "CHENNAI_CENTRAL", 
-      name: "Chennai Central Premium Parking", 
-      ownerEmail: "owner@gmail.com", 
+    {
+      id: "CHENNAI_CENTRAL",
+      name: "Chennai Central Premium Parking",
+      ownerEmail: "owner@gmail.com",
       ownerPassword: "owner@123",
       ownerName: "Rajesh Kumar",
       basePrice: 80,
@@ -43,10 +43,10 @@ async function main() {
       amenities: ["CCTV", "Security", "EV Charging", "Valet"],
       description: "Premium parking at Chennai Central with 24/7 security"
     },
-    { 
-      id: "ANNA_NAGAR", 
-      name: "Anna Nagar Metro Parking", 
-      ownerEmail: "owner1@gmail.com", 
+    {
+      id: "ANNA_NAGAR",
+      name: "Anna Nagar Metro Parking",
+      ownerEmail: "owner1@gmail.com",
       ownerPassword: "owner1@123",
       ownerName: "Priya Sharma",
       basePrice: 60,
@@ -58,10 +58,10 @@ async function main() {
       amenities: ["CCTV", "Covered", "EV Charging"],
       description: "Metro-connected parking with covered slots"
     },
-    { 
-      id: "T_NAGAR", 
-      name: "T Nagar Shopping District Parking", 
-      ownerEmail: "owner2@gmail.com", 
+    {
+      id: "T_NAGAR",
+      name: "T Nagar Shopping District Parking",
+      ownerEmail: "owner2@gmail.com",
       ownerPassword: "owner2@123",
       ownerName: "Karthik Venkat",
       basePrice: 100,
@@ -73,10 +73,10 @@ async function main() {
       amenities: ["CCTV", "Security", "Valet", "Premium"],
       description: "High-demand shopping district premium parking"
     },
-    { 
-      id: "VELACHERY", 
-      name: "Velachery IT Corridor Parking", 
-      ownerEmail: "owner3@gmail.com", 
+    {
+      id: "VELACHERY",
+      name: "Velachery IT Corridor Parking",
+      ownerEmail: "owner3@gmail.com",
       ownerPassword: "owner3@123",
       ownerName: "Anitha Raj",
       basePrice: 50,
@@ -88,10 +88,10 @@ async function main() {
       amenities: ["CCTV", "EV Charging", "Monthly Passes"],
       description: "IT corridor parking with corporate rates"
     },
-    { 
-      id: "OMR", 
-      name: "OMR Tech Park Parking", 
-      ownerEmail: "owner4@gmail.com", 
+    {
+      id: "OMR",
+      name: "OMR Tech Park Parking",
+      ownerEmail: "owner4@gmail.com",
       ownerPassword: "owner4@123",
       ownerName: "Suresh Babu",
       basePrice: 45,
@@ -103,10 +103,10 @@ async function main() {
       amenities: ["CCTV", "Covered", "24/7 Access"],
       description: "Tech park parking with night shift support"
     },
-    { 
-      id: "ADYAR", 
-      name: "Adyar Beachside Parking", 
-      ownerEmail: "owner5@gmail.com", 
+    {
+      id: "ADYAR",
+      name: "Adyar Beachside Parking",
+      ownerEmail: "owner5@gmail.com",
       ownerPassword: "owner5@123",
       ownerName: "Lakshmi Narayan",
       basePrice: 70,
@@ -118,10 +118,10 @@ async function main() {
       amenities: ["CCTV", "Security", "Beach View"],
       description: "Beachside parking with tourist facilities"
     },
-    { 
-      id: "GUINDY", 
-      name: "Guindy Industrial Parking", 
-      ownerEmail: "owner6@gmail.com", 
+    {
+      id: "GUINDY",
+      name: "Guindy Industrial Parking",
+      ownerEmail: "owner6@gmail.com",
       ownerPassword: "owner6@123",
       ownerName: "Mohammed Ali",
       basePrice: 40,
@@ -133,10 +133,10 @@ async function main() {
       amenities: ["CCTV", "Heavy Vehicle", "Loading Zone"],
       description: "Industrial area parking for trucks and vans"
     },
-    { 
-      id: "PORUR", 
-      name: "Porur Residential Parking", 
-      ownerEmail: "owner7@gmail.com", 
+    {
+      id: "PORUR",
+      name: "Porur Residential Parking",
+      ownerEmail: "owner7@gmail.com",
       ownerPassword: "owner7@123",
       ownerName: "Deepa Chandran",
       basePrice: 35,
@@ -209,16 +209,16 @@ async function main() {
     let slotNumber = 1
     const slotsPerRow = Math.ceil(p.totalSlots / 8) // Distribute across 8 rows (A-H)
     const rows = ["A", "B", "C", "D", "E", "F", "G", "H"]
-    
+
     for (const row of rows) {
       for (let i = 0; i < slotsPerRow && slotNumber <= p.totalSlots; i++) {
         // Default: REGULAR (90% of slots)
         let slotType = "REGULAR"
         let slotPrice = p.basePrice
-        
+
         // Random distribution for special slots (scattered throughout, NOT grouped by row)
         const rand = Math.random()
-        
+
         // 5% EV slots scattered randomly (only if parking has EV charging)
         if (rand < 0.05 && p.amenities.includes("EV Charging")) {
           slotType = "EV"
@@ -230,7 +230,7 @@ async function main() {
           slotPrice = p.basePrice * 0.8
         }
         // 90% REGULAR (default) - NO VIP slots
-        
+
         // Status distribution (realistic mix)
         let status: any = "AVAILABLE"
         const statusRand = Math.random()
@@ -244,7 +244,7 @@ async function main() {
 
         // Generate location-based display name: LOCATION_ID-ROW-NUMBER
         const displayName = `${p.id}-${row}-${String(slotNumber).padStart(2, "0")}`
-        
+
         await prisma.slot.create({
           data: {
             id: `${p.id}-${row}-${slotNumber}`,
@@ -267,6 +267,7 @@ async function main() {
   }
 
   // Create Visvajeet customer
+  // Create Visvajeet customer
   await prisma.user.create({
     data: {
       id: crypto.randomUUID(),
@@ -274,9 +275,37 @@ async function main() {
       email: "visvajeet@gmail.com",
       password: hash("visvajeet123"),
       role: "CUSTOMER",
+      // @ts-ignore
+      // phone: "+91-98765-43210",
+      // walletBalance: 2500.00,
+      vehicle: {
+        create: [
+          {
+            id: crypto.randomUUID(),
+            licensePlate: "TN-01-AB-1234",
+            make: "Toyota",
+            model: "Fortuner",
+            color: "White",
+            updatedAt: new Date(),
+            // fastTagId: "FASTAG-VIS-001",
+            // isActive: true
+          },
+          {
+            id: crypto.randomUUID(),
+            licensePlate: "TN-07-CD-5678",
+            make: "Hyundai",
+            model: "Verna",
+            color: "Black",
+            updatedAt: new Date(),
+            // fastTagId: "FASTAG-VIS-002",
+            // isActive: true
+          }
+        ]
+      }
     }
   })
 
+  // Create Manish customer
   // Create Manish customer
   await prisma.user.create({
     data: {
@@ -285,36 +314,71 @@ async function main() {
       email: "manish@gmail.com",
       password: hash("manish123"),
       role: "CUSTOMER",
+      // phone: "+91-98765-12345",
+      // walletBalance: 800.50,
+      vehicle: {
+        create: {
+          id: crypto.randomUUID(),
+          licensePlate: "TN-02-XY-9012",
+          make: "Maruti",
+          model: "Swift",
+          color: "Red",
+          updatedAt: new Date(),
+          // fastTagId: "FASTAG-MAN-001",
+          // isActive: true
+        }
+      }
     }
   })
 
-  // Create some initial bookings for realism
-  const allSlots = await prisma.slot.findMany({
-    where: { status: "RESERVED" },
-    take: 10
-  })
+  // Create specific bookings for Visvajeet to populate "My Bookings"
+  const visvajeet = await prisma.user.findUnique({ where: { email: "visvajeet@gmail.com" } })
 
-  for (const slot of allSlots) {
-    const customer = await prisma.user.findFirst({ where: { role: "CUSTOMER" } })
-    const lot = await prisma.parkinglot.findUnique({ 
-      where: { id: slot.lotId },
-      include: { ownerprofile: { include: { user: true } } }
-    })
-    if (customer && lot && lot.ownerprofile?.user) {
-      await prisma.booking.create({
-        data: {
-          id: crypto.randomUUID(),
-          customerId: customer.id,
-          ownerId: lot.ownerprofile.user.id,
-          parkingLotId: lot.id,
-          slotId: slot.id,
-          status: "ACTIVE",
-          amount: slot.price || 50,
-          startTime: new Date(Date.now() - 2 * 60 * 60 * 1000),
-          endTime: new Date(Date.now() + 2 * 60 * 60 * 1000),
-          vehicleType: "CAR",
-        }
-      })
+  if (visvajeet) {
+    console.log("Creating bookings for Visvajeet...")
+    const statuses = ["UPCOMING", "ACTIVE", "COMPLETED", "CANCELLED"] as const
+    const now = new Date()
+
+    // Create 12 bookings for Visvajeet spread across the 8 lots
+    for (let i = 0; i < 12; i++) {
+      const lot = parkings[i % parkings.length] // Cycle through lots
+      const status = statuses[i % 4] // Cycle through statuses
+
+      // Find a slot in this lot
+      const owner = await prisma.user.findFirst({ where: { email: lot.ownerEmail } })
+
+      let startTime = new Date()
+      let endTime = new Date()
+
+      if (status === "UPCOMING") {
+        startTime = new Date(now.getTime() + (i + 1) * 24 * 60 * 60 * 1000) // Future days
+        endTime = new Date(startTime.getTime() + 2 * 60 * 60 * 1000)
+      } else if (status === "ACTIVE") {
+        startTime = new Date(now.getTime() - 1 * 60 * 60 * 1000) // Started 1 hour ago
+        endTime = new Date(now.getTime() + 1 * 60 * 60 * 1000) // Ends in 1 hour
+      } else {
+        startTime = new Date(now.getTime() - (i + 1) * 24 * 60 * 60 * 1000) // Past days
+        endTime = new Date(startTime.getTime() + 3 * 60 * 60 * 1000)
+      }
+
+      if (owner) {
+        await prisma.booking.create({
+          data: {
+            id: crypto.randomUUID(),
+            customerId: visvajeet.id,
+            ownerId: owner.id,
+            parkingLotId: lot.id,
+            // We don't strictly need a reserved slot relation for history, but for ACTIVE/UPCOMING it's good.
+            // For simplicity in seed, let's leave slotId null or try to find one if needed.
+            // Ideally we attach it to a real slot if possible.
+            status: status,
+            amount: lot.basePrice * 2, // 2 hours approx
+            startTime: startTime,
+            endTime: endTime,
+            vehicleType: "Toyota Fortuner",
+          }
+        })
+      }
     }
   }
 

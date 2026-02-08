@@ -4,6 +4,8 @@ import { useEffect, useState } from "react"
 
 import SlotGrid from "../../../../../components/SlotGrid"
 import { useOwnerWS } from "@/components/ws/OwnerWebSocketProvider"
+import { useSession } from "next-auth/react"
+import { useRouter } from "next/navigation"
 
 
 type Slot = {
@@ -20,15 +22,24 @@ type Slot = {
 
 
 export default function OwnerSlotsPage() {
+  const { data: session } = useSession()
+  const router = useRouter()
   const [slots, setSlots] = useState<Slot[]>([])
   const [cameraUrl, setCameraUrl] = useState<string>("")
-  
+
   // Use the shared WebSocket from context (no duplicate connections!)
   const { isConnected: wsConnected, lastMessage } = useOwnerWS()
 
   // Fetch initial data
   useEffect(() => {
-    // Fetch slots
+    // If we have a parking lot ID in session, redirect to dynamic page
+    // This deprecated page should not be used if possible
+    if (session?.user?.parkingLotId) {
+      router.replace(`/dashboard/owner/parking-lots/${session.user.parkingLotId}/slots`)
+      return
+    }
+
+    // Fallback deprecated fetch (only if no session ID)
     fetch("/api/parking/chennai-central/slots")
       .then(res => res.json())
       .then(data => {
@@ -41,21 +52,21 @@ export default function OwnerSlotsPage() {
       .then(data => {
         setCameraUrl(data.streamUrl || "")
       })
-  }, [])
+  }, [session, router])
 
   // Handle WebSocket messages for live updates
   useEffect(() => {
     if (!lastMessage) return
 
     if (lastMessage.type === "SLOT_UPDATE") {
-      setSlots(prev => prev.map(slot => 
-        slot.id === lastMessage.slotId 
-          ? { 
-              ...slot, 
-              status: lastMessage.status as Slot["status"], 
-              aiConfidence: lastMessage.confidence || 0, 
-              updatedBy: lastMessage.updatedBy || "SYSTEM" 
-            }
+      setSlots(prev => prev.map(slot =>
+        slot.id === lastMessage.slotId
+          ? {
+            ...slot,
+            status: lastMessage.status as Slot["status"],
+            aiConfidence: lastMessage.confidence || 0,
+            updatedBy: lastMessage.updatedBy || "SYSTEM"
+          }
           : slot
       ))
     }
@@ -72,8 +83,8 @@ export default function OwnerSlotsPage() {
       })
 
       if (response.ok) {
-        setSlots(prev => prev.map(slot => 
-          slot.id === slotId 
+        setSlots(prev => prev.map(slot =>
+          slot.id === slotId
             ? { ...slot, status: newStatus, updatedBy: "OWNER" }
             : slot
         ))
@@ -102,9 +113,9 @@ export default function OwnerSlotsPage() {
             <h2 className="text-lg font-semibold text-white">📹 Live Camera Feed</h2>
           </div>
           <div className="p-4">
-            <img 
-              src={cameraUrl} 
-              alt="Parking Lot Camera" 
+            <img
+              src={cameraUrl}
+              alt="Parking Lot Camera"
               className="w-full max-w-2xl rounded-lg"
             />
           </div>
@@ -135,9 +146,9 @@ export default function OwnerSlotsPage() {
           </div>
         </div>
 
-        <SlotGrid 
-          slots={slots} 
-          selectable={false} 
+        <SlotGrid
+          slots={slots}
+          selectable={false}
         />
 
         {/* AI Confidence Info */}
@@ -170,7 +181,7 @@ export default function OwnerSlotsPage() {
           {slots.slice(0, 8).map(slot => (
             <div key={slot.id} className="flex flex-col gap-2">
               <span className="text-sm text-gray-400">Slot S{slot.slotNumber}</span>
-              <select 
+              <select
                 value={slot.status}
                 onChange={(e) => handleManualOverride(slot.id, e.target.value as Slot["status"])}
                 className="bg-gray-800 text-white rounded-lg px-3 py-2 text-sm border border-gray-700"

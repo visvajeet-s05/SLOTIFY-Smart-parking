@@ -28,8 +28,8 @@ const OwnerWebSocketContext = createContext<OwnerWebSocketContextType>({
   ws: null,
   isConnected: false,
   lastMessage: null,
-  connect: () => {},
-  disconnect: () => {},
+  connect: () => { },
+  disconnect: () => { },
 });
 
 export function OwnerWebSocketProvider({
@@ -42,13 +42,13 @@ export function OwnerWebSocketProvider({
   const wsRef = useRef<WebSocket | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const [lastMessage, setLastMessage] = useState<WebSocketMessage | null>(null);
-  
+
   // Reconnection state
   const reconnectAttemptsRef = useRef(0);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const heartbeatIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const isConnectingRef = useRef(false);
-  
+
   const MAX_RECONNECT_ATTEMPTS = 5;
   const RECONNECT_DELAY = 3000; // 3 seconds
   const HEARTBEAT_INTERVAL = 30000; // 30 seconds
@@ -68,13 +68,13 @@ export function OwnerWebSocketProvider({
   // Connect function
   const connect = useCallback(() => {
     if (!lotId || isConnectingRef.current) return;
-    
+
     // Prevent duplicate connections
     if (wsRef.current?.readyState === WebSocket.OPEN) {
       console.log("🟡 WebSocket already connected, skipping");
       return;
     }
-    
+
     if (wsRef.current?.readyState === WebSocket.CONNECTING) {
       console.log("🟡 WebSocket already connecting, skipping");
       return;
@@ -85,7 +85,7 @@ export function OwnerWebSocketProvider({
 
     const wsUrl = process.env.NEXT_PUBLIC_WEBSOCKET_URL || "ws://localhost:4000";
     console.log(`🟢 Creating WebSocket connection for owner to ${wsUrl}...`);
-    
+
     try {
       const ws = new WebSocket(wsUrl);
       wsRef.current = ws;
@@ -123,13 +123,8 @@ export function OwnerWebSocketProvider({
         }
       };
 
-      ws.onerror = (error) => {
-        console.error("❌ WS error:", {
-          type: error.type,
-          target: (error.target as WebSocket)?.url,
-          readyState: (error.target as WebSocket)?.readyState,
-          error: error
-        });
+      ws.onerror = (event) => {
+        console.error("❌ WS error occurred", event);
         isConnectingRef.current = false;
       };
 
@@ -163,13 +158,13 @@ export function OwnerWebSocketProvider({
   const disconnect = useCallback(() => {
     clearTimers();
     reconnectAttemptsRef.current = MAX_RECONNECT_ATTEMPTS; // Prevent reconnection
-    
+
     if (wsRef.current) {
       // Use code 1000 for normal closure
       wsRef.current.close(1000, "Provider unmounting");
       wsRef.current = null;
     }
-    
+
     setIsConnected(false);
     isConnectingRef.current = false;
   }, [clearTimers]);
@@ -186,9 +181,9 @@ export function OwnerWebSocketProvider({
   }, [lotId, connect, disconnect]);
 
   return (
-    <OwnerWebSocketContext.Provider value={{ 
-      ws: wsRef.current, 
-      isConnected, 
+    <OwnerWebSocketContext.Provider value={{
+      ws: wsRef.current,
+      isConnected,
       lastMessage,
       connect,
       disconnect

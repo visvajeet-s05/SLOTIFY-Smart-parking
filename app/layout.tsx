@@ -22,8 +22,9 @@ export default function RootLayout({
 }>) {
   const pathname = usePathname()
 
-  // Hide global navbar on owner dashboard pages
-  const hideGlobalNavbar = pathname.startsWith("/dashboard/owner")
+  // Hide global navbar on landing page and owner dashboard pages
+  const isLandingPage = pathname === "/"
+  const hideGlobalNavbar = isLandingPage || pathname.startsWith("/dashboard/owner")
 
   return (
     <html lang="en">

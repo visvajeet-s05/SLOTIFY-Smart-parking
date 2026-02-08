@@ -21,7 +21,13 @@ export const authOptions: NextAuthOptions = {
 
         const user = await prisma.user.findUnique({
           where: { email: credentials.email },
-          include: { ownerprofile: true }
+          include: {
+            ownerprofile: {
+              include: {
+                parkinglot: true
+              }
+            }
+          }
         })
 
         if (!user) {
@@ -40,8 +46,13 @@ export const authOptions: NextAuthOptions = {
         }
 
         let ownerStatus = null
+        let parkingLotId = null
         if (user.role === "OWNER") {
           ownerStatus = user.ownerprofile?.status || null
+          // Get the first parking lot ID if exists
+          if (user.ownerprofile?.parkinglot && user.ownerprofile.parkinglot.length > 0) {
+            parkingLotId = user.ownerprofile.parkinglot[0].id
+          }
         }
 
         return {
@@ -50,7 +61,7 @@ export const authOptions: NextAuthOptions = {
           name: user.name,
           role: user.role,
           ownerStatus,
-          stripeCustomerId: user.stripeCustomerId,
+          parkingLotId,
         }
 
       }
@@ -65,7 +76,8 @@ export const authOptions: NextAuthOptions = {
         token.id = user.id
         token.name = user.name
         token.role = user.role
-        token.stripeCustomerId = user.stripeCustomerId
+        // @ts-ignore - attributes added in authorize return
+        token.parkingLotId = user.parkingLotId
       }
       return token
     },
@@ -75,14 +87,14 @@ export const authOptions: NextAuthOptions = {
         session.user.id = token.id as string
         session.user.name = token.name as string
         session.user.role = token.role as string
-        session.user.stripeCustomerId = token.stripeCustomerId as string | null
+        session.user.parkingLotId = token.parkingLotId as string | null
       }
       return session
     }
 
   },
   pages: {
-    signIn: "/login"
+    signIn: "/"
   }
 }
 
@@ -94,7 +106,13 @@ export async function getCurrentUser() {
 
   const user = await prisma.user.findUnique({
     where: { id: session.user.id },
-    include: { ownerprofile: true }
+    include: {
+      ownerprofile: {
+        include: {
+          parkinglot: true
+        }
+      }
+    }
   })
 
   if (!user) {

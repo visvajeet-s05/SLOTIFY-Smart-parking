@@ -23,35 +23,14 @@ type Slot = {
   slotType?: string
 }
 
-// Owner to Parking Lot mapping - 1 owner → 1 parking lot only
-const OWNER_PARKING_MAPPING: Record<string, string> = {
-  "owner@gmail.com": "CHENNAI_CENTRAL",
-  "owner1@gmail.com": "ANNA_NAGAR",
-  "owner2@gmail.com": "T_NAGAR",
-  "owner3@gmail.com": "VELACHERY",
-  "owner4@gmail.com": "OMR",
-  "owner5@gmail.com": "ADYAR",
-  "owner6@gmail.com": "GUINDY",
-  "owner7@gmail.com": "PORUR"
-}
-
-const PARKING_LOT_DETAILS: Record<string, { name: string; totalSlots: number }> = {
-  "CHENNAI_CENTRAL": { name: "Chennai Central Premium Parking", totalSlots: 120 },
-  "ANNA_NAGAR": { name: "Anna Nagar Metro Parking", totalSlots: 80 },
-  "T_NAGAR": { name: "T Nagar Shopping District Parking", totalSlots: 90 },
-  "VELACHERY": { name: "Velachery IT Corridor Parking", totalSlots: 100 },
-  "OMR": { name: "OMR Tech Park Parking", totalSlots: 150 },
-  "ADYAR": { name: "Adyar Beachside Parking", totalSlots: 50 },
-  "GUINDY": { name: "Guindy Industrial Parking", totalSlots: 70 },
-  "PORUR": { name: "Porur Residential Parking", totalSlots: 60 }
-}
+import { OWNER_PARKING_MAPPING, PARKING_LOT_DETAILS } from "@/lib/owner-mapping"
 
 export default function OwnerSlotsPage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter()
   const { data: session, status } = useSession()
   const { id: lotId } = use(params)
 
-  
+
   const [slots, setSlots] = useState<Slot[]>([])
   const [cameraUrl, setCameraUrl] = useState<string>("")
   const [loading, setLoading] = useState(true)
@@ -80,20 +59,26 @@ export default function OwnerSlotsPage({ params }: { params: Promise<{ id: strin
   useEffect(() => {
     if (status === "loading") return
 
-    if (!session?.user?.email) {
+    // Explicitly check for unauthenticated
+    if (status === "unauthenticated") {
+      console.log("🚫 Unauthenticated - Redirecting to home")
       router.push("/")
       return
     }
 
-    const ownerEmail = session.user.email
-    const allowedLotId = OWNER_PARKING_MAPPING[ownerEmail]
+    if (status === "authenticated") {
+      const ownerEmail = (session?.user?.email || "").toLowerCase()
+      const allowedLotId = session?.user?.parkingLotId || OWNER_PARKING_MAPPING[ownerEmail]
 
-    if (allowedLotId !== lotId) {
-      // Redirect to owner's correct parking lot
-      if (allowedLotId) {
-        router.replace(`/dashboard/owner/parking-lots/${allowedLotId}/slots`)
-      } else {
-        router.push("/dashboard/owner")
+      // Compare case-insensitively just in case
+      if (allowedLotId?.toLowerCase() !== lotId?.toLowerCase()) {
+        console.log(`🚫 Access Denied: Allowed=${allowedLotId}, Requested=${lotId}`)
+        // Redirect to owner's correct parking lot
+        if (allowedLotId) {
+          router.replace(`/dashboard/owner/parking-lots/${allowedLotId}/slots`)
+        } else {
+          router.push("/dashboard/owner")
+        }
       }
     }
   }, [session, status, lotId, router])
@@ -151,7 +136,7 @@ export default function OwnerSlotsPage({ params }: { params: Promise<{ id: strin
 
     const interval = setInterval(() => {
       if (isFetchingCameraRef.current) return
-      
+
       isFetchingCameraRef.current = true
       fetch(`/api/parking/${lotId}/camera`)
         .then(res => res.json())
@@ -198,7 +183,7 @@ export default function OwnerSlotsPage({ params }: { params: Promise<{ id: strin
       // Update slots directly from WebSocket data - NO HTTP call
       const msgSlots = lastMessage.slots as Slot[] | undefined;
       const msgUpdatedSlots = lastMessage.updatedSlots as Slot[] | undefined;
-      
+
       if (msgSlots && Array.isArray(msgSlots)) {
         setSlots(msgSlots);
         updateStats(msgSlots);
@@ -255,10 +240,10 @@ export default function OwnerSlotsPage({ params }: { params: Promise<{ id: strin
   }
 
   const handleBulkAction = async (action: string, row?: string) => {
-    const confirmMsg = row 
-      ? `${action} for Row ${row}?` 
+    const confirmMsg = row
+      ? `${action} for Row ${row}?`
       : `${action} for ALL slots?`
-    
+
     if (!confirm(confirmMsg)) return
 
     setBulkActionLoading(true)
@@ -266,7 +251,7 @@ export default function OwnerSlotsPage({ params }: { params: Promise<{ id: strin
       const response = await fetch("/api/owner/slots/bulk", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
+        body: JSON.stringify({
           lotId: lotId,
           action: action,
           row: row
@@ -371,9 +356,9 @@ export default function OwnerSlotsPage({ params }: { params: Promise<{ id: strin
               <span className="text-xs text-gray-500 ml-2">(Owner Only)</span>
             </div>
             <div className="p-4">
-              <img 
-                src={cameraUrl} 
-                alt="Parking Lot Camera" 
+              <img
+                src={cameraUrl}
+                alt="Parking Lot Camera"
                 className="w-full max-w-3xl rounded-lg border border-gray-700"
               />
             </div>
@@ -404,11 +389,11 @@ export default function OwnerSlotsPage({ params }: { params: Promise<{ id: strin
                 >
                   Close All Slots
                 </button>
-                
+
                 {/* Row-wise actions */}
                 <div className="flex items-center gap-2 ml-4">
                   <span className="text-gray-400 text-sm">Row:</span>
-                  <select 
+                  <select
                     value={selectedRow || ""}
                     onChange={(e) => setSelectedRow(e.target.value || null)}
                     className="bg-gray-800 text-white rounded-lg px-3 py-2 text-sm border border-gray-700"
@@ -463,37 +448,37 @@ export default function OwnerSlotsPage({ params }: { params: Promise<{ id: strin
                       {slotsByRow[row]
                         .sort((a, b) => a.slotNumber - b.slotNumber)
                         .map(slot => (
-                        <div 
-                          key={slot.id}
-                          className={`relative p-3 rounded-lg border border-gray-700 ${getStatusColor(slot.status)} bg-opacity-20 hover:bg-opacity-30 transition cursor-pointer group`}
-                        >
-                          <div className="flex flex-col items-center gap-1">
-                            <span className="text-xs font-bold text-white">{slot.slotNumber}</span>
-                            <span className="text-[10px] text-gray-300 uppercase">{slot.status}</span>
-                            {slot.updatedBy === "AI" && slot.aiConfidence && (
-                              <span className="text-[8px] text-cyan-300">
-                                AI {Math.round(slot.aiConfidence * 100)}%
-                              </span>
-                            )}
+                          <div
+                            key={slot.id}
+                            className={`relative p-3 rounded-lg border border-gray-700 ${getStatusColor(slot.status)} bg-opacity-20 hover:bg-opacity-30 transition cursor-pointer group`}
+                          >
+                            <div className="flex flex-col items-center gap-1">
+                              <span className="text-xs font-bold text-white">{slot.slotNumber}</span>
+                              <span className="text-[10px] text-gray-300 uppercase">{slot.status}</span>
+                              {slot.updatedBy === "AI" && slot.aiConfidence && (
+                                <span className="text-[8px] text-cyan-300">
+                                  AI {Math.round(slot.aiConfidence * 100)}%
+                                </span>
+                              )}
+                            </div>
+
+                            {/* Status Change Dropdown */}
+                            <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition bg-gray-900/95 rounded-lg flex items-center justify-center">
+                              <select
+                                value={slot.status}
+                                onChange={(e) => handleSlotStatusChange(slot.id, e.target.value as SlotStatus)}
+                                className="bg-gray-800 text-white text-xs rounded px-2 py-1 border border-gray-600"
+                                disabled={slot.status === "RESERVED"}
+                              >
+                                <option value="AVAILABLE">Open</option>
+                                <option value="OCCUPIED">Occupied</option>
+                                <option value="RESERVED" disabled>Reserved</option>
+                                <option value="DISABLED">Maintenance</option>
+                                <option value="CLOSED">Close</option>
+                              </select>
+                            </div>
                           </div>
-                          
-                          {/* Status Change Dropdown */}
-                          <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition bg-gray-900/95 rounded-lg flex items-center justify-center">
-                            <select
-                              value={slot.status}
-                              onChange={(e) => handleSlotStatusChange(slot.id, e.target.value as SlotStatus)}
-                              className="bg-gray-800 text-white text-xs rounded px-2 py-1 border border-gray-600"
-                              disabled={slot.status === "RESERVED"}
-                            >
-                              <option value="AVAILABLE">Open</option>
-                              <option value="OCCUPIED">Occupied</option>
-                              <option value="RESERVED" disabled>Reserved</option>
-                              <option value="DISABLED">Maintenance</option>
-                              <option value="CLOSED">Close</option>
-                            </select>
-                          </div>
-                        </div>
-                      ))}
+                        ))}
                     </div>
                   </div>
                 ))}
@@ -589,7 +574,7 @@ export default function OwnerSlotsPage({ params }: { params: Promise<{ id: strin
                 <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3">
                   Quick Actions
                 </h3>
-                
+
                 <button
                   onClick={() => handleBulkAction("OPEN_ALL")}
                   disabled={bulkActionLoading}

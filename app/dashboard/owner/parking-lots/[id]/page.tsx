@@ -12,6 +12,8 @@ import SlotConfigGrid from "./SlotConfigGrid"
 import AiConfidence from "./AiConfidence"
 import BulkActions from "./BulkActions"
 
+import { useSession } from "next-auth/react"
+
 interface ParkingLot {
   id: string
   name: string
@@ -23,18 +25,29 @@ interface ParkingLot {
 
 export default function OwnerParkingLotPage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter()
+  const { data: session, status } = useSession()
   const { id: parkingLotId } = use(params)
   const [parkingLot, setParkingLot] = useState<ParkingLot | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+
   const [error, setError] = useState<string | null>(null)
 
-  // Verify owner role
+  // Verify owner role from session
   useEffect(() => {
-    const role = localStorage.getItem("role")
-    if (role !== "OWNER") {
-      router.replace("/dashboard")
+    if (status === "loading") return
+
+    if (status === "unauthenticated") {
+      router.push("/")
+      return
     }
-  }, [router])
+
+    if (status === "authenticated") {
+      if (session?.user?.role !== "OWNER") {
+        router.replace("/dashboard");
+      }
+    }
+  }, [session, status, router]);
+
 
   // Fetch parking lot data
   useEffect(() => {
@@ -43,9 +56,9 @@ export default function OwnerParkingLotPage({ params }: { params: Promise<{ id: 
         // Fetch from API
         const response = await fetch(`/api/parking/${parkingLotId}/slots`)
         if (!response.ok) throw new Error("Failed to fetch parking lot")
-        
+
         const data = await response.json()
-        
+
         // For now, construct parking lot info from slots
         // In production, you'd have a separate endpoint for lot details
         setParkingLot({
@@ -59,7 +72,7 @@ export default function OwnerParkingLotPage({ params }: { params: Promise<{ id: 
       } catch (err) {
         console.error("Error fetching parking lot:", err)
         setError("Failed to load parking lot data")
-        
+
         // Fallback data for demo
         setParkingLot({
           id: parkingLotId,
@@ -98,8 +111,8 @@ export default function OwnerParkingLotPage({ params }: { params: Promise<{ id: 
       <div className="min-h-screen bg-black flex items-center justify-center">
         <div className="text-center">
           <p className="text-red-400 mb-4">{error || "Parking lot not found"}</p>
-          <Link 
-            href="/dashboard/owner" 
+          <Link
+            href="/dashboard/owner"
             className="text-cyan-400 hover:text-cyan-300 flex items-center gap-2 justify-center"
           >
             <ArrowLeft size={16} />
@@ -113,7 +126,7 @@ export default function OwnerParkingLotPage({ params }: { params: Promise<{ id: 
   return (
     <div className="min-h-screen bg-black text-white">
       {/* Header */}
-      <motion.div 
+      <motion.div
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
         className="border-b border-gray-800 bg-gray-900/50"
@@ -172,8 +185,8 @@ export default function OwnerParkingLotPage({ params }: { params: Promise<{ id: 
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.1 }}
             >
-              <CameraPanel 
-                parkingLotId={parkingLotId} 
+              <CameraPanel
+                parkingLotId={parkingLotId}
                 streamUrl="http://localhost:5000/video_feed"
               />
             </motion.div>
@@ -184,7 +197,7 @@ export default function OwnerParkingLotPage({ params }: { params: Promise<{ id: 
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.2 }}
             >
-              <SlotConfigGrid 
+              <SlotConfigGrid
                 parkingLotId={parkingLotId}
                 lotSlug={parkingLot.slug}
               />
@@ -208,7 +221,7 @@ export default function OwnerParkingLotPage({ params }: { params: Promise<{ id: 
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.4 }}
             >
-              <BulkActions 
+              <BulkActions
                 lotSlug={parkingLot.slug}
                 totalSlots={parkingLot.totalSlots}
                 slotsPerRow={8}

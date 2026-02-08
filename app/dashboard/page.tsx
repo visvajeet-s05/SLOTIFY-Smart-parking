@@ -240,156 +240,160 @@ export default function Dashboard() {
 
   return (
     <DashboardShell>
-      <CustomerNavbar />
+      {/* Page Header – Unified Dark Minimal */}
+      <div className="relative pt-8 pb-8 overflow-hidden">
+        {/* Subtle Background Effects */}
+        <div className="absolute inset-0 z-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-indigo-900/20 via-slate-950 to-slate-950" />
+        <div className="absolute inset-0 bg-[url('/grid.svg')] bg-center opacity-10" />
 
-      {/* Page Header – Premium Animated */}
-      <div className="relative pt-20 pb-10 overflow-hidden border-b border-white/5">
-        <div className="absolute inset-0 z-0 bg-gradient-to-b from-indigo-950/20 via-[#020617] to-[#020617] animated-bg" />
-        <div className="absolute inset-0 bg-[url('/grid.svg')] bg-center [mask-image:linear-gradient(180deg,white,rgba(255,255,255,0))]" />
-
-        <div className="relative z-10 px-4 max-w-7xl mx-auto">
+        <div className="relative z-10 px-4 max-w-7xl mx-auto text-center md:text-left">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.7, ease: "easeOut" }}
+            transition={{ duration: 0.6, ease: "easeOut" }}
           >
-            <h1 className="text-4xl md:text-5xl font-bold tracking-tight mb-3">
-              <span className="bg-clip-text text-transparent bg-gradient-to-r from-white via-indigo-200 to-purple-400 drop-shadow-sm">
-                Find Your Parking
+            <h1 className="text-4xl md:text-6xl font-extrabold tracking-tight mb-3">
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-indigo-400">
+                Find Your Perfect Spot
               </span>
             </h1>
-            <p className="text-lg text-gray-400 max-w-2xl leading-relaxed">
-              Experience seamless parking across Tamil Nadu with real-time availability and smart booking.
-            </p>
+            <div className="overflow-hidden">
+              <p className="text-lg text-slate-400 max-w-none whitespace-nowrap text-ellipsis overflow-hidden leading-relaxed">
+                Experience seamless parking across Tamil Nadu with real-time availability and smart booking.
+              </p>
+            </div>
           </motion.div>
         </div>
       </div>
 
-      <div className="px-4 max-w-7xl mx-auto py-8 space-y-8 min-h-screen">
+      <div className="px-4 max-w-7xl mx-auto py-4 space-y-8 relative z-20 pb-20">
 
-        {/* Quick Stats */}
+        {/* Quick Stats - Minimal Dark Glass */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.1 }}
           className="grid grid-cols-2 md:grid-cols-4 gap-4"
         >
-          <div className="group bg-white/5 hover:bg-white/10 border border-white/5 hover:border-purple-500/30 rounded-xl p-5 backdrop-blur-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-lg hover:shadow-purple-500/10">
+          <div className="group bg-slate-900/50 hover:bg-slate-800/50 border border-white/5 hover:border-purple-500/30 rounded-2xl p-5 backdrop-blur-md transition-all duration-300 hover:-translate-y-1 hover:shadow-lg hover:shadow-purple-500/10">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-gray-400 text-xs font-medium uppercase tracking-wider mb-1">Total Parking</p>
-                <p className="text-2xl font-bold text-white group-hover:text-purple-200 transition-colors">{stats.total}</p>
+                <p className="text-slate-400 text-xs font-bold uppercase tracking-wider mb-1">Total Parking</p>
+                <p className="text-3xl font-bold text-white group-hover:text-purple-400 transition-colors">{stats.total}</p>
               </div>
-              <div className="p-3 rounded-full bg-purple-500/10 group-hover:bg-purple-500/20 transition-colors">
+              <div className="p-3 rounded-xl bg-purple-500/10 group-hover:bg-purple-500/20 transition-colors">
                 <Car className="h-6 w-6 text-purple-400" />
               </div>
             </div>
           </div>
 
-          <div className="group bg-white/5 hover:bg-white/10 border border-white/5 hover:border-emerald-500/30 rounded-xl p-5 backdrop-blur-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-lg hover:shadow-emerald-500/10">
+          <div className="group bg-slate-900/50 hover:bg-slate-800/50 border border-white/5 hover:border-emerald-500/30 rounded-2xl p-5 backdrop-blur-md transition-all duration-300 hover:-translate-y-1 hover:shadow-lg hover:shadow-emerald-500/10">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-gray-400 text-xs font-medium uppercase tracking-wider mb-1">Available</p>
-                <p className="text-2xl font-bold text-emerald-400">{stats.available}</p>
+                <p className="text-slate-400 text-xs font-bold uppercase tracking-wider mb-1">Available</p>
+                <p className="text-3xl font-bold text-emerald-400">{stats.available}</p>
               </div>
-              <div className="p-3 rounded-full bg-emerald-500/10 group-hover:bg-emerald-500/20 transition-colors">
+              <div className="p-3 rounded-xl bg-emerald-500/10 group-hover:bg-emerald-500/20 transition-colors">
                 <TrendingUp className="h-6 w-6 text-emerald-400" />
               </div>
             </div>
           </div>
 
-          <div className="group bg-white/5 hover:bg-white/10 border border-white/5 hover:border-blue-500/30 rounded-xl p-5 backdrop-blur-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-lg hover:shadow-blue-500/10">
+          <div className="group bg-slate-900/50 hover:bg-slate-800/50 border border-white/5 hover:border-blue-500/30 rounded-2xl p-5 backdrop-blur-md transition-all duration-300 hover:-translate-y-1 hover:shadow-lg hover:shadow-blue-500/10">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-gray-400 text-xs font-medium uppercase tracking-wider mb-1">Total Spaces</p>
-                <p className="text-2xl font-bold text-blue-400">{stats.totalSpots}</p>
+                <p className="text-slate-400 text-xs font-bold uppercase tracking-wider mb-1">Total Spaces</p>
+                <p className="text-3xl font-bold text-blue-400">{stats.totalSpots}</p>
               </div>
-              <div className="p-3 rounded-full bg-blue-500/10 group-hover:bg-blue-500/20 transition-colors">
+              <div className="p-3 rounded-xl bg-blue-500/10 group-hover:bg-blue-500/20 transition-colors">
                 <MapPin className="h-6 w-6 text-blue-400" />
               </div>
             </div>
           </div>
 
-          <div className="group bg-white/5 hover:bg-white/10 border border-white/5 hover:border-amber-500/30 rounded-xl p-5 backdrop-blur-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-lg hover:shadow-amber-500/10">
+          <div className="group bg-slate-900/50 hover:bg-slate-800/50 border border-white/5 hover:border-amber-500/30 rounded-2xl p-5 backdrop-blur-md transition-all duration-300 hover:-translate-y-1 hover:shadow-lg hover:shadow-amber-500/10">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-gray-400 text-xs font-medium uppercase tracking-wider mb-1">Avg Rating</p>
-                <p className="text-2xl font-bold text-amber-400">{stats.avgRating}★</p>
+                <p className="text-slate-400 text-xs font-bold uppercase tracking-wider mb-1">Avg Rating</p>
+                <p className="text-3xl font-bold text-amber-400">{stats.avgRating}★</p>
               </div>
-              <div className="p-3 rounded-full bg-amber-500/10 group-hover:bg-amber-500/20 transition-colors">
+              <div className="p-3 rounded-xl bg-amber-500/10 group-hover:bg-amber-500/20 transition-colors">
                 <Star className="h-6 w-6 text-amber-400 fill-amber-400/20" />
               </div>
             </div>
           </div>
         </motion.div>
 
-        {/* Search & Filters */}
+        {/* Search & Filters - Minimal Dark bar */}
         <motion.div
           initial={{ y: -20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ duration: 0.5, delay: 0.2 }}
-          className="relative z-20 bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-5 space-y-4 shadow-2xl shadow-black/50"
+          className="relative z-20 bg-slate-900/80 backdrop-blur-xl border border-white/5 rounded-2xl p-1 shadow-2xl shadow-black/50"
         >
-          <div className="flex flex-col md:flex-row gap-4">
+          <div className="flex flex-col md:flex-row gap-2 p-1">
             {/* Search Input */}
             <div className="relative flex-1 group">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400 group-hover:text-purple-400 transition-colors" />
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-500 group-hover:text-purple-400 transition-colors" />
               <Input
-                placeholder="Search parking areas or locations..."
+                placeholder="Search parking by name or location..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 h-11 bg-black/40 border-white/10 text-white placeholder-gray-500 focus:border-purple-500/50 focus:ring-1 focus:ring-purple-500/50 transition-all rounded-xl"
+                className="pl-12 h-14 bg-transparent border-transparent text-white placeholder-slate-500 focus:bg-white/5 focus:border-white/10 focus:ring-0 transition-all rounded-xl text-lg"
               />
             </div>
 
-            {/* Price Filter */}
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button className="h-11 bg-black/40 hover:bg-black/60 border border-white/10 hover:border-purple-500/30 text-gray-300 hover:text-white rounded-xl transition-all">
-                  <Filter className="mr-2 h-4 w-4" />
-                  Price: ₹{priceRange[0]} - ₹{priceRange[1]}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-80 bg-[#0f172a] border-white/10 text-white p-4 rounded-xl shadow-xl">
-                <div className="space-y-4">
-                  <h4 className="font-semibold text-white">Price Range (₹/hr)</h4>
-                  <Slider
-                    defaultValue={[0, 150]}
-                    max={150}
-                    step={5}
-                    value={priceRange}
-                    onValueChange={setPriceRange}
-                    className="py-2"
-                  />
-                  <div className="flex justify-between text-sm text-gray-400">
-                    <span>₹{priceRange[0]}</span>
-                    <span>₹{priceRange[1]}</span>
+            <div className="h-px md:h-14 w-full md:w-px bg-white/5" />
+
+            {/* Filters Row */}
+            <div className="flex gap-2">
+              {/* Price Filter */}
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="ghost" className="h-14 px-6 text-slate-300 hover:text-white hover:bg-white/5 rounded-xl border border-transparent hover:border-white/5 transition-all">
+                    <Filter className="mr-2 h-4 w-4" />
+                    <div className="text-left">
+                      <span className="block text-[10px] uppercase font-bold text-slate-500 tracking-wider">Price Range</span>
+                      <span className="font-medium">₹{priceRange[0]} - ₹{priceRange[1]}</span>
+                    </div>
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-80 bg-slate-900 border-white/10 text-white p-5 rounded-2xl shadow-xl backdrop-blur-xl">
+                  <div className="space-y-4">
+                    <div className="flex justify-between items-center mb-2">
+                      <h4 className="font-bold text-white">Price Range (₹/hr)</h4>
+                      <span className="text-xs bg-white/10 px-2 py-1 rounded text-slate-300">₹{priceRange[0]} - ₹{priceRange[1]}</span>
+                    </div>
+                    <Slider
+                      defaultValue={[0, 150]}
+                      max={150}
+                      step={5}
+                      value={priceRange}
+                      onValueChange={setPriceRange}
+                      className="py-4"
+                    />
                   </div>
+                </PopoverContent>
+              </Popover>
+
+              <div className="h-14 w-px bg-white/5 hidden md:block" />
+
+              {/* Sort Dropdown */}
+              <div className="relative min-w-[180px]">
+                <div className="absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none">
+                  <span className="block text-[10px] uppercase font-bold text-slate-500 tracking-wider mb-0.5">Sort By</span>
+                  <TrendingUp className="h-0 w-0 hidden" />
                 </div>
-              </PopoverContent>
-            </Popover>
-
-            {/* Sort Dropdown */}
-            <div className="relative">
-              <select
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value as any)}
-                className="h-11 appearance-none bg-black/40 hover:bg-black/60 border border-white/10 hover:border-purple-500/30 rounded-xl px-4 pr-10 text-gray-300 hover:text-white text-sm focus:outline-none focus:border-purple-500/50 transition-all cursor-pointer w-full md:w-auto"
-              >
-                <option value="distance">Sort by Distance</option>
-                <option value="price">Sort by Price</option>
-                <option value="rating">Sort by Rating</option>
-              </select>
-              <TrendingUp className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500 pointer-events-none" />
-            </div>
-          </div>
-
-          <div className="flex items-center justify-between text-sm pt-1">
-            <div className="text-gray-400">
-              Live Updates: <span className="inline-flex items-center gap-1.5 text-emerald-400 font-medium ml-1"><span className="relative flex h-2 w-2"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span><span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span></span>Active</span>
-            </div>
-            <div className="text-gray-400">
-              Found <span className="text-white font-semibold">{filteredAreas.length}</span> results
+                <select
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value as any)}
+                  className="h-14 w-full appearance-none bg-transparent hover:bg-white/5 border border-transparent hover:border-white/5 rounded-xl pl-4 pt-4 pb-1 pr-10 text-white font-medium focus:outline-none cursor-pointer transition-all"
+                >
+                  <option value="distance" className="bg-slate-900 text-slate-300">Distance</option>
+                  <option value="price" className="bg-slate-900 text-slate-300">Price (Low to High)</option>
+                  <option value="rating" className="bg-slate-900 text-slate-300">Rating (High to Low)</option>
+                </select>
+              </div>
             </div>
           </div>
         </motion.div>
@@ -399,7 +403,7 @@ export default function Dashboard() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.3 }}
-          className="relative z-0 bg-white/5 border border-white/10 rounded-2xl overflow-hidden h-[500px] shadow-2xl shadow-black/40"
+          className="relative z-0 bg-slate-900/50 border border-white/5 rounded-3xl overflow-hidden h-[500px] shadow-2xl shadow-black/40"
         >
           <div className="absolute inset-0 z-0">
             <ParkingMap
@@ -415,16 +419,16 @@ export default function Dashboard() {
           <div className="text-center py-20">
             <div className="relative mx-auto h-16 w-16 mb-6">
               <div className="absolute inset-0 border-t-2 border-purple-500 rounded-full animate-spin"></div>
-              <div className="absolute inset-2 border-r-2 border-blue-500 rounded-full animate-spin-reverse"></div>
+              <div className="absolute inset-2 border-r-2 border-indigo-500 rounded-full animate-spin-reverse"></div>
             </div>
-            <p className="text-gray-400 animate-pulse">Syncing real-time data...</p>
+            <p className="text-slate-400 font-medium animate-pulse">Syncing real-time parking data...</p>
           </div>
         )}
 
         {/* Error State */}
         {error && !isLoading && (
-          <div className="text-center py-12 bg-red-500/5 border border-red-500/20 rounded-2xl backdrop-blur-sm">
-            <p className="text-red-400 mb-6 flex items-center justify-center gap-2"><span className="text-xl">⚠️</span> {error}</p>
+          <div className="text-center py-12 bg-red-500/5 border border-red-500/20 rounded-2xl backdrop-blur-sm mx-auto max-w-2xl">
+            <p className="text-red-400 mb-6 flex items-center justify-center gap-2 font-medium"><span className="text-xl">⚠️</span> {error}</p>
             <Button
               onClick={fetchParkingAreas}
               className="bg-red-500/10 hover:bg-red-500/20 text-red-400 hover:text-red-300 border border-red-500/20"
@@ -441,28 +445,27 @@ export default function Dashboard() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.4 }}
           >
-            <h2
-              id="available-parking"
-              className="text-2xl font-bold text-white mb-6 scroll-mt-24 flex items-center gap-3"
-            >
-              <span className="w-1.5 h-8 bg-gradient-to-b from-purple-500 to-indigo-500 rounded-full block"></span>
-              {filteredAreas.length === 0 ? "No Areas Found" : "Available Parking"}
-              <span className="text-sm font-normal text-gray-500 ml-auto bg-white/5 px-3 py-1 rounded-full border border-white/5">
-                Sort by: <span className="text-gray-300 capitalize">{sortBy}</span>
-              </span>
-            </h2>
+            <div className="flex items-center justify-between mb-8 scroll-mt-24" id="available-parking">
+              <h2 className="text-2xl font-bold text-white flex items-center gap-3">
+                <span className="w-1.5 h-8 bg-gradient-to-b from-purple-500 to-indigo-500 rounded-full block"></span>
+                {filteredAreas.length === 0 ? "No Areas Found" : "Available Parking"}
+              </h2>
+              <div className="text-slate-400 text-sm bg-white/5 px-4 py-2 rounded-full border border-white/5 backdrop-blur-sm">
+                Found <span className="text-white font-bold">{filteredAreas.length}</span> results
+              </div>
+            </div>
 
             {filteredAreas.length === 0 ? (
-              <div className="text-center py-20 bg-white/5 border border-white/5 rounded-3xl">
-                <p className="text-gray-400 mb-6 text-lg">No parking areas match your search.</p>
+              <div className="text-center py-20 bg-slate-900/30 border border-white/5 rounded-3xl backdrop-blur-sm">
+                <p className="text-slate-400 mb-6 text-lg">No parking areas match your current filters.</p>
                 <Button
                   onClick={() => {
                     setSearchQuery("")
                     setPriceRange([0, 150])
                   }}
-                  className="bg-purple-600 hover:bg-purple-700 text-white px-8 py-6 rounded-xl shadow-lg shadow-purple-900/20"
+                  className="bg-white/10 hover:bg-white/20 text-white px-8 py-6 rounded-xl border border-white/5"
                 >
-                  Clear Filters
+                  Clear All Filters
                 </Button>
               </div>
             ) : (

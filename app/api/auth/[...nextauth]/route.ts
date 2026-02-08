@@ -51,7 +51,17 @@ const handler = NextAuth({
               email: true,
               name: true,
               password: true,
-              role: true
+              role: true,
+              ownerprofile: {
+                select: {
+                  parkinglot: {
+                    select: {
+                      id: true
+                    },
+                    take: 1
+                  }
+                }
+              }
             }
           })
 
@@ -68,7 +78,9 @@ const handler = NextAuth({
             return null
           }
 
-          console.log("✅ AUTH SUCCESS - RETURNING USER")
+          const parkingLotId = user.ownerprofile?.parkinglot[0]?.id
+
+          console.log("✅ AUTH SUCCESS - RETURNING USER", parkingLotId ? `with Lot: ${parkingLotId}` : "")
 
           // Return user object in NextAuth expected format
           return {
@@ -76,6 +88,7 @@ const handler = NextAuth({
             email: user.email,
             name: user.name || user.email,
             role: user.role,
+            parkingLotId: parkingLotId
           }
 
         } catch (error) {
@@ -100,6 +113,7 @@ const handler = NextAuth({
       if (user) {
         token.id = user.id
         token.role = user.role
+        token.parkingLotId = (user as any).parkingLotId
         // Set redirect URL based on role
         const roleRedirects = {
           CUSTOMER: '/dashboard',
@@ -122,6 +136,7 @@ const handler = NextAuth({
       if (session.user) {
         session.user.id = token.id as string
         session.user.role = token.role as string
+        session.user.parkingLotId = token.parkingLotId as string
       }
       return session
     },

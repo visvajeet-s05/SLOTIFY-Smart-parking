@@ -41,7 +41,7 @@ export default function Navbar() {
   useEffect(() => {
     setIsHydrated(true)
   }, [])
-  
+
   // ✅ Get user info from either NextAuth session or localStorage
   const userEmail = session?.user?.email || (typeof window !== 'undefined' ? localStorage.getItem("email") : "") || ""
   const userRole = session?.user?.role || (typeof window !== 'undefined' ? localStorage.getItem("role") : "") || ""
@@ -55,8 +55,21 @@ export default function Navbar() {
     { name: "About Us", href: "/about" },
   ]
 
+  const getDashboardHomeLink = () => {
+    switch (userRole) {
+      case Role.ADMIN:
+        return "/dashboard/admin"
+      case Role.OWNER:
+        return "/dashboard/owner"
+      case Role.STAFF:
+        return "/dashboard/staff"
+      default:
+        return "/dashboard"
+    }
+  }
+
   const dashboardLinks = [
-    { name: "Home", href: "/dashboard" },
+    { name: "Home", href: getDashboardHomeLink() },
     { name: "Find Parking", href: "/dashboard/find" },
     { name: "My Bookings", href: "/dashboard/bookings" },
     { name: "Profile", href: "/dashboard/profile" },
@@ -97,11 +110,10 @@ border-b border-white/10 backdrop-blur-md shadow-lg"
                     <Link
                       key={link.name}
                       href={link.href}
-                      className={`px-3 py-2 text-sm rounded-md ${
-                        pathname === link.href
-                          ? "text-purple-400"
-                          : "text-gray-300 hover:text-white hover:bg-gray-800"
-                      }`}
+                      className={`px-3 py-2 text-sm rounded-md ${pathname === link.href
+                        ? "text-purple-400"
+                        : "text-gray-300 hover:text-white hover:bg-gray-800"
+                        }`}
                     >
                       {link.name}
                     </Link>
@@ -124,11 +136,10 @@ border-b border-white/10 backdrop-blur-md shadow-lg"
                 <Link
                   key={link.name}
                   href={link.href}
-                  className={`px-3 py-2 text-sm rounded-md ${
-                    pathname === link.href
-                      ? "text-purple-400"
-                      : "text-gray-300 hover:text-white hover:bg-gray-800"
-                  }`}
+                  className={`px-3 py-2 text-sm rounded-md ${pathname === link.href
+                    ? "text-purple-400"
+                    : "text-gray-300 hover:text-white hover:bg-gray-800"
+                    }`}
                 >
                   {link.name}
                 </Link>
@@ -166,9 +177,9 @@ border-b border-white/10 backdrop-blur-md shadow-lg"
                       <div className="hidden sm:flex flex-col items-start">
                         <span className="text-sm font-medium text-white">
                           {userRole === Role.OWNER ? "👤 Owner" :
-                           userRole === Role.ADMIN ? "🔧 Admin" :
-                           userRole === Role.CUSTOMER ? "👥 Customer" :
-                           userRole === Role.STAFF ? "👷 Staff" : "👤 User"}
+                            userRole === Role.ADMIN ? "🔧 Admin" :
+                              userRole === Role.CUSTOMER ? "👥 Customer" :
+                                userRole === Role.STAFF ? "👷 Staff" : "👤 User"}
                         </span>
                         <span className="text-xs text-gray-400">
                           {userEmail}
@@ -179,10 +190,10 @@ border-b border-white/10 backdrop-blur-md shadow-lg"
 
                   <DropdownMenuContent align="end" className="bg-gray-900 border-gray-800 text-white">
                     <DropdownMenuItem asChild>
-                      <Link href="/dashboard/profile">Profile</Link>
+                      <Link href={`${getDashboardHomeLink()}/profile`}>Profile</Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild>
-                      <Link href="/dashboard/bookings">My Bookings</Link>
+                      <Link href={`${getDashboardHomeLink()}/bookings`}>My Bookings</Link>
                     </DropdownMenuItem>
                     <DropdownMenuSeparator className="bg-gray-800" />
                     <DropdownMenuItem

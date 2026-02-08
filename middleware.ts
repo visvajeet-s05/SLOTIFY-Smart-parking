@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
 import { getToken } from "next-auth/jwt"
+import { OWNER_PARKING_MAPPING } from "./lib/owner-mapping"
 
 export async function middleware(req: NextRequest) {
   const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET || "super-secret-jwt-key-change-in-production-123456789" })
@@ -47,28 +48,32 @@ export async function middleware(req: NextRequest) {
 
     const userAllowedRoutes = allowedRoutes[userRole as keyof typeof allowedRoutes] || ['/dashboard']
 
+    // ✅ ENHANCED SECURITY: Check if user is trying to access another role's specific prefix
+    const isAccessingAdmin = pathname.startsWith('/dashboard/admin')
+    const isAccessingOwner = pathname.startsWith('/dashboard/owner')
+    const isAccessingStaff = pathname.startsWith('/dashboard/staff')
+
+    let isForbidden = false
+    if (isAccessingAdmin && userRole !== 'ADMIN') isForbidden = true
+    if (isAccessingOwner && userRole !== 'OWNER') isForbidden = true
+    if (isAccessingStaff && userRole !== 'STAFF') isForbidden = true
+
     // If user is trying to access a route they're not allowed to, redirect to their correct route
-    if (!userAllowedRoutes.some(route => pathname.startsWith(route))) {
-      const correctRoute = userAllowedRoutes[0]
+    if (isForbidden || !userAllowedRoutes.some(route => pathname.startsWith(route))) {
+      const correctRoute = userAllowedRoutes[0] || '/dashboard'
       return NextResponse.redirect(new URL(correctRoute, req.url))
     }
 
     // OWNER-specific access control: Ensure owner can only access their assigned parking lot
     if (userRole === "OWNER") {
-      // Owner to Parking Lot mapping - 1 owner → 1 parking lot only
-      const OWNER_PARKING_MAPPING: Record<string, string> = {
-        "owner@gmail.com": "CHENNAI_CENTRAL",
-        "owner1@gmail.com": "ANNA_NAGAR",
-        "owner2@gmail.com": "T_NAGAR",
-        "owner3@gmail.com": "VELACHERY",
-        "owner4@gmail.com": "OMR",
-        "owner5@gmail.com": "ADYAR",
-        "owner6@gmail.com": "GUINDY",
-        "owner7@gmail.com": "PORUR"
+      let allowedLotId = token.parkingLotId as string | undefined
+
+      // Fallback to static mapping if not in token (e.g. old session)
+      if (!allowedLotId) {
+        const ownerEmail = (token.email as string).toLowerCase()
+        allowedLotId = OWNER_PARKING_MAPPING[ownerEmail]
       }
 
-      const ownerEmail = token.email as string
-      const allowedLotId = OWNER_PARKING_MAPPING[ownerEmail]
 
       if (allowedLotId) {
         // Check if accessing a specific parking lot route

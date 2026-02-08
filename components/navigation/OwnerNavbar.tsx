@@ -22,11 +22,11 @@ import { Role } from "@/lib/auth/roles"
 
 export default function OwnerNavbar() {
   const pathname = usePathname()
-  const { data: session, status } = useSession()
+  const { data: session } = useSession()
 
-  // ✅ SAFE helpers
   const userEmail = session?.user?.email ?? ""
-  const userInitial = userEmail ? userEmail.charAt(0).toUpperCase() : "O"
+  const userName = session?.user?.name ?? "Owner"
+  const userInitial = userName.charAt(0).toUpperCase()
 
   const ownerLinks = [
     { name: "Home", href: "/dashboard/owner" },
@@ -35,90 +35,118 @@ export default function OwnerNavbar() {
     { name: "Reports", href: "/dashboard/owner/reports" },
   ]
 
-
   return (
     <motion.nav
       initial={{ y: -100 }}
       animate={{ y: 0 }}
       transition={{ duration: 0.3 }}
-        className="fixed top-0 left-0 right-0 z-50 bg-gradient-to-r from-black via-gray-900 to-black border-b border-white/10 shadow-lg"
+      className="fixed top-0 left-0 right-0 z-50 bg-[#030303]/80 backdrop-blur-2xl border-b border-white/[0.08] shadow-[0_2px_40px_rgba(0,0,0,0.4)]"
     >
       <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
         {/* Left side */}
-        <div className="flex items-center gap-8">
-          <Link href="/dashboard/owner" className="flex items-center">
-            <Image
-              src="/Logo.png"
-              alt="Slotify"
-              width={140}
-              height={40}
-              priority
-              className="max-h-10 object-contain"
-            />
+        <div className="flex items-center gap-10">
+          <Link href="/dashboard/owner" className="flex items-center group">
+            <div className="relative">
+              <Image
+                src="/Logo.png"
+                alt="Slotify"
+                width={120}
+                height={35}
+                priority
+                className="max-h-9 object-contain brightness-110 group-hover:brightness-125 transition-all"
+              />
+              <div className="absolute -inset-2 bg-purple-500/10 blur-xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity" />
+            </div>
           </Link>
 
-          <div className="flex gap-6 text-gray-200">
-            {ownerLinks.map((link) => (
-              <Link
-                key={link.name}
-                href={link.href}
-                className={`px-3 py-2 text-sm rounded-md ${
-                  pathname === link.href
-                    ? "text-purple-400"
-                    : "text-gray-200 hover:text-white hover:bg-gray-800"
-                }`}
-              >
-                {link.name}
-              </Link>
-            ))}
+          <div className="hidden lg:flex gap-1 items-center">
+            {ownerLinks.map((link) => {
+              const isActive = pathname === link.href;
+              return (
+                <Link
+                  key={link.name}
+                  href={link.href}
+                  className={`relative px-4 py-2 text-sm font-medium transition-all duration-300 rounded-lg ${isActive
+                    ? "text-white"
+                    : "text-gray-400 hover:text-white hover:bg-white/[0.05]"
+                    }`}
+                >
+                  {link.name}
+                  {isActive && (
+                    <motion.div
+                      layoutId="activeTab"
+                      className="absolute bottom-1 left-4 right-4 h-0.5 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full"
+                    />
+                  )}
+                </Link>
+              );
+            })}
           </div>
         </div>
 
         {/* Right side */}
-        <div className="flex items-center gap-4">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+        <div className="flex items-center gap-5">
+          <div className="hidden md:flex relative group">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500 group-focus-within:text-purple-400 transition-colors" />
             <Input
-              placeholder="Search bookings, lots..."
-              className="bg-[#111827] text-white px-10 py-2 rounded-md outline-none border-gray-700"
+              placeholder="Quick search..."
+              className="bg-white/[0.03] border-white/[0.08] text-white px-10 py-2 w-64 rounded-xl focus:ring-1 focus:ring-purple-500/30 focus:border-purple-500/50 transition-all placeholder:text-gray-600 outline-none"
             />
           </div>
-          
-          <Button variant="ghost" size="icon" className="relative">
+
+          <Button variant="ghost" size="icon" className="relative hover:bg-white/5 rounded-full text-gray-400 hover:text-white transition-colors">
             <Bell className="h-5 w-5" />
+            <span className="absolute top-2.5 right-2.5 w-2 h-2 bg-purple-500 rounded-full border-2 border-[#030303]" />
           </Button>
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="flex items-center gap-2">
-                <Avatar className="h-8 w-8 bg-purple-600">
-                  <AvatarImage src="/placeholder-user.svg" />
-                  <AvatarFallback className="text-white">{userInitial}</AvatarFallback>
-                </Avatar>
-                <div className="hidden sm:flex flex-col items-start">
-                  <span className="text-sm font-medium text-white">
-                    👤 {Role.OWNER}
+              <Button variant="ghost" className="flex items-center gap-3 px-2 py-1.5 hover:bg-white/5 rounded-full transition-all border border-transparent hover:border-white/10 group">
+                <div className="relative">
+                  <Avatar className="h-8 w-8 ring-2 ring-purple-500/20 group-hover:ring-purple-500/40 transition-all">
+                    <AvatarFallback className="bg-gradient-to-br from-purple-600 to-blue-600 text-white text-xs font-bold">
+                      {userInitial}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-500 rounded-full border-2 border-[#030303]" />
+                </div>
+                <div className="hidden sm:flex flex-col items-start leading-tight">
+                  <span className="text-sm font-semibold text-white group-hover:text-purple-300 transition-colors">
+                    {userName}
                   </span>
-                  <span className="text-xs text-gray-400">
-                    {session?.user?.email || userEmail}
+                  <span className="text-[11px] text-gray-500 font-medium uppercase tracking-wider">
+                    {Role.OWNER}
                   </span>
                 </div>
               </Button>
             </DropdownMenuTrigger>
 
-            <DropdownMenuContent align="end" className="bg-gray-900 border-gray-800 text-white">
-              <DropdownMenuItem asChild>
-                <Link href="/dashboard/owner/profile">Profile</Link>
+            <DropdownMenuContent align="end" className="w-56 mt-2 bg-[#0f0f0f]/95 backdrop-blur-xl border-white/10 text-white p-2 rounded-2xl shadow-2xl">
+              <div className="p-3 mb-2 bg-white/[0.03] rounded-xl flex items-center gap-3">
+                <Avatar className="h-10 w-10">
+                  <AvatarFallback className="bg-purple-600 text-white font-bold">{userInitial}</AvatarFallback>
+                </Avatar>
+                <div className="flex flex-col min-w-0">
+                  <span className="text-sm font-bold truncate">{userName}</span>
+                  <span className="text-xs text-gray-500 truncate">{userEmail}</span>
+                </div>
+              </div>
+              <DropdownMenuItem asChild className="rounded-lg focus:bg-white/10 cursor-pointer py-2.5">
+                <Link href="/dashboard/owner/profile" className="flex items-center gap-2">
+                  <User size={16} className="text-purple-400" /> Profile
+                </Link>
               </DropdownMenuItem>
-              <DropdownMenuItem asChild>
-                <Link href="/dashboard/owner/settings">Settings</Link>
+              <DropdownMenuItem asChild className="rounded-lg focus:bg-white/10 cursor-pointer py-2.5">
+                <Link href="/dashboard/owner/settings" className="flex items-center gap-2">
+                  <div className="w-4 h-4 rounded-full border border-gray-400" /> Account Settings
+                </Link>
               </DropdownMenuItem>
-              <DropdownMenuSeparator className="bg-gray-800" />
+              <DropdownMenuSeparator className="bg-white/5 my-1" />
               <DropdownMenuItem
-                className="text-red-400 cursor-pointer"
+                className="text-red-400 rounded-lg focus:bg-red-500/10 cursor-pointer py-2.5 font-medium"
                 onClick={() => signOut({ callbackUrl: "/" })}
               >
-                Logout
+                Sign Out
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

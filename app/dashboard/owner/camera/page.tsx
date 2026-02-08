@@ -1,3 +1,5 @@
+"use client";
+
 export default function OwnerCameraPage() {
   const streamUrl = "http://localhost:5000/camera";
 

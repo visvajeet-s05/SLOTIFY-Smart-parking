@@ -5,8 +5,6 @@ import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { TrendingUp, TrendingDown, AlertTriangle, Clock } from 'lucide-react'
-import { format } from 'date-fns'
-
 interface PriceData {
   basePrice: number
   currentPrice: number
@@ -165,7 +163,7 @@ export function LivePriceDisplay({ parkingLotId, className }: LivePriceDisplayPr
           )}
         </div>
         <div className="mt-2 text-xs text-muted-foreground">
-          Last updated: {format(new Date(priceData.lastUpdated), 'h:mm:ss a')}
+          Last updated: {new Date(priceData.lastUpdated).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: true })}
         </div>
       </details>
     </div>

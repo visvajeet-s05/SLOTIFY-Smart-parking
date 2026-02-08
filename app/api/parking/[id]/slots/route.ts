@@ -32,13 +32,14 @@ export async function GET(
 
     console.log(`✅ Found ${slots.length} slots for ${id}`)
 
-    return NextResponse.json({ 
+    return NextResponse.json({
       slots: slots,
-
+      cameraUrl: lot.cameraUrl,
       lot: {
         id: lot.id,
         name: lot.name,
-        totalSlots: slots.length
+        totalSlots: slots.length,
+        address: lot.address
       }
     })
 

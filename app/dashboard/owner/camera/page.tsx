@@ -66,37 +66,60 @@ export default function OwnerCameraPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#030303] text-white selection:bg-purple-500/30 pb-20">
-      {/* Decorative Background */}
+    <div className="min-h-screen bg-[#020202] text-white selection:bg-cyan-500/30 pb-20">
+      {/* Cinematic Background */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-purple-900/10 rounded-full blur-[120px]" />
-        <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-blue-900/10 rounded-full blur-[120px]" />
+        <div className="absolute top-[-15%] left-[-15%] w-[50%] h-[50%] bg-cyan-900/10 rounded-full blur-[150px]" />
+        <div className="absolute bottom-[-15%] right-[-15%] w-[50%] h-[50%] bg-purple-900/10 rounded-full blur-[150px]" />
+        <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-[0.03]" />
       </div>
 
       <div className="relative max-w-7xl mx-auto px-6 pt-4 space-y-6">
-        {/* Header */}
-        <header className="flex flex-col md:flex-row md:items-center justify-between gap-6 pt-2">
-          <div className="space-y-1">
-            <div className="flex items-center gap-2 text-cyan-400 font-medium">
-              <Activity size={18} />
-              <span className="text-sm tracking-wider uppercase">Camera Feed</span>
+        {/* Futuristic Header */}
+        <header className="flex flex-col md:flex-row md:items-end justify-between gap-8 pt-8 pb-4 border-b border-white/5">
+          <div className="space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 bg-cyan-500/10 rounded-xl border border-cyan-500/20 shadow-[0_0_20px_rgba(34,211,238,0.1)]">
+                <Activity size={20} className="text-cyan-400 group-hover:scale-110 transition-transform" />
+              </div>
+              <div className="flex flex-col">
+                <span className="text-[10px] font-black text-cyan-500 uppercase tracking-[0.3em] leading-tight">Neural Link Static</span>
+                <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest leading-none">Command Center v4.2</span>
+              </div>
             </div>
-            <h1 className="text-3xl font-bold tracking-tight">Live Camera Stream</h1>
-            <p className="text-gray-400 flex items-center gap-2">
-              <ShieldCheck size={14} className="text-green-500" />
-              AI Analysis Active • <span className="text-white font-medium">4K HDR</span> Stream via AI Relay
-            </p>
+
+            <div className="space-y-1">
+              <h1 className="text-5xl font-black tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-white via-white to-zinc-500">
+                Optic Surveillance
+              </h1>
+              <div className="flex items-center gap-4 text-zinc-500">
+                <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
+                  System Integrity: 100%
+                </p>
+                <span className="w-1 h-1 rounded-full bg-zinc-800" />
+                <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest">
+                  <Zap size={12} className="text-amber-400" />
+                  AI Latency: 12ms
+                </p>
+              </div>
+            </div>
           </div>
 
-          <Link
-            href={parkingLotId ? `/dashboard/owner/parking-lots/${parkingLotId}/slots` : "#"}
-            className={`group flex items-center gap-3 px-6 py-3 bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/20 hover:border-purple-500/40 rounded-xl transition-all duration-300 ${!parkingLotId ? "opacity-50 pointer-events-none" : ""}`}
-          >
-            <LayoutDashboard size={20} className="text-purple-400" />
-            <span className="text-sm font-bold text-purple-400 uppercase tracking-widest group-hover:text-purple-300">
-              Slot Management
-            </span>
-          </Link>
+          <div className="flex gap-4">
+            <Link
+              href={parkingLotId ? `/dashboard/owner/parking-lots/${parkingLotId}/slots` : "#"}
+              className={`group relative px-8 py-4 bg-white/5 hover:bg-white/10 border border-white/10 rounded-2xl transition-all duration-500 overflow-hidden ${!parkingLotId ? "opacity-30 pointer-events-none" : ""}`}
+            >
+              <div className="absolute inset-0 bg-gradient-to-r from-cyan-500/0 via-cyan-500/10 to-cyan-500/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000" />
+              <div className="relative flex items-center gap-4">
+                <LayoutDashboard size={18} className="text-zinc-400 group-hover:text-cyan-400 transition-colors" />
+                <span className="text-xs font-black text-zinc-300 uppercase tracking-[0.2em] group-hover:text-white transition-colors">
+                  Matrix Controls
+                </span>
+              </div>
+            </Link>
+          </div>
         </header>
 
         {/* Main View */}

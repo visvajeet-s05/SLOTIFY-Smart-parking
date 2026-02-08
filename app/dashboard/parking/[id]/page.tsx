@@ -3,9 +3,11 @@
 import { useEffect, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
 import SlotGrid from "@/components/SlotGrid"
-import { motion } from "framer-motion"
-import { MapPin, Clock, CreditCard, Car, CheckCircle, ChevronDown, Building2 } from "lucide-react"
+import { motion, AnimatePresence } from "framer-motion"
+import { MapPin, Clock, CreditCard, Car, CheckCircle2, ChevronDown, Building2, BatteryCharging, Accessibility, Zap, Timer, ArrowLeft, ShieldCheck } from "lucide-react"
 import { useParkingSocket } from "@/hooks/useParkingSocket"
+import { Slider } from "@/components/ui/slider"
+import { Button } from "@/components/ui/button"
 
 type Slot = {
   id: string
@@ -13,7 +15,7 @@ type Slot = {
   row: string
   status: "AVAILABLE" | "OCCUPIED" | "RESERVED" | "DISABLED" | "CLOSED"
   aiConfidence: number
-  updatedBy: "AI" | "OWNER" | "CUSTOMER"
+  updatedBy: "AI" | "OWNER" | "CUSTOMER" | "SYSTEM"
   updatedAt: string
   price: number
   slotType?: string
@@ -39,28 +41,31 @@ const PARKING_LOTS = [
   { id: "PORUR", name: "Porur Junction Parking", price: 35 }
 ]
 
+import PaymentModal from "@/components/booking/PaymentModal"
+
 export default function CustomerParkingPage() {
   const params = useParams()
   const router = useRouter()
   const lotId = params.id as string
-  
+
   const [slots, setSlots] = useState<Slot[]>([])
   const [lot, setLot] = useState<ParkingLot | null>(null)
   const [selectedSlot, setSelectedSlot] = useState<Slot | null>(null)
   const [isLoading, setIsLoading] = useState(true)
-  const [bookingSuccess, setBookingSuccess] = useState(false)
   const [showLotSelector, setShowLotSelector] = useState(false)
+  const [duration, setDuration] = useState(2)
+  const [showPaymentModal, setShowPaymentModal] = useState(false)
 
   // Use the parking socket hook for real-time updates
   const { isConnected: wsConnected } = useParkingSocket({
     lotId: lotId,
     onSlotUpdate: (data) => {
-      setSlots(prev => prev.map(slot => 
-        slot.id === data.slotId 
+      setSlots(prev => prev.map(slot =>
+        slot.id === data.slotId
           ? { ...slot, status: data.status }
           : slot
       ))
-      
+
       // Clear selection if slot becomes unavailable
       if (selectedSlot?.id === data.slotId && data.status !== "AVAILABLE") {
         setSelectedSlot(null)
@@ -108,35 +113,26 @@ export default function CustomerParkingPage() {
   const handleSlotSelect = (slot: Slot) => {
     if (slot.status === "AVAILABLE") {
       setSelectedSlot(slot)
-      setBookingSuccess(false)
     }
   }
 
-  const handleBooking = async () => {
-    if (!selectedSlot) return
+  const handleBooking = () => {
+    if (!selectedSlot || !lot) return
+    setShowPaymentModal(true)
+  }
 
-    try {
-      const response = await fetch("/api/bookings", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          slotId: selectedSlot.id,
-          lotId: lotId,
-          startTime: new Date().toISOString(),
-          endTime: new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString() // 2 hours
-        })
+  const handlePaymentSuccess = () => {
+    // Refresh slots
+    fetch(`/api/parking/${lotId}/slots`)
+      .then(res => res.json())
+      .then(data => {
+        if (data.slots) {
+          setSlots(data.slots)
+        }
       })
 
-      if (response.ok) {
-        setBookingSuccess(true)
-        setSelectedSlot(null)
-      } else {
-        alert("Booking failed. Please try again.")
-      }
-    } catch (error) {
-      console.error("Booking error:", error)
-      alert("Booking failed. Please try again.")
-    }
+    // Selected slot will be cleared when the modal closes or user navigates away
+    // We can keep the modal open to show success state
   }
 
   const availableCount = slots.filter(s => s.status === "AVAILABLE").length
@@ -144,213 +140,280 @@ export default function CustomerParkingPage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gray-950 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-cyan-500 mx-auto mb-4"></div>
-          <p className="text-gray-400">Loading parking slots...</p>
+      <div className="min-h-screen w-full bg-mesh flex items-center justify-center">
+        <div className="text-center space-y-4">
+          <div className="relative w-20 h-20 mx-auto">
+            <div className="absolute inset-0 rounded-full border-t-2 border-primary animate-spin"></div>
+            <div className="absolute inset-2 rounded-full border-r-2 border-primary/50 animate-spin-slow"></div>
+          </div>
+          <p className="text-gray-400 font-medium tracking-wide animate-pulse">Synchronizing with Parking Grid...</p>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gray-950 text-white">
-      {/* Header */}
-      <div className="bg-gray-900 border-b border-gray-800">
-        <div className="max-w-7xl mx-auto px-4 py-6">
+    <div className="min-h-screen w-full bg-mesh text-white selection:bg-cyan-500/30 font-sans">
+      {/* Premium Header */}
+      <header className="sticky top-0 z-50 glass border-b border-white/5 backdrop-blur-2xl">
+        <div className="max-w-7xl mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
-            <div>
-              <div className="flex items-center gap-3 mb-2">
-                <h1 className="text-3xl font-bold text-white">
-                  {lot?.name || "Parking Lot"}
-                </h1>
-                {/* Lot Selector Dropdown */}
-                <div className="relative">
-                  <button
-                    onClick={() => setShowLotSelector(!showLotSelector)}
-                    className="flex items-center gap-2 bg-gray-800 hover:bg-gray-700 text-white px-3 py-1.5 rounded-lg text-sm transition"
-                  >
-                    <Building2 size={16} />
-                    Switch Lot
-                    <ChevronDown size={14} />
-                  </button>
-                  
-                  {showLotSelector && (
-                    <div className="absolute top-full left-0 mt-2 w-72 bg-gray-800 border border-gray-700 rounded-xl shadow-2xl z-50 max-h-80 overflow-y-auto">
-                      {PARKING_LOTS.map((parkingLot) => (
-                        <button
-                          key={parkingLot.id}
-                          onClick={() => handleLotChange(parkingLot.id)}
-                          className={`w-full text-left px-4 py-3 hover:bg-gray-700 transition flex items-center justify-between ${
-                            parkingLot.id === lotId ? "bg-cyan-500/20 border-l-2 border-cyan-500" : ""
-                          }`}
+            <div className="flex items-center gap-6">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => router.back()}
+                className="hover:bg-white/10 text-gray-400 hover:text-white rounded-xl"
+              >
+                <ArrowLeft size={20} />
+              </Button>
+
+              <div>
+                <div className="flex items-center gap-3 mb-1">
+                  <h1 className="text-2xl font-black tracking-tight text-white flex items-center gap-2">
+                    {lot?.name || "Parking Lot"}
+                    <span className="px-2 py-0.5 rounded-full bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 text-[10px] font-bold uppercase tracking-wider">
+                      Live
+                    </span>
+                  </h1>
+
+                  {/* Lot Selector */}
+                  <div className="relative">
+                    <button
+                      onClick={() => setShowLotSelector(!showLotSelector)}
+                      className="flex items-center gap-2 bg-white/10 hover:bg-white/20 border border-white/10 text-white px-4 py-2 rounded-full text-sm font-semibold transition-all shadow-lg hover:shadow-cyan-500/20"
+                    >
+                      <Building2 size={14} className="text-cyan-400" />
+                      Switch Zone
+                      <ChevronDown size={14} className={`transition-transform duration-300 ${showLotSelector ? "rotate-180" : ""}`} />
+                    </button>
+
+                    <AnimatePresence>
+                      {showLotSelector && (
+                        <motion.div
+                          initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                          animate={{ opacity: 1, y: 0, scale: 1 }}
+                          exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                          className="absolute top-full left-0 mt-3 w-80 bg-gray-900/95 border border-white/10 rounded-2xl shadow-2xl z-50 overflow-hidden backdrop-blur-xl ring-1 ring-white/10"
                         >
-                          <div>
-                            <div className="font-medium text-sm">{parkingLot.name}</div>
-                            <div className="text-xs text-gray-400">₹{parkingLot.price}/hr</div>
+                          <div className="p-2 space-y-1 max-h-[60vh] overflow-y-auto custom-scrollbar">
+                            {PARKING_LOTS.map((parkingLot) => (
+                              <button
+                                key={parkingLot.id}
+                                onClick={() => handleLotChange(parkingLot.id)}
+                                className={`w-full text-left px-4 py-3 rounded-xl transition-all flex items-center justify-between group ${parkingLot.id === lotId ? "bg-cyan-500/20 border border-cyan-500/30" : "hover:bg-white/5 border border-transparent"
+                                  }`}
+                              >
+                                <div>
+                                  <div className={`font-bold text-sm ${parkingLot.id === lotId ? "text-cyan-400" : "text-white"}`}>{parkingLot.name}</div>
+                                  <div className="text-xs text-gray-400 mt-0.5 group-hover:text-gray-300">₹{parkingLot.price}/hr • High Demand</div>
+                                </div>
+                                {parkingLot.id === lotId && (
+                                  <CheckCircle2 size={16} className="text-cyan-400" />
+                                )}
+                              </button>
+                            ))}
                           </div>
-                          {parkingLot.id === lotId && (
-                            <CheckCircle size={16} className="text-cyan-400" />
-                          )}
-                        </button>
-                      ))}
-                    </div>
-                  )}
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-4 text-xs font-medium text-gray-500">
+                  <div className="flex items-center gap-1.5">
+                    <MapPin size={12} className="text-primary/70" />
+                    <span>{lot?.address || "Loading location..."}</span>
+                  </div>
+                  <div className="w-1 h-1 rounded-full bg-gray-700"></div>
+                  <div className="flex items-center gap-1.5">
+                    <ShieldCheck size={12} className="text-emerald-500/70" />
+                    <span>Secure Zone</span>
+                  </div>
                 </div>
               </div>
-              <div className="flex items-center gap-2 text-gray-400">
-                <MapPin size={16} />
-                <span>{lot?.address || "Loading location..."}</span>
-              </div>
             </div>
-            <div className="text-right">
-              <div className="text-sm text-gray-400 mb-1">Available Slots</div>
-              <div className="text-3xl font-bold text-green-400">
-                {availableCount} <span className="text-lg text-gray-500">/ {totalCount}</span>
+
+            {/* Status Indicators */}
+            <div className="flex items-center gap-8">
+              <div className="text-right hidden md:block">
+                <div className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-1">Availability</div>
+                <div className="text-2xl font-black text-emerald-400 tabular-nums leading-none">
+                  {Math.round((availableCount / totalCount) * 100)}%
+                </div>
               </div>
-              <div className={`text-xs mt-1 ${wsConnected ? "text-green-500" : "text-red-500"}`}>
-                {wsConnected ? "● Live Updates" : "○ Disconnected"}
+              <div className="h-10 w-px bg-white/10 hidden md:block"></div>
+              <div className="text-right">
+                <div className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-1">Free Spots</div>
+                <div className="text-2xl font-black text-white tabular-nums leading-none flex items-center justify-end gap-2">
+                  <span className="text-emerald-400">{availableCount}</span>
+                  <span className="text-lg text-gray-600 font-medium">/ {totalCount}</span>
+                </div>
               </div>
             </div>
           </div>
         </div>
-      </div>
+      </header>
 
-      <div className="max-w-7xl mx-auto px-4 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Main Content - Slot Grid */}
-          <div className="lg:col-span-2">
-            <div className="bg-gray-900 rounded-2xl p-6 border border-gray-800">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-xl font-semibold">Select Your Parking Slot</h2>
-                <div className="text-sm text-gray-400">
-                  Click on a green slot to book
+      <main className="max-w-7xl mx-auto px-6 py-10">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+
+          {/* Main Slot Grid Section */}
+          <div className="lg:col-span-8 space-y-6">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="glass-card rounded-[2.5rem] p-8 border-white/5 relative overflow-hidden group"
+            >
+              {/* Decorative background glow */}
+              <div className="absolute top-0 right-0 w-96 h-96 bg-primary/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 group-hover:bg-primary/20 transition-all duration-1000"></div>
+
+              <div className="relative z-10">
+                <div className="flex items-center justify-between mb-8">
+                  <div>
+                    <h2 className="text-2xl font-bold text-white mb-2">Slot Selection</h2>
+                    <p className="text-gray-400 text-sm">Select an available spot to initiate booking</p>
+                  </div>
+                  <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider border ${wsConnected ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400" : "bg-red-500/10 border-red-500/20 text-red-400"}`}>
+                    <span className={`w-2 h-2 rounded-full ${wsConnected ? "bg-emerald-500 animate-pulse" : "bg-red-500"}`}></span>
+                    {wsConnected ? "System Online" : "Reconnecting"}
+                  </div>
                 </div>
-              </div>
 
-              <SlotGrid 
-                slots={slots} 
-                selectable={true}
-                onSelect={handleSlotSelect}
-              />
-            </div>
+                <SlotGrid
+                  slots={slots}
+                  selectable={true}
+                  onSelect={handleSlotSelect}
+                />
+              </div>
+            </motion.div>
           </div>
 
-          {/* Sidebar - Booking Details */}
-          <div className="lg:col-span-1">
-            <div className="bg-gray-900 rounded-2xl p-6 border border-gray-800 sticky top-6">
-              <h2 className="text-xl font-semibold mb-6 flex items-center gap-2">
-                <CreditCard size={20} className="text-cyan-400" />
-                Booking Details
-              </h2>
-              
-              {bookingSuccess ? (
-                <motion.div 
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  className="text-center py-8"
-                >
-                  <div className="w-20 h-20 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <CheckCircle size={40} className="text-white" />
-                  </div>
-                  <h3 className="text-xl font-bold text-green-400 mb-2">Booking Confirmed!</h3>
-                  <p className="text-gray-400 mb-4">Your parking slot has been reserved.</p>
-                  <button
-                    onClick={() => setBookingSuccess(false)}
-                    className="w-full bg-gray-800 hover:bg-gray-700 text-white font-semibold py-3 px-4 rounded-xl transition"
+          {/* Booking Sidebar */}
+          <div className="lg:col-span-4">
+            <div className="sticky top-28 space-y-6">
+
+              <AnimatePresence mode="wait">
+                {selectedSlot ? (
+                  <motion.div
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: 20 }}
+                    className="glass-card rounded-3xl p-8 border-white/10 relative overflow-hidden"
                   >
-                    Book Another Slot
-                  </button>
-                </motion.div>
-              ) : selectedSlot ? (
-                <div className="space-y-4">
-                  {/* Selected Slot Card */}
-                  <div className="bg-gray-800 rounded-xl p-4 border border-gray-700">
-                    <div className="flex items-center justify-between mb-3">
-                      <div className="flex items-center gap-2">
-                        <Car size={20} className="text-cyan-400" />
-                        <span className="text-gray-400">Slot Number</span>
+                    <div className="relative z-10 space-y-6">
+                      <div className="flex items-center justify-between">
+                        <h2 className="text-xl font-bold flex items-center gap-2">
+                          <CreditCard size={20} className="text-primary" />
+                          Checkout
+                        </h2>
+                        <span className="text-xs font-bold bg-primary/20 text-primary px-2 py-1 rounded-md uppercase tracking-wider">
+                          Timer Active
+                        </span>
                       </div>
-                      <span className="text-2xl font-bold text-white">S{selectedSlot.slotNumber}</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-gray-400">Row</span>
-                      <span className="text-lg font-semibold text-cyan-400">{selectedSlot.row}</span>
-                    </div>
-                  </div>
 
-                  {/* Price Card */}
-                  <div className="bg-gray-800 rounded-xl p-4 border border-gray-700">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-gray-400">Hourly Rate</span>
-                      <span className="text-2xl font-bold text-green-400">₹{selectedSlot.price}</span>
-                    </div>
-                    <div className="text-sm text-gray-500">
-                      {selectedSlot.slotType === "EV" && "⚡ EV Charging included (+30%)"}
-                      {selectedSlot.slotType === "DISABLED" && "♿ Accessible slot (-20%)"}
-                      {selectedSlot.slotType === "REGULAR" && "Standard parking slot"}
-                    </div>
-                  </div>
+                      {/* Slot Summary */}
+                      <div className="p-4 rounded-2xl bg-white/5 border border-white/5 flex items-center justify-between">
+                        <div>
+                          <p className="text-xs text-gray-400 uppercase tracking-widest font-bold mb-1">Selected Spot</p>
+                          <div className="text-3xl font-black text-white tracking-tight">S{selectedSlot.slotNumber}</div>
+                          <div className="text-xs text-primary font-medium mt-1">{selectedSlot.row} Zone</div>
+                        </div>
+                        <div className="text-right">
+                          <div className="text-2xl font-bold text-white">₹{selectedSlot.price}<span className="text-sm text-gray-500 font-medium">/hr</span></div>
+                          {selectedSlot.slotType === "EV" && <div className="text-[10px] text-blue-400 flex items-center justify-end gap-1 mt-1"><Zap size={10} /> EV Charging</div>}
+                        </div>
+                      </div>
 
-                  {/* Duration Card */}
-                  <div className="bg-gray-800 rounded-xl p-4 border border-gray-700">
-                    <div className="flex items-center gap-2 mb-3">
-                      <Clock size={18} className="text-cyan-400" />
-                      <span className="text-gray-400">Duration</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-white">2 hours (default)</span>
-                      <span className="text-cyan-400 font-semibold">Change</span>
-                    </div>
-                  </div>
+                      {/* Duration Slider */}
+                      <div className="space-y-4">
+                        <div className="flex items-center justify-between">
+                          <label className="text-sm font-medium text-gray-300 flex items-center gap-2">
+                            <Timer size={16} className="text-primary" />
+                            Duration
+                          </label>
+                          <span className="text-2xl font-bold text-white tabular-nums">{duration} <span className="text-sm text-gray-500 font-medium">hrs</span></span>
+                        </div>
+                        <div className="px-1">
+                          <Slider
+                            defaultValue={[2]}
+                            max={24}
+                            min={1}
+                            step={1}
+                            value={[duration]}
+                            onValueChange={(value) => setDuration(value[0])}
+                            className="py-2"
+                          />
+                        </div>
+                        <div className="flex justify-between text-[10px] uppercase font-bold text-gray-600 tracking-wider">
+                          <span>1 Hour</span>
+                          <span>12 Hours</span>
+                          <span>24 Hours</span>
+                        </div>
+                      </div>
 
-                  {/* Total */}
-                  <div className="bg-cyan-500/10 border border-cyan-500/30 rounded-xl p-4">
-                    <div className="flex items-center justify-between">
-                      <span className="text-cyan-400 font-semibold">Estimated Total</span>
-                      <span className="text-2xl font-bold text-cyan-400">₹{selectedSlot.price * 2}</span>
-                    </div>
-                    <div className="text-xs text-cyan-400/70 mt-1">
-                      For 2 hours parking
-                    </div>
-                  </div>
+                      <div className="h-px bg-white/10 my-6"></div>
 
-                  {/* Action Buttons */}
-                  <button
-                    onClick={handleBooking}
-                    className="w-full bg-cyan-500 hover:bg-cyan-600 text-white font-bold py-4 px-6 rounded-xl transition-all transform hover:scale-[1.02] shadow-lg shadow-cyan-500/25"
+                      {/* Total */}
+                      <div className="flex items-end justify-between mb-2">
+                        <span className="text-gray-400 font-medium">Total Estimate</span>
+                        <div className="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-white to-gray-400">
+                          ₹{selectedSlot.price * duration}
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-3">
+                        <Button
+                          variant="ghost"
+                          onClick={() => setSelectedSlot(null)}
+                          className="h-14 rounded-2xl border border-white/10 hover:bg-white/5 text-gray-400 hover:text-white"
+                        >
+                          Cancel
+                        </Button>
+                        <Button
+                          onClick={handleBooking}
+                          className="h-14 rounded-2xl bg-gradient-to-r from-primary to-purple-600 hover:from-primary/90 hover:to-purple-600/90 text-white font-bold shadow-lg shadow-primary/25"
+                        >
+                          Proceed to Payment
+                        </Button>
+                      </div>
+                    </div>
+                  </motion.div>
+                ) : (
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    className="glass-card rounded-3xl p-10 border-white/5 text-center flex flex-col items-center justify-center min-h-[400px]"
                   >
-                    Confirm Booking
-                  </button>
-
-                  <button
-                    onClick={() => setSelectedSlot(null)}
-                    className="w-full bg-gray-800 hover:bg-gray-700 text-gray-300 font-semibold py-3 px-6 rounded-xl transition"
-                  >
-                    Cancel Selection
-                  </button>
-                </div>
-              ) : (
-                <div className="text-center py-12">
-                  <div className="w-20 h-20 bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <Car size={32} className="text-gray-600" />
-                  </div>
-                  <h3 className="text-lg font-semibold text-gray-400 mb-2">No Slot Selected</h3>
-                  <p className="text-sm text-gray-500 mb-4">
-                    Click on an available green slot from the grid to start booking
-                  </p>
-                  <div className="flex items-center justify-center gap-2 text-xs text-gray-600">
-                    <div className="w-3 h-3 bg-green-500 rounded"></div>
-                    <span>Available</span>
-                    <div className="w-3 h-3 bg-red-600 rounded ml-2"></div>
-                    <span>Occupied</span>
-                  </div>
-                </div>
-              )}
+                    <div className="w-24 h-24 bg-white/5 rounded-full flex items-center justify-center mb-6 border border-white/5 animate-pulse-soft">
+                      <Car size={40} className="text-gray-600" />
+                    </div>
+                    <h3 className="text-xl font-bold text-white mb-2">No Spot Selected</h3>
+                    <p className="text-gray-400 text-sm leading-relaxed max-w-[200px]">
+                      Select an available green slot from the grid to view pricing and booking options.
+                    </p>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
           </div>
         </div>
-      </div>
+      </main>
+
+      {/* Payment Modal */}
+      {selectedSlot && lot && (
+        <PaymentModal
+          isOpen={showPaymentModal}
+          onClose={() => setShowPaymentModal(false)}
+          slotId={selectedSlot.id}
+          slotNumber={selectedSlot.slotNumber.toString()}
+          parkingName={lot.name}
+          parkingLotId={lotId}
+          pricePerHour={selectedSlot.price}
+          duration={duration}
+          onSuccess={handlePaymentSuccess}
+        />
+      )}
     </div>
   )
 }

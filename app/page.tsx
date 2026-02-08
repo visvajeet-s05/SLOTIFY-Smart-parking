@@ -9,7 +9,7 @@ import Image from "next/image"
 import { useRouter } from "next/navigation"
 import LoginModal from "@/components/auth/LoginModal"
 
-const MapBackground = dynamic(() => import("@/components/map/map-background"), {
+const MapBackground = dynamic(() => import("@/components/map/background-map"), {
   ssr: false,
   loading: () => <div className="w-full h-screen bg-black/90 animate-pulse" />,
 })
@@ -130,7 +130,7 @@ export default function LandingPage() {
         {/* Background Map with deeper overlay */}
         <div className="absolute inset-0 z-0">
           <MapBackground />
-          <div className="absolute inset-0 bg-gradient-to-b from-background/90 via-background/40 to-background/95 backdrop-blur-[2px]" />
+          <div className="absolute inset-0 bg-gradient-to-b from-background/70 via-background/10 to-background/90 backdrop-blur-[1px]" />
           {/* Animated decorative blobs */}
           <div className="absolute top-1/4 -left-20 w-96 h-96 bg-primary/20 rounded-full blur-[120px] animate-pulse-soft" />
           <div className="absolute bottom-1/4 -right-20 w-96 h-96 bg-indigo-600/20 rounded-full blur-[120px] animate-pulse-soft delay-1000" />

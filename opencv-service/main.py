@@ -15,7 +15,7 @@ CORS(app)  # Enable CORS for all routes
 
 # --- Configuration ---
 # Allow environment variable overrides
-NEXTJS_API_URL = os.getenv("NEXTJS_API_URL", "http://localhost:3000")
+NEXTJS_API_URL = os.getenv("NEXTJS_API_URL", "http://localhost:3000").rstrip("/")
 PYTHON_SERVICE_PORT = int(os.getenv("PYTHON_SERVICE_PORT", 5000))
 
 # --- Global State ---
@@ -38,12 +38,12 @@ class ParkingLotMonitor:
     def load_config(self):
         """Fetch camera URL and slot coordinates from Next.js API"""
         try:
-            print(f"🔄 Fetching config for {self.lot_id} from {self.api_url}...")
-            # Use the correct internal API endpoint to fetch parking lot details
-            response = requests.get(f"{self.api_url}/api/parking-lots/{self.lot_id}")
+            print(f"🔄 Fetching config for {self.lot_id} from {self.api_url}...", flush=True)
+            # Correct API endpoint to fetch parking lot and slot details
+            response = requests.get(f"{self.api_url}/api/parking/{self.lot_id}/slots")
             
             if response.status_code != 200:
-                print(f"❌ Failed to fetch config for {self.lot_id}: {response.status_code} {response.text}")
+                print(f"❌ Failed to fetch config for {self.lot_id}: {response.status_code} {response.text}", flush=True)
                 return False
             
             data = response.json()
@@ -51,14 +51,14 @@ class ParkingLotMonitor:
             # Extract camera URL
             self.camera_url = data.get("cameraUrl")
             if not self.camera_url:
-                print(f"❌ No camera URL found for {self.lot_id}")
+                print(f"❌ No camera URL found for {self.lot_id}", flush=True)
                 return False
 
             # Extract slots (Assuming data.slots is the list of slot objects)
             # Adjust this based on your actual API response structure!
             # Example expectation: { "id": "...", "cameraUrl": "...", "slots": [...] }
             self.slots = data.get("slots", [])
-            print(f"✅ Loaded config for {self.lot_id}: {len(self.slots)} slots, URL: {self.camera_url}")
+            print(f"✅ Loaded config for {self.lot_id}: {len(self.slots)} slots, URL: {self.camera_url}", flush=True)
             return True
 
         except Exception as e:
@@ -97,6 +97,9 @@ class ParkingLotMonitor:
         """Main processing loop for this camera"""
         self.cap = cv2.VideoCapture(self.camera_url)
         
+        # Initialize Background Subtractor for better movement/presence detection
+        fgbg = cv2.createBackgroundSubtractorMOG2(history=500, varThreshold=16, detectShadows=True)
+        
         # Simple reconnection loop
         while self.running:
             if not self.cap.isOpened():
@@ -110,36 +113,41 @@ class ParkingLotMonitor:
             ret, frame = self.cap.read()
             if not ret:
                 print(f"⚠️ Failed to read frame for {self.lot_id}")
-                time.sleep(0.5) # Prevent CPU spin
+                time.sleep(0.5)
                 continue
 
             # Process frame for detection
-            processed_frame = self.detect(frame)
+            processed_frame = self.detect(frame, fgbg)
             
             with self.lock:
                 self.last_frame = processed_frame
 
-            # Send updates periodically (every ~30 frames)
+            # Send updates periodically (every ~15 frames for snappier feel)
             self.frame_count += 1
-            if self.frame_count % 30 == 0:
+            if self.frame_count % 15 == 0:
                 self.send_updates()
 
         self.cap.release()
 
-    def detect(self, frame):
-        """Detect vehicles in slots"""
-        # Resize for performance constraint if needed (e.g. 640x480) - optional
-        # frame = cv2.resize(frame, (640, 480))
-
+    def detect(self, frame, fgbg):
+        """Enhanced detection using MOG2 + Edge Density"""
+        # Create a copy for visual output
+        overlay = frame.copy()
+        
+        # Processing
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        # Apply GaussianBlur to reduce noise
-        blurred = cv2.GaussianBlur(gray, (5, 5), 0)
-        edges = cv2.Canny(blurred, 50, 150)
-
+        blurred = cv2.GaussianBlur(gray, (7, 7), 0)
+        edges = cv2.Canny(blurred, 30, 100)
+        
+        # Background subtraction mask
+        fgmask = fgbg.apply(blurred)
+        _, fgmask = cv2.threshold(fgmask, 200, 255, cv2.THRESH_BINARY) # Remove shadows
+        
         current_status = {}
+        fh, fw = frame.shape[:2]
         
         for slot in self.slots:
-            slot_id = slot.get("number") # assuming number is unique ID logic from API
+            slot_id = slot.get("slotNumber") or slot.get("number")
             x, y = slot.get("x"), slot.get("y")
             w, h = slot.get("width"), slot.get("height")
 
@@ -147,30 +155,53 @@ class ParkingLotMonitor:
                 continue
             
             # Boundary checks
-            fh, fw = frame.shape[:2]
             if x < 0 or y < 0 or x+w > fw or y+h > fh:
                 continue
 
             # ROI Analysis
-            roi = edges[y:y+h, x:x+w]
-            edge_count = np.count_nonzero(roi)
+            roi_edges = edges[y:y+h, x:x+w]
+            roi_motion = fgmask[y:y+h, x:x+w]
             
-            # Thresholding - simple but effective for "texture"
-            # Tunable: density = edge_count / (w * h)
-            # If density > threshold -> Occupied
-            if w * h > 0:
-                density = edge_count / (w * h)
-                is_occupied = density > 0.15  # 15% edges is a reasonable "car" threshold vs "asphalt"
-            else:
-                is_occupied = False
+            edge_density = np.count_nonzero(roi_edges) / (w * h) if w*h > 0 else 0
+            motion_density = np.count_nonzero(roi_motion) / (w * h) if w*h > 0 else 0
+            
+            # COMBINED LOGIC: High edge frequency OR sustained motion indicates a car
+            # Cars have complex textures (edges) compared to flat asphalt
+            is_occupied = (edge_density > 0.12) or (motion_density > 0.20)
 
             current_status[slot_id] = "OCCUPIED" if is_occupied else "AVAILABLE"
             
-            # Draw on frame for visualization (red = occupied, green = free)
-            color = (0, 0, 255) if is_occupied else (0, 255, 0)
-            cv2.rectangle(frame, (x, y), (x + w, y + h), color, 2)
-            # cv2.putText(frame, str(slot_id), (x, y - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 1)
+            # --- PREMIUM VISUAL OVERLAY ---
+            # Color palette (BGR)
+            COLOR_OCCUPIED = (50, 50, 255) # Red-ish
+            COLOR_AVAILABLE = (100, 255, 100) # Green-ish
+            COLOR_SCAN = (255, 255, 0) # Cyan-ish
+            
+            color = COLOR_OCCUPIED if is_occupied else COLOR_AVAILABLE
+            
+            # Rounded Rectangle Look (Inner & Outer)
+            cv2.rectangle(overlay, (x, y), (x + w, y + h), color, 2)
+            cv2.rectangle(overlay, (x+2, y+2), (x + w-2, y + h-2), (0,0,0), 1)
+            
+            # Status Badge
+            badge_h = 20
+            cv2.rectangle(overlay, (x, y - badge_h), (x + 50, y), color, -1)
+            label = f"S{slot_id}"
+            cv2.putText(overlay, label, (x + 5, y - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (0,0,0), 2)
+            cv2.putText(overlay, label, (x + 5, y - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (255,255,255), 1)
 
+            # Confidence bar
+            conf_w = int(w * edge_density / 0.3) if is_occupied else int(w * (1 - edge_density / 0.12))
+            conf_w = min(w, max(0, conf_w))
+            cv2.rectangle(overlay, (x, y + h + 2), (x + conf_w, y + h + 5), color, -1)
+
+        # Apply scanline effect to the MJPEG stream too
+        scan_y = int((time.time() * 100) % fh)
+        cv2.line(overlay, (0, scan_y), (fw, scan_y), (255, 255, 255), 1)
+
+        # Blend original with overlay
+        alpha = 0.8
+        cv2.addWeighted(overlay, alpha, frame, 1 - alpha, 0, frame)
 
         self.status_cache = current_status
         return frame
@@ -191,9 +222,9 @@ class ParkingLotMonitor:
             # CORRECT API ENDPOINT
             url = f"{self.api_url}/api/internal/slots/update"
             requests.post(url, json=payload, timeout=5)
-            # print(f"✅ Posted update for {self.lot_id}") 
+            print(f"✅ Posted update for {self.lot_id}", flush=True) 
         except Exception as e:
-            print(f"⚠️ Failed to post update for {self.lot_id}: {e}")
+            print(f"⚠️ Failed to post update for {self.lot_id}: {e}", flush=True)
 
     def get_frame(self):
         """Return the latest processed frame as JPEG bytes"""

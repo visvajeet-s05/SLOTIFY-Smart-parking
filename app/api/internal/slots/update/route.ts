@@ -75,30 +75,43 @@ export async function POST(req: NextRequest) {
       }
 
       const existingSlot = slotMap.get(slotNumber);
-
       if (!existingSlot) {
         results.errors.push(`Slot ${slotNumber} not found in lot ${lotId}`);
         continue;
       }
 
-      // Priority check: AI cannot override OWNER or CUSTOMER updates
-      if (existingSlot.updatedBy === 'OWNER' || existingSlot.updatedBy === 'CUSTOMER') {
-        // AI can only update if current status is AVAILABLE or OCCUPIED
-        // and the slot was last updated by AI
-        if (existingSlot.updatedBy !== 'AI') {
-          results.skipped++;
-          continue;
+      // DETERMINISTIC LOGIC:
+      // AI reports if a car IS THERE (OCCUPIED) or IS NOT THERE (AVAILABLE/EMPTY)
+      // We then decide the actual state based on bookings if AI says it is empty.
+
+      let finalStatus: SlotStatus = statusEnum;
+
+      // If AI says the slot is free, we check if someone has booked it (RESERVED)
+      if (statusEnum === 'AVAILABLE') {
+        const activeBooking = await prisma.booking.findFirst({
+          where: {
+            slotId: existingSlot.id,
+            status: { in: ['UPCOMING', 'ACTIVE'] }
+          }
+        });
+
+        if (activeBooking) {
+          finalStatus = 'RESERVED';
         }
+      }
+
+      // If already correct status, skip
+      if (existingSlot.status === finalStatus) {
+        results.skipped++;
+        continue;
       }
 
       try {
         // Update slot in database
         await prisma.slot.update({
-          where: {
-            id: existingSlot.id
-          },
+          where: { id: existingSlot.id },
           data: {
-            status: statusEnum,
+            status: finalStatus,
             updatedBy: 'AI',
             aiConfidence: 95.0,
           },
@@ -109,7 +122,7 @@ export async function POST(req: NextRequest) {
           data: {
             slotId: existingSlot.id,
             oldStatus: existingSlot.status,
-            newStatus: statusEnum,
+            newStatus: finalStatus,
             updatedBy: 'AI',
             aiConfidence: 95.0,
           },
@@ -117,12 +130,13 @@ export async function POST(req: NextRequest) {
 
         results.updated++;
 
-        // Broadcast update via WebSocket if available
+        // Broadcast update via WebSocket
         broadcastUpdate(lotId, {
           type: 'SLOT_UPDATE',
-          lotSlug: lotId,
+          lotId: lotId,
+          slotId: existingSlot.id,
           slotNumber: slotNumber,
-          status: statusEnum,
+          status: finalStatus,
           confidence: 95.0,
           source: 'AI',
           timestamp: new Date().toISOString(),

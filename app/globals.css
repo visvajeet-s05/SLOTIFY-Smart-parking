@@ -155,3 +155,13 @@ html {
     @apply glass-card rounded-2xl p-6;
   }
 }
+
+@keyframes spin-slow {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-spin-slow {
+  animation: spin-slow 3s linear infinite;
+}

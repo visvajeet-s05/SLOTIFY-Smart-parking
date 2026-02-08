@@ -4,7 +4,25 @@ import { SlotStatus, UpdatedBy } from '@prisma/client';
 
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json();
+    const text = await req.text();
+    if (!text) {
+      return NextResponse.json(
+        { error: 'Empty request body' },
+        { status: 400 }
+      );
+    }
+
+    let body;
+    try {
+      body = JSON.parse(text);
+    } catch (e) {
+      console.error('Failed to parse JSON body:', e);
+      return NextResponse.json(
+        { error: 'Invalid JSON body' },
+        { status: 400 }
+      );
+    }
+
     const { lotId, slots } = body;
 
     // Validate request body
@@ -48,7 +66,7 @@ export async function POST(req: NextRequest) {
     // Process each slot update
     for (const slotData of slots) {
       const { number: slotNumber, status: newStatus } = slotData;
-      
+
       // Map string status to enum
       const statusEnum = mapStatusToEnum(newStatus);
       if (!statusEnum) {
@@ -57,7 +75,7 @@ export async function POST(req: NextRequest) {
       }
 
       const existingSlot = slotMap.get(slotNumber);
-      
+
       if (!existingSlot) {
         results.errors.push(`Slot ${slotNumber} not found in lot ${lotId}`);
         continue;
@@ -76,8 +94,8 @@ export async function POST(req: NextRequest) {
       try {
         // Update slot in database
         await prisma.slot.update({
-          where: { 
-            id: existingSlot.id 
+          where: {
+            id: existingSlot.id
           },
           data: {
             status: statusEnum,
@@ -124,7 +142,7 @@ export async function POST(req: NextRequest) {
   } catch (error) {
     console.error('Error updating slots from camera:', error);
     return NextResponse.json(
-      { 
+      {
         error: 'Internal server error',
         details: error instanceof Error ? error.message : String(error)
       },
@@ -152,7 +170,7 @@ function broadcastUpdate(lotId: string, data: any) {
   try {
     // Check if WebSocket server is available
     const wsPort = process.env.WS_PORT || '4000';
-    
+
     // Use fetch to notify WebSocket server
     fetch(`http://localhost:${wsPort}/broadcast`, {
       method: 'POST',

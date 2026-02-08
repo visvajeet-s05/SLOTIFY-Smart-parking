@@ -9,12 +9,14 @@ import os
 import signal
 import sys
 
-# Configuration from environment variables
-NEXTJS_API_URL = os.getenv("NEXTJS_API_URL", "http://localhost:3000")
-PYTHON_SERVICE_PORT = int(os.getenv("PYTHON_SERVICE_PORT", "5000"))
 
 app = Flask(__name__)
 CORS(app)  # Enable CORS for all routes
+
+# --- Configuration ---
+# Allow environment variable overrides
+NEXTJS_API_URL = os.getenv("NEXTJS_API_URL", "http://localhost:3000")
+PYTHON_SERVICE_PORT = int(os.getenv("PYTHON_SERVICE_PORT", 5000))
 
 # --- Global State ---
 monitors = {}  # Dictionary to store active monitors: { lot_id: ParkingLotMonitor }
@@ -34,19 +36,31 @@ class ParkingLotMonitor:
         self.frame_count = 0
 
     def load_config(self):
-        """Fetch camera URL and slot configuration from Next.js API"""
+        """Fetch camera URL and slot coordinates from Next.js API"""
         try:
-            url = f"{self.api_url}/api/internal/slots/{self.lot_id}"
-            response = requests.get(url, timeout=5)
-            if response.status_code == 200:
-                data = response.json()
-                self.camera_url = data.get("cameraUrl")
-                self.slots = data.get("slots", [])
-                print(f"✅ Loaded config for {self.lot_id}: {len(self.slots)} slots, URL: {self.camera_url}")
-                return True
-            else:
-                print(f"⚠️ Failed to load config for {self.lot_id}: {response.status_code}")
+            print(f"🔄 Fetching config for {self.lot_id} from {self.api_url}...")
+            # Use the correct internal API endpoint to fetch parking lot details
+            response = requests.get(f"{self.api_url}/api/parking-lots/{self.lot_id}")
+            
+            if response.status_code != 200:
+                print(f"❌ Failed to fetch config for {self.lot_id}: {response.status_code} {response.text}")
                 return False
+            
+            data = response.json()
+            
+            # Extract camera URL
+            self.camera_url = data.get("cameraUrl")
+            if not self.camera_url:
+                print(f"❌ No camera URL found for {self.lot_id}")
+                return False
+
+            # Extract slots (Assuming data.slots is the list of slot objects)
+            # Adjust this based on your actual API response structure!
+            # Example expectation: { "id": "...", "cameraUrl": "...", "slots": [...] }
+            self.slots = data.get("slots", [])
+            print(f"✅ Loaded config for {self.lot_id}: {len(self.slots)} slots, URL: {self.camera_url}")
+            return True
+
         except Exception as e:
             print(f"❌ Error loading config for {self.lot_id}: {e}")
             return False
@@ -150,18 +164,13 @@ class ParkingLotMonitor:
             else:
                 is_occupied = False
 
-            status_str = "OCCUPIED" if is_occupied else "AVAILABLE"
+            current_status[slot_id] = "OCCUPIED" if is_occupied else "AVAILABLE"
             
-            # Use existing status if available for color coding override logic, but here we just detect
-            # The API/DB handles the "User Override" logic.
-            # We just report "AI sees X".
-            
-            # Visual Feedback
-            color = (0, 0, 255) if is_occupied else (0, 255, 0) # Red/Green
-            cv2.rectangle(frame, (x, y), (x+w, y+h), color, 2)
-            cv2.putText(frame, str(slot_id), (x, y-5), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 1)
+            # Draw on frame for visualization (red = occupied, green = free)
+            color = (0, 0, 255) if is_occupied else (0, 255, 0)
+            cv2.rectangle(frame, (x, y), (x + w, y + h), color, 2)
+            # cv2.putText(frame, str(slot_id), (x, y - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 1)
 
-            current_status[slot_id] = status_str
 
         self.status_cache = current_status
         return frame
@@ -179,10 +188,10 @@ class ParkingLotMonitor:
         }
         
         try:
+            # CORRECT API ENDPOINT
             url = f"{self.api_url}/api/internal/slots/update"
-            # Using a very short timeout to avoid blocking detection loop
-            requests.post(url, json=payload, timeout=1)
-            # print(f"✅ Posted update for {self.lot_id}") # verbose logging off
+            requests.post(url, json=payload, timeout=5)
+            # print(f"✅ Posted update for {self.lot_id}") 
         except Exception as e:
             print(f"⚠️ Failed to post update for {self.lot_id}: {e}")
 

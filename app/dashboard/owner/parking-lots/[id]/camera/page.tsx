@@ -14,6 +14,8 @@ export default function OwnerCameraPage({ params }: { params: Promise<{ id: stri
     const router = useRouter()
     const { id: lotId } = use(params)
     const [cameraUrl, setCameraUrl] = useState<string | null>(null)
+    const [cameras, setCameras] = useState<any[]>([])
+    const [activeCameraId, setActiveCameraId] = useState<string | null>(null)
     const [slots, setSlots] = useState<any[]>([])
     const [loading, setLoading] = useState(true)
     const [hasCameraConfig, setHasCameraConfig] = useState(false)
@@ -22,7 +24,6 @@ export default function OwnerCameraPage({ params }: { params: Promise<{ id: stri
 
     const { isConnected: wsConnected, lastMessage } = useOwnerWS()
 
-    // --- Configuration ---
     const AI_SERVICE_URL = process.env.NEXT_PUBLIC_AI_SERVICE_URL || "http://localhost:5000"
 
     useEffect(() => {
@@ -30,16 +31,20 @@ export default function OwnerCameraPage({ params }: { params: Promise<{ id: stri
 
         const fetchData = async () => {
             try {
-                // 1. Check if lot has camera config
+                // 1. Fetch camera config (with cameras list)
                 const cameraRes = await fetch(`/api/parking/${lotId}/camera`)
                 const cameraData = await cameraRes.json()
 
-                if (cameraData.hasCamera) {
+                if (cameraData.cameras && cameraData.cameras.length > 0) {
                     setHasCameraConfig(true)
-                    // Default to AI stream URL
+                    setCameras(cameraData.cameras)
+                    const firstCam = cameraData.cameras[0]
+                    setActiveCameraId(firstCam.id)
+                    setCameraUrl(`${AI_SERVICE_URL}/camera/${lotId}/${firstCam.id}`)
+                    startMonitor(firstCam.id)
+                } else if (cameraData.hasCamera) {
+                    setHasCameraConfig(true)
                     setCameraUrl(`${AI_SERVICE_URL}/camera/${lotId}`)
-
-                    // Try to wake up the monitor
                     startMonitor()
                 } else {
                     setHasCameraConfig(false)
@@ -62,24 +67,24 @@ export default function OwnerCameraPage({ params }: { params: Promise<{ id: stri
         fetchData()
     }, [lotId])
 
-    const startMonitor = async () => {
+    const startMonitor = async (cameraId?: string) => {
         try {
-            const res = await fetch(`${AI_SERVICE_URL}/start/${lotId}`, { method: 'POST' })
+            const url = cameraId
+                ? `${AI_SERVICE_URL}/start/${lotId}/${cameraId}`
+                : `${AI_SERVICE_URL}/start/${lotId}`
+
+            const res = await fetch(url, { method: 'POST' })
             if (res.ok) {
                 setIsMonitorRunning(true)
                 setMonitorError(null)
             } else {
-                // If it fails, maybe it's already running or errored
                 const data = await res.json()
                 if (data.status === 'already_running') {
                     setIsMonitorRunning(true)
-                } else {
-                    console.warn("Monitor start returned non-200", data)
                 }
             }
         } catch (e) {
             console.error("Failed to start monitor:", e)
-            // Don't set error immediately, maybe stream works anyway
         }
     }
 
@@ -92,6 +97,13 @@ export default function OwnerCameraPage({ params }: { params: Promise<{ id: stri
         }
     }
 
+    const handleCameraSwitch = async (camId: string) => {
+        if (activeCameraId === camId) return
+        setActiveCameraId(camId)
+        setCameraUrl(`${AI_SERVICE_URL}/camera/${lotId}/${camId}`)
+        // Optional: restart AI for new camera if it's not multi-stream
+        startMonitor(camId)
+    }
 
     // Handle WS updates to keep slots in sync for overlays
     useEffect(() => {
@@ -144,8 +156,8 @@ export default function OwnerCameraPage({ params }: { params: Promise<{ id: stri
                             <button
                                 onClick={() => isMonitorRunning ? stopMonitor() : startMonitor()}
                                 className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition-all border ${isMonitorRunning
-                                        ? "bg-red-500/10 border-red-500/20 text-red-400 hover:bg-red-500/20"
-                                        : "bg-green-500/10 border-green-500/20 text-green-400 hover:bg-green-500/20"
+                                    ? "bg-red-500/10 border-red-500/20 text-red-400 hover:bg-red-500/20"
+                                    : "bg-green-500/10 border-green-500/20 text-green-400 hover:bg-green-500/20"
                                     }`}
                             >
                                 {isMonitorRunning ? <Power size={14} /> : <Camera size={14} />}
@@ -168,6 +180,24 @@ export default function OwnerCameraPage({ params }: { params: Promise<{ id: stri
 
                 {/* Main View */}
                 <div className="space-y-6">
+                    {/* Camera Select Bar */}
+                    {hasCameraConfig && cameras.length > 0 && (
+                        <div className="flex items-center gap-3 overflow-x-auto pb-2 custom-scrollbar">
+                            {cameras.map((cam, idx) => (
+                                <button
+                                    key={cam.id}
+                                    onClick={() => handleCameraSwitch(cam.id)}
+                                    className={`px-6 py-2.5 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap border ${activeCameraId === cam.id
+                                            ? "bg-cyan-500 text-black border-cyan-400 shadow-[0_0_20px_rgba(34,211,238,0.3)]"
+                                            : "bg-white/5 text-zinc-400 border-white/10 hover:bg-white/10 hover:text-white"
+                                        }`}
+                                >
+                                    {cam.name || `Camera ${idx + 1}`}
+                                </button>
+                            ))}
+                        </div>
+                    )}
+
                     {!hasCameraConfig ? (
                         <div className="aspect-video bg-white/5 rounded-3xl border border-white/10 flex flex-col items-center justify-center gap-4">
                             <VideoOff size={48} className="text-zinc-600" />
@@ -179,7 +209,7 @@ export default function OwnerCameraPage({ params }: { params: Promise<{ id: stri
                     ) : (
                         <CameraAnalysis
                             cameraUrl={isMonitorRunning ? cameraUrl : null}
-                            slots={slots}
+                            slots={slots.filter(s => s.cameraId === activeCameraId)}
                             wsConnected={wsConnected}
                         />
                     )}

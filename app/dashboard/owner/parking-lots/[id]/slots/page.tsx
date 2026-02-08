@@ -350,7 +350,12 @@ export default function OwnerSlotsPage({ params }: { params: Promise<{ id: strin
                       <span className="text-[10px] font-mono text-zinc-600">{slotsByRow[row].length} SLOTS</span>
                     </div>
 
-                    <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 gap-3">
+                    <div
+                      className="grid gap-2"
+                      style={{
+                        gridTemplateColumns: `repeat(auto-fill, minmax(100px, 1fr))`
+                      }}
+                    >
                       {slotsByRow[row]
                         .sort((a, b) => a.slotNumber - b.slotNumber)
                         .map(slot => (

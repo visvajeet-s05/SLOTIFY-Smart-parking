@@ -26,7 +26,7 @@ export default function SlotConfigGrid({ parkingLotId, lotSlug }: SlotConfigGrid
   const [slots, setSlots] = useState<Slot[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null)
-  
+
   // Use shared WebSocket from context
   const { isConnected: wsConnected, lastMessage } = useOwnerWS()
 
@@ -36,7 +36,7 @@ export default function SlotConfigGrid({ parkingLotId, lotSlug }: SlotConfigGrid
       try {
         const response = await fetch(`/api/parking/${parkingLotId}/slots`)
         if (!response.ok) throw new Error("Failed to fetch slots")
-        
+
         const data = await response.json()
         if (data.slots) {
           setSlots(data.slots)
@@ -60,11 +60,11 @@ export default function SlotConfigGrid({ parkingLotId, lotSlug }: SlotConfigGrid
         prev.map((slot) =>
           slot.id === lastMessage.slotId
             ? {
-                ...slot,
-                status: lastMessage.status as SlotStatus,
-                confidence: lastMessage.confidence,
-                source: lastMessage.updatedBy as SlotSource
-              }
+              ...slot,
+              status: lastMessage.status as SlotStatus,
+              confidence: lastMessage.confidence,
+              source: lastMessage.updatedBy as SlotSource
+            }
             : slot
         )
       )
@@ -138,9 +138,9 @@ export default function SlotConfigGrid({ parkingLotId, lotSlug }: SlotConfigGrid
         </div>
       </div>
 
-      {/* Slot Grid - 8 per row */}
+      {/* Slot Grid - Dynamic Based on Owner Slots */}
       <div className="p-4">
-        <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 xl:grid-cols-10 2xl:grid-cols-12 gap-2">
           {slots.map((slot) => (
             <SlotAdminCard
               key={slot.id}

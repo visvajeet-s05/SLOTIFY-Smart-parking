@@ -7,12 +7,23 @@ export async function GET(
 ) {
   try {
     const { id } = await params
-    console.log("🔍 Fetching slots for lotId:", id)
+    const { searchParams } = new URL(request.url)
+    const cameraId = searchParams.get('cameraId')
 
-    // First check if the parking lot exists
-    const lot = await prisma.parkinglot.findUnique({
-      where: { id }
-    })
+    // First check if the parking lot exists (with cameras fallback)
+    let lot: any;
+    try {
+      lot = await prisma.parkinglot.findUnique({
+        where: { id },
+        include: { cameras: true }
+      })
+    } catch (e) {
+      console.warn("⚠️ Prisma relation 'cameras' not ready, falling back...");
+      lot = await prisma.parkinglot.findUnique({
+        where: { id }
+      });
+      if (lot) lot.cameras = [];
+    }
 
     if (!lot) {
       console.log("❌ Parking lot not found:", id)
@@ -24,17 +35,27 @@ export async function GET(
 
     console.log("✅ Found parking lot:", lot.name)
 
-    // Fetch slots separately
+    // Fetch slots filtered by lotId and optionally cameraId
     const slots = await prisma.slot.findMany({
-      where: { lotId: id },
+      where: {
+        lotId: id,
+        ...(cameraId ? { cameraId } : {})
+      },
       orderBy: { slotNumber: "asc" }
     })
 
-    console.log(`✅ Found ${slots.length} slots for ${id}`)
+    console.log(`✅ Found ${slots.length} slots for ${id}${cameraId ? ` camera ${cameraId}` : ''}`)
+
+    let targetCameraUrl = lot.cameraUrl
+    if (cameraId) {
+      const cam = lot.cameras.find(c => c.id === cameraId)
+      if (cam && cam.url) targetCameraUrl = cam.url
+    }
 
     return NextResponse.json({
       slots: slots,
-      cameraUrl: lot.cameraUrl,
+      cameraUrl: targetCameraUrl,
+      cameras: lot.cameras,
       lot: {
         id: lot.id,
         name: lot.name,

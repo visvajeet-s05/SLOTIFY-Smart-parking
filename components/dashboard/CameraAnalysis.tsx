@@ -72,11 +72,13 @@ export default function CameraAnalysis({ cameraUrl, slots: initialSlots, wsConne
     const [dragType, setDragType] = useState<"MOVE" | "RESIZE" | null>(null)
 
     const getScale = () => {
-        if (!imgRef.current || imgDimensions.width === 0) return { x: 1, y: 1 }
+        if (!imgRef.current) return { x: 1, y: 1 }
         const rect = imgRef.current.getBoundingClientRect()
+        const REF_W = 1920;
+        const REF_H = 1080;
         return {
-            x: imgDimensions.width / rect.width,
-            y: imgDimensions.height / rect.height
+            x: REF_W / rect.width,
+            y: REF_H / rect.height
         }
     }
 
@@ -134,13 +136,26 @@ export default function CameraAnalysis({ cameraUrl, slots: initialSlots, wsConne
 
     const saveCalibration = async () => {
         try {
-            const updates = slots.map(s => ({
-                id: s.id,
-                x: s.x || 0,
-                y: s.y || 0,
-                width: s.width || 100,
-                height: s.height || 100
-            }))
+            // Standard Reference System (1080p)
+            const REF_W = 1920;
+            const REF_H = 1080;
+
+            const updates = slots.map(s => {
+                // Calculate percentages based on what was seen in the browser
+                const px = (s.x || 0) / imgDimensions.width;
+                const py = (s.y || 0) / imgDimensions.height;
+                const pw = (s.width || 0) / imgDimensions.width;
+                const ph = (s.height || 0) / imgDimensions.height;
+
+                // Project into 1080p DB Basis
+                return {
+                    id: s.id,
+                    x: Math.round(px * REF_W),
+                    y: Math.round(py * REF_H),
+                    width: Math.round(pw * REF_W),
+                    height: Math.round(ph * REF_H)
+                };
+            });
 
             const res = await fetch('/api/internal/slots/coordinates', {
                 method: 'POST',
@@ -231,37 +246,27 @@ export default function CameraAnalysis({ cameraUrl, slots: initialSlots, wsConne
                         {/* Neural Overlay Frame */}
                         <div className="absolute inset-0 border border-white/5 rounded-[2.5rem] pointer-events-none z-30" />
 
-                        {/* Header Overlay */}
-                        <div className="absolute top-6 left-6 right-6 z-40 flex items-center justify-between pointer-events-none">
-                            <div className="flex items-center gap-3">
-                                <div className="flex items-center gap-2 px-4 py-2 bg-black/40 backdrop-blur-2xl rounded-2xl border border-white/10">
-                                    <div className={`w-2 h-2 rounded-full ${wsConnected ? "bg-cyan-500 shadow-[0_0_10px_rgba(6,182,212,0.8)] animate-pulse" : "bg-zinc-600"}`} />
-                                    <span className="text-[10px] font-black uppercase tracking-[0.2em] text-white/90">
-                                        {isCalibrationMode ? "Matrix Calibration" : "Optic Link Active"}
-                                    </span>
-                                </div>
+                        {/* Header HUD (Matching User Image) */}
+                        <div className="absolute top-5 left-5 right-5 z-40 flex items-center justify-between pointer-events-none">
+                            <div className="bg-black/80 backdrop-blur-md px-4 py-2 rounded-2xl border border-white/10 flex items-center gap-2.5">
+                                <motion.div
+                                    animate={{ opacity: [0.3, 1, 0.3] }}
+                                    transition={{ duration: 1.5, repeat: Infinity }}
+                                    className="w-2 h-2 rounded-full bg-cyan-400 shadow-[0_0_8px_rgba(34,211,238,0.8)]"
+                                />
+                                <span className="text-[10px] font-black tracking-widest text-white/90 uppercase">Optic Link Active</span>
                             </div>
 
-                            <div className="pointer-events-auto flex gap-3">
-                                {!isCalibrationMode ? (
-                                    <button
-                                        onClick={() => setIsCalibrationMode(true)}
-                                        className="group flex items-center gap-3 px-5 py-2.5 bg-white/5 hover:bg-white/10 backdrop-blur-3xl rounded-2xl border border-white/10 transition-all active:scale-95"
-                                    >
-                                        <Settings size={16} className="text-zinc-400 group-hover:rotate-90 transition-transform duration-500" />
-                                        <span className="text-[11px] font-black uppercase tracking-widest text-zinc-300">Tune Nodes</span>
-                                    </button>
-                                ) : (
-                                    <div className="flex gap-2">
-                                        <button onClick={() => setIsCalibrationMode(false)} className="flex items-center gap-2 px-4 py-2 bg-red-500/10 hover:bg-red-500/20 backdrop-blur-2xl rounded-2xl border border-red-500/20 transition-all text-red-400 active:scale-95">
-                                            <X size={16} /><span className="text-[11px] font-black uppercase tracking-widest">Abort</span>
-                                        </button>
-                                        <button onClick={saveCalibration} className="flex items-center gap-3 px-6 py-2 bg-cyan-500/20 hover:bg-cyan-500/30 backdrop-blur-2xl rounded-2xl border border-cyan-500/20 transition-all text-cyan-400 shadow-lg shadow-cyan-500/10 active:scale-95">
-                                            <Save size={16} /><span className="text-[11px] font-black uppercase tracking-widest">Sync</span>
-                                        </button>
-                                    </div>
-                                )}
-                            </div>
+                            <button
+                                onClick={isCalibrationMode ? saveCalibration : () => setIsCalibrationMode(true)}
+                                className={`pointer-events-auto bg-black/80 backdrop-blur-md px-5 py-2 rounded-2xl border border-white/10 flex items-center gap-2 transition-all hover:bg-white/10
+                                    ${isCalibrationMode ? 'ring-2 ring-cyan-500/50' : ''}`}
+                            >
+                                <Settings className="w-3.5 h-3.5 text-white/70" />
+                                <span className="text-[10px] font-black tracking-widest text-white/90 uppercase whitespace-nowrap">
+                                    {isCalibrationMode ? 'Sync Nodes' : 'Tune Nodes'}
+                                </span>
+                            </button>
                         </div>
 
                         {/* Main Camera Image */}
@@ -287,12 +292,31 @@ export default function CameraAnalysis({ cameraUrl, slots: initialSlots, wsConne
                                             isAnalyzing={isAnalyzing}
                                         />
                                     </div>
+                                    {/* Scan Line HUD (Matching User Image) */}
                                     {isAnalyzing && !isCalibrationMode && (
-                                        <motion.div style={{ top: `${scanPosition}%` }} className="absolute left-0 right-0 h-1 z-20 pointer-events-none">
-                                            <div className="w-full h-px bg-cyan-400 shadow-[0_0_20px_rgba(34,211,238,1)]" />
-                                            <div className="w-full h-20 bg-gradient-to-b from-cyan-400/20 to-transparent" />
+                                        <motion.div style={{ top: `85%` }} className="absolute left-0 right-0 h-0.5 z-20 pointer-events-none bg-cyan-400/30 shadow-[0_0_15px_rgba(34,211,238,0.4)]">
+                                            <motion.div
+                                                animate={{ opacity: [0.3, 0.6, 0.3] }}
+                                                transition={{ duration: 2, repeat: Infinity }}
+                                                className="absolute inset-0 bg-cyan-400"
+                                            />
                                         </motion.div>
                                     )}
+
+                                    {/* Bottom-Level HUD (Matching User Image) */}
+                                    <div className="absolute bottom-5 left-5 right-5 z-40 flex items-end justify-between pointer-events-none">
+                                        <div className="bg-black/90 backdrop-blur-xl border border-white/10 p-4 rounded-2xl min-w-[150px]">
+                                            <div className="text-[8px] font-bold text-zinc-500 uppercase tracking-widest mb-1">AI Confidence</div>
+                                            <div className="flex items-baseline gap-1">
+                                                <span className="text-xl font-black text-cyan-400 font-mono">98.4</span>
+                                                <span className="text-[10px] font-bold text-cyan-400/50 font-mono">%</span>
+                                            </div>
+                                        </div>
+
+                                        <div className="bg-black/80 backdrop-blur-md px-6 py-2 rounded-2xl border border-white/10">
+                                            <span className="text-[10px] font-black tracking-widest text-white/90 uppercase">Link Stable</span>
+                                        </div>
+                                    </div>
                                 </div>
                             ) : (
                                 <div className="absolute inset-0 flex flex-col items-center justify-center gap-6 overflow-hidden">
@@ -319,20 +343,6 @@ export default function CameraAnalysis({ cameraUrl, slots: initialSlots, wsConne
                             )}
                         </div>
 
-                        {/* Bottom Metrics Bar */}
-                        {!isCalibrationMode && (
-                            <div className="absolute bottom-8 left-8 right-8 z-40 pointer-events-none flex items-center justify-between">
-                                <div className="px-5 py-3 bg-black/60 backdrop-blur-2xl rounded-2xl border border-white/10 flex items-center gap-4 shadow-2xl">
-                                    <div className="flex flex-col">
-                                        <span className="text-[8px] font-black text-zinc-500 uppercase tracking-widest">AI Confidence</span>
-                                        <span className="text-lg font-black font-mono text-cyan-400">98.4%</span>
-                                    </div>
-                                </div>
-                                <div className="px-5 py-3 bg-black/60 backdrop-blur-2xl rounded-2xl border border-white/10 flex items-center gap-3">
-                                    <span className="text-[10px] font-black text-white/80 uppercase tracking-widest font-mono text-glow-white">LINK STABLE</span>
-                                </div>
-                            </div>
-                        )}
                     </div>
                 )}
 
@@ -389,57 +399,63 @@ export default function CameraAnalysis({ cameraUrl, slots: initialSlots, wsConne
                             </div>
 
                             {/* Digital Twin Grid */}
-                            <div className="flex-1 bg-white/[0.02] rounded-3xl border border-white/5 p-6 relative overflow-hidden flex flex-col backdrop-blur-md">
+                            <div className="flex-1 bg-white/[0.02] rounded-3xl border border-white/5 p-4 relative overflow-hidden flex flex-col backdrop-blur-md">
                                 {/* Grid Background */}
-                                <div className="absolute inset-0 bg-[radial-gradient(#1a1a1a_1px,transparent_1px)] [background-size:30px_30px] opacity-30" />
+                                <div className="absolute inset-0 bg-[radial-gradient(#1a1a1a_1px,transparent_1px)] [background-size:40px_40px] opacity-30" />
 
-                                <div className="relative flex-1 grid grid-rows-8 gap-3 overflow-y-auto custom-scrollbar pr-2">
-                                    {["A", "B", "C", "D", "E", "F", "G", "H"].map((rowLabel) => (
-                                        <div key={rowLabel} className="flex items-center gap-4 group/row">
-                                            <div className="w-6 text-[10px] font-black text-zinc-700 group-hover/row:text-cyan-400 transition-colors uppercase">{rowLabel}</div>
-                                            <div className="flex-1 flex gap-2">
-                                                {slots.filter(s => s.row === rowLabel).map((slot) => (
-                                                    <motion.div
-                                                        key={slot.id}
-                                                        layoutId={slot.id}
-                                                        className={`flex-1 h-8 rounded-lg border flex items-center justify-center relative group/matrix-slot overflow-hidden transition-all duration-500
+                                <div className="relative flex-1 overflow-y-auto custom-scrollbar pr-1 space-y-4">
+                                    {Array.from(new Set(slots.map(s => s.row || 'Default'))).sort().map((rowLabel) => {
+                                        const rowSlots = slots.filter(s => (s.row || 'Default') === rowLabel)
+                                            .sort((a, b) => a.slotNumber - b.slotNumber);
+                                        return (
+                                            <div key={rowLabel} className="flex items-center gap-3 group/row">
+                                                <div className="w-8 shrink-0 text-[10px] font-black text-zinc-600 group-hover/row:text-cyan-400 transition-colors uppercase flex items-center justify-center bg-white/5 h-8 rounded-lg border border-white/5">
+                                                    {rowLabel}
+                                                </div>
+                                                <div
+                                                    className="flex-1 grid gap-1.5"
+                                                    style={{ gridTemplateColumns: `repeat(${rowSlots.length}, minmax(0, 1fr))` }}
+                                                >
+                                                    {rowSlots.map((slot) => (
+                                                        <motion.div
+                                                            key={slot.id}
+                                                            layoutId={slot.id}
+                                                            className={`h-8 rounded-md border flex items-center justify-center relative group/matrix-slot overflow-hidden transition-all duration-500
                                                             ${slot.status === 'AVAILABLE' ? 'bg-emerald-500/5 border-emerald-500/30 hover:bg-emerald-500/10 shadow-[inset_0_0_10px_rgba(16,185,129,0.05)]' :
-                                                                slot.status === 'OCCUPIED' ? 'bg-red-500/10 border-red-500/50 hover:bg-red-500/20 shadow-[0_0_15px_rgba(239,68,68,0.15)]' :
-                                                                    'bg-amber-500/5 border-amber-500/30'}`}
-                                                    >
-                                                        {/* Status Pulse */}
-                                                        {slot.status === 'OCCUPIED' && (
-                                                            <motion.div
-                                                                animate={{ opacity: [0.3, 0.6, 0.3] }}
-                                                                transition={{ duration: 2, repeat: Infinity }}
-                                                                className="absolute inset-0 bg-red-500/5"
-                                                            />
-                                                        )}
+                                                                    slot.status === 'OCCUPIED' ? 'bg-red-500/10 border-red-500/50 hover:bg-red-500/20 shadow-[0_0_15px_rgba(239,68,68,0.15)]' :
+                                                                        'bg-amber-500/5 border-amber-500/30'}`}
+                                                        >
+                                                            {/* Status Pulse */}
+                                                            {slot.status === 'OCCUPIED' && (
+                                                                <motion.div
+                                                                    animate={{ opacity: [0.2, 0.4, 0.2] }}
+                                                                    transition={{ duration: 2, repeat: Infinity }}
+                                                                    className="absolute inset-0 bg-red-500/10"
+                                                                />
+                                                            )}
 
-                                                        {/* Scanning Bar */}
-                                                        {isAnalyzing && (
-                                                            <motion.div
-                                                                animate={{ left: ["-10%", "110%"] }}
-                                                                transition={{ duration: 2.5, repeat: Infinity, ease: "linear" }}
-                                                                className="absolute top-0 bottom-0 w-[2px] bg-white/10 blur-[1px] z-10"
-                                                            />
-                                                        )}
+                                                            {/* Scanning Bar */}
+                                                            {isAnalyzing && (
+                                                                <motion.div
+                                                                    animate={{ left: ["-100%", "200%"] }}
+                                                                    transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
+                                                                    className="absolute top-0 bottom-0 w-[15px] bg-gradient-to-r from-transparent via-white/5 to-transparent z-10"
+                                                                />
+                                                            )}
 
-                                                        {/* Slot Number */}
-                                                        <span className={`text-[9px] font-mono font-black tracking-tighter transition-all duration-500 ${slot.status === 'AVAILABLE' ? 'text-emerald-500/40 group-hover/matrix-slot:text-emerald-400 group-hover/matrix-slot:scale-110' :
-                                                            slot.status === 'OCCUPIED' ? 'text-red-500 shadow-sm group-hover/matrix-slot:text-red-400 group-hover/matrix-slot:scale-110' :
-                                                                'text-amber-500/40 group-hover/matrix-slot:text-amber-400 group-hover/matrix-slot:scale-110'
-                                                            }`}>
-                                                            {String(slot.slotNumber).padStart(2, '0')}
-                                                        </span>
-
-                                                        {/* Interaction Indicator */}
-                                                        <div className="absolute top-0.5 right-0.5 w-1 h-1 rounded-full bg-white/5 group-hover/matrix-slot:bg-cyan-500 transition-colors" />
-                                                    </motion.div>
-                                                ))}
+                                                            {/* Slot Number */}
+                                                            <span className={`text-[8px] font-mono font-black tracking-tighter transition-all duration-500 ${slot.status === 'AVAILABLE' ? 'text-emerald-500/60 group-hover/matrix-slot:text-emerald-400' :
+                                                                slot.status === 'OCCUPIED' ? 'text-red-500 group-hover/matrix-slot:text-red-400' :
+                                                                    'text-amber-500/60 group-hover/matrix-slot:text-amber-400'
+                                                                }`}>
+                                                                {String(slot.slotNumber).padStart(2, '0').slice(-2)}
+                                                            </span>
+                                                        </motion.div>
+                                                    ))}
+                                                </div>
                                             </div>
-                                        </div>
-                                    ))}
+                                        );
+                                    })}
                                 </div>
                             </div>
 
@@ -527,10 +543,14 @@ function SlotsOverlay({ imgRef, slots, imgDimensions, isCalibrationMode, selecte
             }}
         >
             {slots.map((slot: any) => {
-                const left = (slot.x || 0) / imgDimensions.width * 100
-                const top = (slot.y || 0) / imgDimensions.height * 100
-                const width = (slot.width || 100) / imgDimensions.width * 100
-                const height = (slot.height || 100) / imgDimensions.height * 100
+                // Projection from 1080p Reference System to Perspective Space
+                const REF_W = 1920;
+                const REF_H = 1080;
+
+                const left = (slot.x || 0) / REF_W * 100
+                const top = (slot.y || 0) / REF_H * 100
+                const width = (slot.width || 100) / REF_W * 100
+                const height = (slot.height || 100) / REF_H * 100
                 const isSelected = selectedSlotId === slot.id
 
                 let borderStyle = "border-zinc-500/50"
@@ -571,7 +591,7 @@ function SlotsOverlay({ imgRef, slots, imgDimensions, isCalibrationMode, selecte
                     <div
                         key={slot.id}
                         onMouseDown={(e) => isCalibrationMode && onMouseDown(e, slot.id, "MOVE")}
-                        className={`absolute border-2 transition-all duration-300 flex items-center justify-center overflow-hidden
+                        className={`absolute border transition-all duration-300 flex items-center justify-center
                             ${borderStyle} ${bgColor} ${isCalibrationMode ? "pointer-events-auto cursor-move z-40" : "pointer-events-none"}
                         `}
                         style={{
@@ -579,54 +599,27 @@ function SlotsOverlay({ imgRef, slots, imgDimensions, isCalibrationMode, selecte
                             top: `${top}%`,
                             width: `${width}%`,
                             height: `${height}%`,
-                            borderRadius: '6px'
+                            borderRadius: '2px',
+                            borderWidth: '2px'
                         }}
                     >
-                        {/* Scanning HUD Overlay (for spatial boxes) */}
+                        {/* Spatial Corner Accents */}
                         {!isCalibrationMode && (
-                            <div className="absolute inset-0 opacity-20">
-                                <motion.div
-                                    animate={{ top: ["0%", "100%", "0%"] }}
-                                    transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
-                                    className="w-full h-[1px] bg-white shadow-[0_0_10px_white]"
-                                />
-                                <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-white/10 to-transparent" />
-                            </div>
+                            <>
+                                <div className={`absolute top-0 left-0 w-2 h-2 border-t-2 border-l-2 ${slot.status === 'OCCUPIED' ? 'border-red-500' : 'border-emerald-500'} opacity-100`} />
+                                <div className={`absolute top-0 right-0 w-2 h-2 border-t-2 border-r-2 ${slot.status === 'OCCUPIED' ? 'border-red-500' : 'border-emerald-500'} opacity-100`} />
+                                <div className={`absolute bottom-0 left-0 w-2 h-2 border-b-2 border-l-2 ${slot.status === 'OCCUPIED' ? 'border-red-500' : 'border-emerald-500'} opacity-100`} />
+                                <div className={`absolute bottom-0 right-0 w-2 h-2 border-b-2 border-r-2 ${slot.status === 'OCCUPIED' ? 'border-red-500' : 'border-emerald-500'} opacity-100`} />
+                            </>
                         )}
 
-                        {/* ID Badge */}
-                        <div className={`
-                            absolute -top-6 left-0 px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-widest border transition-all duration-500
-                            ${isCalibrationMode
-                                ? "bg-white text-black border-white"
-                                : slot.status === 'OCCUPIED' ? "bg-red-500/20 text-red-400 border-red-500/40 backdrop-blur-md"
-                                    : slot.status === 'AVAILABLE' ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/40 backdrop-blur-md"
-                                        : "bg-amber-500/20 text-amber-400 border-amber-500/40 backdrop-blur-md"
-                            }
-                        `}>
-                            S{slot.slotNumber}
-                        </div>
-
-                        {/* Confidence Indicator (Live Mode) */}
-                        {!isCalibrationMode && slot.status === 'OCCUPIED' && (
-                            <div className="absolute bottom-1 left-1.5 right-1.5 h-[3px] bg-black/40 rounded-full overflow-hidden">
-                                <motion.div
-                                    initial={{ width: 0 }}
-                                    animate={{ width: `${slot.aiConfidence || 95}%` }}
-                                    className="h-full bg-red-500 shadow-[0_0_10px_rgba(239,68,68,1)]"
-                                />
-                            </div>
-                        )}
-
-                        {/* Slot Visual Status Center */}
+                        {/* Center Dot (Matching User Image - Enhanced) */}
                         {!isCalibrationMode && (
                             <motion.div
-                                animate={slot.status === 'OCCUPIED' ? { scale: [1, 1.2, 1], opacity: [0.8, 1, 0.8] } : {}}
+                                animate={slot.status === 'OCCUPIED' ? { scale: [1, 1.5, 1], opacity: [0.8, 1, 0.8] } : { scale: [1, 1.2, 1], opacity: [0.6, 0.9, 0.6] }}
                                 transition={{ duration: 2, repeat: Infinity }}
-                                className={`w-2 h-2 rounded-full shadow-[0_0_8px] transition-all duration-500 ${slot.status === 'OCCUPIED' ? 'bg-red-500 shadow-red-500' :
-                                    slot.status === 'AVAILABLE' ? 'bg-emerald-500 shadow-emerald-500 border border-emerald-400/50' :
-                                        'bg-amber-400 shadow-amber-400'
-                                    }`} />
+                                className={`w-1.5 h-1.5 rounded-full ${slot.status === 'OCCUPIED' ? 'bg-red-500 shadow-[0_0_8px_red]' : 'bg-emerald-500 shadow-[0_0_8px_emerald]'}`}
+                            />
                         )}
 
                         {/* Resizer Handle (Calibration) */}
@@ -636,18 +629,9 @@ function SlotsOverlay({ imgRef, slots, imgDimensions, isCalibrationMode, selecte
                                     e.stopPropagation()
                                     onMouseDown(e, slot.id, "RESIZE")
                                 }}
-                                className="absolute bottom-0 right-0 w-6 h-6 cursor-nwse-resize flex items-center justify-center p-1"
+                                className="absolute bottom-0 right-0 w-4 h-4 cursor-nwse-resize flex items-center justify-center"
                             >
-                                <div className="w-2.5 h-2.5 bg-cyan-400 rounded-sm shadow-[0_0_10px_rgba(34,211,238,1)]" />
-                            </div>
-                        )}
-
-                        {/* Diagnostic info (Calibration) */}
-                        {isCalibrationMode && isSelected && (
-                            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none whitespace-nowrap z-50">
-                                <span className="text-[10px] font-mono font-bold text-cyan-400 bg-black/80 px-3 py-1.5 rounded-lg border border-cyan-500/20 shadow-2xl backdrop-blur-xl">
-                                    VECTOR: {Math.round(slot.width)} x {Math.round(slot.height)}
-                                </span>
+                                <div className="w-1.5 h-1.5 bg-cyan-400 rounded-px" />
                             </div>
                         )}
                     </div>

@@ -28,6 +28,25 @@ export async function POST(req: NextRequest) {
 
         await prisma.$transaction(operations);
 
+        // Notify Python service to reload config for the lot
+        // We need the lotId. We'll get it from the first slot update.
+        if (updates.length > 0) {
+            const firstSlot = await prisma.slot.findUnique({
+                where: { id: updates[0].id },
+                select: { lotId: true }
+            });
+
+            if (firstSlot) {
+                const pythonServiceUrl = process.env.NEXT_PUBLIC_AI_SERVICE_URL || 'http://localhost:5000';
+                try {
+                    // Try to trigger a restart/reload on the python service
+                    await fetch(`${pythonServiceUrl}/start/${firstSlot.lotId}`, { method: 'POST' });
+                } catch (e) {
+                    console.error('Failed to notify Python service:', e);
+                }
+            }
+        }
+
         return NextResponse.json({ success: true, count: operations.length });
     } catch (error) {
         console.error('Error updating slot coordinates:', error);

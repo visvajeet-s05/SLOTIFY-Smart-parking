@@ -187,7 +187,7 @@ export default function OwnerParkingLotPage({ params }: { params: Promise<{ id: 
             >
               <CameraPanel
                 parkingLotId={parkingLotId}
-                streamUrl="http://localhost:5000/video_feed"
+                streamUrl={`http://localhost:5000/camera/${parkingLotId}`}
               />
             </motion.div>
 

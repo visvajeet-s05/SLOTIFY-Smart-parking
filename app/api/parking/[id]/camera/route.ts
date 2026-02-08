@@ -8,16 +8,24 @@ export async function GET(
   try {
     const { id: lotId } = await params
 
-    // Find parking lot
-    const parkingLot = await prisma.parkinglot.findUnique({
-      where: { id: lotId },
-      select: { 
-        id: true,
-        name: true,
-        cameraUrl: true,
-        ownerId: true
-      }
-    })
+    // Find parking lot with safety fallback for pending prisma generation
+    let parkingLot: any;
+    try {
+      parkingLot = await prisma.parkinglot.findUnique({
+        where: { id: lotId },
+        include: {
+          cameras: {
+            orderBy: { createdAt: 'asc' }
+          }
+        }
+      })
+    } catch (e) {
+      console.warn("⚠️ Prisma 'cameras' field not generated yet, falling back...");
+      parkingLot = await prisma.parkinglot.findUnique({
+        where: { id: lotId }
+      });
+      if (parkingLot) parkingLot.cameras = [];
+    }
 
     if (!parkingLot) {
       return NextResponse.json(
@@ -26,13 +34,14 @@ export async function GET(
       )
     }
 
-    // Return camera URL (only accessible by owner - middleware handles auth)
+    // Return camera URL and cameras list
     return NextResponse.json({
       success: true,
       lotId: parkingLot.id,
       name: parkingLot.name,
       streamUrl: parkingLot.cameraUrl || null,
-      hasCamera: !!parkingLot.cameraUrl
+      hasCamera: !!(parkingLot.cameraUrl || parkingLot.cameras.length > 0),
+      cameras: parkingLot.cameras
     })
 
   } catch (error) {

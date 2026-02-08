@@ -221,6 +221,7 @@ model parkinglot {
   priceaudit   priceaudit[]
   pricingrule  pricingrule[]
   slots        Slot[]
+  cameras      Camera[]
 
   @@index([ownerId], map: "ParkingLot_ownerId_fkey")
 }
@@ -493,9 +494,24 @@ enum UpdatedBy {
   CUSTOMER
 }
 
+model Camera {
+  id           String     @id @default(cuid())
+  lotId        String
+  name         String
+  url          String?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  parkingLot   parkinglot @relation(fields: [lotId], references: [id])
+  slots        Slot[]
+
+  @@index([lotId])
+}
+
 model Slot {
   id           String     @id @default(cuid())
   lotId        String
+  cameraId     String?
   slotNumber   Int
   row          String
   x            Int?
@@ -510,11 +526,13 @@ model Slot {
   slotType     String     @default("REGULAR")
   displayName  String?
 
-  parkingLot parkinglot @relation(fields: [lotId], references: [id])
-  booking    booking?
+  parkingLot   parkinglot @relation(fields: [lotId], references: [id])
+  camera       Camera?    @relation(fields: [cameraId], references: [id])
+  booking      booking?
 
   @@unique([lotId, slotNumber])
   @@index([lotId])
+  @@index([cameraId])
   @@index([status])
 }
 

@@ -21,7 +21,7 @@ model booking {
   user_booking_customerIdTouser user           @relation("booking_customerIdTouser", fields: [customerId], references: [id], map: "Booking_customerId_fkey")
   user_booking_ownerIdTouser    user           @relation("booking_ownerIdTouser", fields: [ownerId], references: [id], map: "Booking_ownerId_fkey")
   parkinglot                    parkinglot     @relation(fields: [parkingLotId], references: [id], map: "Booking_parkingLotId_fkey")
-  slotId                        String?        @unique
+  slotId                        String?
   slot                          Slot?          @relation(fields: [slotId], references: [id])
 
   @@index([customerId], map: "Booking_customerId_fkey")
@@ -528,7 +528,7 @@ model Slot {
 
   parkingLot   parkinglot @relation(fields: [lotId], references: [id])
   camera       Camera?    @relation(fields: [cameraId], references: [id])
-  booking      booking?
+  bookings     booking[]
 
   @@unique([lotId, slotNumber])
   @@index([lotId])

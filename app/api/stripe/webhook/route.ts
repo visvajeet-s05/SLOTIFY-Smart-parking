@@ -8,7 +8,8 @@ const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET!
 export async function POST(request: NextRequest) {
   try {
     const body = await request.text()
-    const sig = (await headers()).get("stripe-signature")!
+    const headersList = await headers()
+    const sig = headersList.get("stripe-signature")!
 
     let event: any
 
@@ -34,8 +35,38 @@ export async function POST(request: NextRequest) {
           where: { id: subscription.id },
           data: { status: "ACTIVE" }
         })
+      }
+    } else if (event.type === "payment_intent.succeeded") {
+      const intent = event.data.object
 
-        // TODO: add activity logging once the model is available
+      // Update payment status
+      try {
+        await prisma.payment.update({
+          where: { stripeId: intent.id },
+          data: {
+            status: "PAID",
+            confirmedAt: new Date(),
+            updatedAt: new Date()
+          }
+        })
+        console.log(`Payment confirmed for intent: ${intent.id}`)
+      } catch (err) {
+        console.error(`Error updating payment ${intent.id}:`, err)
+      }
+    } else if (event.type === "payment_intent.payment_failed") {
+      const intent = event.data.object
+
+      try {
+        await prisma.payment.update({
+          where: { stripeId: intent.id },
+          data: {
+            status: "FAILED",
+            updatedAt: new Date()
+          }
+        })
+        console.log(`Payment failed for intent: ${intent.id}`)
+      } catch (err) {
+        console.error(`Error updating payment failure ${intent.id}:`, err)
       }
     }
 

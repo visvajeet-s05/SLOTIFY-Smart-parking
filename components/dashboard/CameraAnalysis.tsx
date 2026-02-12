@@ -26,7 +26,6 @@ interface CameraAnalysisProps {
 
 export default function CameraAnalysis({ cameraUrl, slots: initialSlots, wsConnected }: CameraAnalysisProps) {
     const [isAnalyzing, setIsAnalyzing] = useState(false)
-    const [scanPosition, setScanPosition] = useState(0)
     const containerRef = useRef<HTMLDivElement>(null)
     const imgRef = useRef<HTMLImageElement>(null)
 
@@ -54,14 +53,7 @@ export default function CameraAnalysis({ cameraUrl, slots: initialSlots, wsConne
         setIsAnalyzing(wsConnected)
     }, [wsConnected])
 
-    // Simulation of scanning line
-    useEffect(() => {
-        if (!isAnalyzing || isCalibrationMode) return
-        const interval = setInterval(() => {
-            setScanPosition((prev) => (prev >= 100 ? 0 : prev + 1))
-        }, 50)
-        return () => clearInterval(interval)
-    }, [isAnalyzing, isCalibrationMode])
+
 
     const handleImageLoad = (e: React.SyntheticEvent<HTMLImageElement>) => {
         const { naturalWidth, naturalHeight } = e.currentTarget
@@ -294,7 +286,11 @@ export default function CameraAnalysis({ cameraUrl, slots: initialSlots, wsConne
                                     </div>
                                     {/* Scan Line HUD (Matching User Image) */}
                                     {isAnalyzing && !isCalibrationMode && (
-                                        <motion.div style={{ top: `85%` }} className="absolute left-0 right-0 h-0.5 z-20 pointer-events-none bg-cyan-400/30 shadow-[0_0_15px_rgba(34,211,238,0.4)]">
+                                        <motion.div
+                                            animate={{ top: ["0%", "100%"] }}
+                                            transition={{ duration: 5, repeat: Infinity, ease: "linear" }}
+                                            className="absolute left-0 right-0 h-0.5 z-20 pointer-events-none bg-cyan-400/30 shadow-[0_0_15px_rgba(34,211,238,0.4)]"
+                                        >
                                             <motion.div
                                                 animate={{ opacity: [0.3, 0.6, 0.3] }}
                                                 transition={{ duration: 2, repeat: Infinity }}

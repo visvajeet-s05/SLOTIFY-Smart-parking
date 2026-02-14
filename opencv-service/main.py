@@ -111,9 +111,15 @@ class ParkingLotMonitor:
         """Main processing loop for this camera"""
         self.cap = cv2.VideoCapture(self.camera_url)
         
-        # Initialize Background Subtractor for better movement/presence detection
-        fgbg = cv2.createBackgroundSubtractorMOG2(history=500, varThreshold=16, detectShadows=True)
-        
+        # Initialize YOLOv8 Model (Auto-downloads 'yolov8n.pt' on first run)
+        # Using the Nano model for speed. Use 'yolov8s.pt' or 'yolov8m.pt' for higher accuracy if GPU available.
+        try:
+            self.model = YOLO('yolov8n.pt')
+            print(f"🧠 YOLOv8 Model loaded for {self.lot_id}")
+        except Exception as e:
+            print(f"❌ Failed to load YOLO model: {e}")
+            self.model = None
+
         # Simple reconnection loop
         while self.running:
             if not self.cap.isOpened():
@@ -131,32 +137,33 @@ class ParkingLotMonitor:
                 continue
 
             # Process frame for detection
-            processed_frame = self.detect(frame, fgbg)
+            if self.model:
+                processed_frame = self.detect_yolo(frame)
+            else:
+                # Fallback if model fails (though uncommon)
+                processed_frame = frame
             
             with self.lock:
                 self.last_frame = processed_frame
 
-            # Send updates periodically (every ~15 frames for snappier feel)
+            # Send updates periodically
             self.frame_count += 1
-            if self.frame_count % 15 == 0:
+            if self.frame_count % 30 == 0: # Checks every ~1s (assuming 30fps)
                 self.send_updates()
 
         self.cap.release()
 
-    def detect(self, frame, fgbg):
-        """Enhanced detection using MOG2 + Edge Density"""
-        # Create a copy for visual output
+    def detect_yolo(self, frame):
+        """Standard YOLOv8 Inference for Vehicle Detection"""
         overlay = frame.copy()
         
-        # Processing
-        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        blurred = cv2.GaussianBlur(gray, (7, 7), 0)
-        edges = cv2.Canny(blurred, 30, 100)
+        # 1. Run inference on the frame
+        # Classes: 2=car, 3=motorcycle, 5=bus, 7=truck (COCO dataset IDs)
+        results = self.model(frame, classes=[2, 3, 5, 7], verbose=False, conf=0.4)
         
-        # Background subtraction mask
-        fgmask = fgbg.apply(blurred)
-        _, fgmask = cv2.threshold(fgmask, 200, 255, cv2.THRESH_BINARY) # Remove shadows
-        
+        # Get detections: [x1, y1, x2, y2, conf, cls]
+        detections = results[0].boxes.data.cpu().numpy() if len(results) > 0 else []
+
         current_status = {}
         fh, fw = frame.shape[:2]
         
@@ -168,84 +175,71 @@ class ParkingLotMonitor:
         for slot in self.slots:
             slot_id = slot.get("slotNumber") or slot.get("number")
             
-            # Scale coordinates from DB basis (1080p) to actual frame size
+            # Map slot coordinates to current frame
             raw_x = slot.get("x") or 0
             raw_y = slot.get("y") or 0
             raw_w = slot.get("width") or 100
             raw_h = slot.get("height") or 100
             
-            x = int(raw_x * scale_x)
-            y = int(raw_y * scale_y)
-            w = int(raw_w * scale_x)
-            h = int(raw_h * scale_y)
-            
-            # Boundary normalization
-            x = max(0, min(x, fw - 1))
-            y = max(0, min(y, fh - 1))
-            w = max(10, min(w, fw - x))
-            h = max(10, min(h, fh - y))
+            sx = int(raw_x * scale_x)
+            sy = int(raw_y * scale_y)
+            sw = int(raw_w * scale_x)
+            sh = int(raw_h * scale_y)
 
-            # ROI Analysis
-            roi_edges = edges[y:y+h, x:x+w]
-            roi_motion = fgmask[y:y+h, x:x+w]
+            # Check for overlap with any detected vehicle
+            is_occupied = False
             
-            edge_density = np.count_nonzero(roi_edges) / (w * h) if w*h > 0 else 0
-            motion_density = np.count_nonzero(roi_motion) / (w * h) if w*h > 0 else 0
-            
-            # COMBINED LOGIC: High edge frequency OR sustained motion indicates a car
-            is_occupied = (edge_density > 0.12) or (motion_density > 0.20)
+            # Define slot center point
+            slot_cx = sx + sw // 2
+            slot_cy = sy + sh // 2
+
+            for det in detections:
+                dx1, dy1, dx2, dy2, conf, cls = det
+                
+                # Check if the CAR's center is inside the SLOT
+                car_cx = (dx1 + dx2) / 2
+                car_cy = (dy1 + dy2) / 2
+                
+                # Logic: If car center is within slot boundary (with some padding)
+                if (sx < car_cx < sx + sw) and (sy < car_cy < sy + sh):
+                    is_occupied = True
+                    # Draw bounding box of the car itself (optional, helps debug)
+                    cv2.rectangle(overlay, (int(dx1), int(dy1)), (int(dx2), int(dy2)), (0, 0, 255), 1)
+                    break 
 
             status_text = "Occupied" if is_occupied else "Empty"
             current_status[slot_id] = "OCCUPIED" if is_occupied else "AVAILABLE"
             
-            # --- MINIMALIST VISUAL OVERLAY (Matching User Image) ---
+            # --- VISUAL OVERLAY ---
             color = (0, 0, 255) if is_occupied else (0, 255, 0)
             
-            # 1. Main Bounded Box (Clean 1px border)
-            cv2.rectangle(overlay, (x, y), (x + w, y + h), color, 1)
+            # Slot Box
+            cv2.rectangle(overlay, (sx, sy), (sx + sw, sy + sh), color, 2)
             
-            # 2. Corner Accents (Subtle detail)
-            l = min(w, h) // 4
-            cv2.line(overlay, (x, y), (x+l, y), color, 2)
-            cv2.line(overlay, (x, y), (x, y+l), color, 2)
-            cv2.line(overlay, (x+w, y), (x+w-l, y), color, 2)
-            cv2.line(overlay, (x+w, y), (x+w, y+l), color, 2)
-            cv2.line(overlay, (x, y+h), (x+l, y+h), color, 2)
-            cv2.line(overlay, (x, y+h), (x, y+h-l), color, 2)
-            cv2.line(overlay, (x+w, y+h), (x+w-l, y+h), color, 2)
-            cv2.line(overlay, (x+w, y+h), (x+w, y+h-l), color, 2)
-
-            # 3. Center Target Dot (Matching User Image)
-            cv2.circle(overlay, (x + w // 2, y + h // 2), 2, color, -1)
+            # Center Target Dot
+            cv2.circle(overlay, (slot_cx, slot_cy), 3, color, -1)
+            
+            # Label
+            label_pos = (sx, sy - 10) if sy - 10 > 10 else (sx, sy + 20)
+            cv2.putText(overlay, f"{slot_id}", label_pos, cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 1, cv2.LINE_AA)
 
         # --- GLOBAL OVERLAYS (HUD) ---
-        # 1. OPTIC LINK ACTIVE TAG (Top Left Pill)
-        cv2.rectangle(overlay, (20, 20), (220, 55), (15, 15, 15), -1)
-        cv2.rectangle(overlay, (20, 20), (220, 55), (60, 60, 60), 1)
-        pulse = self.frame_count % 30
-        indicator_color = (0, 255, 255) if pulse < 15 else (0, 100, 100)
-        cv2.circle(overlay, (40, 37), 4, indicator_color, -1)
-        cv2.putText(overlay, "OPTIC LINK ACTIVE", (55, 42), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (220, 220, 220), 1, cv2.LINE_AA)
+        # 1. AI ACTIVE INDICATOR
+        cv2.rectangle(overlay, (20, 20), (220, 55), (20, 20, 20), -1)
+        cv2.rectangle(overlay, (20, 20), (220, 55), (100, 100, 100), 1)
+        # Blipping light
+        pulse_color = (0, 255, 0) if (time.time() * 10) % 10 > 5 else (0, 100, 0)
+        cv2.circle(overlay, (40, 37), 5, pulse_color, -1)
+        cv2.putText(overlay, "YOLO NEURAL NET", (55, 42), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
 
-        # 2. AI CONFIDENCE (Bottom Left Pill)
-        cv2.rectangle(overlay, (20, fh - 70), (200, fh - 20), (10, 10, 10), -1)
-        cv2.rectangle(overlay, (20, fh - 70), (200, fh - 20), (50, 50, 50), 1)
-        cv2.putText(overlay, "AI CONFIDENCE", (35, fh - 52), cv2.FONT_HERSHEY_SIMPLEX, 0.35, (120, 120, 120), 1, cv2.LINE_AA)
-        cv2.putText(overlay, "98.4%", (35, fh - 32), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 0), 2, cv2.LINE_AA)
-
-        # 3. LINK STABLE (Bottom Right Pill)
-        cv2.rectangle(overlay, (fw - 160, fh - 55), (fw - 20, fh - 20), (15, 15, 15), -1)
-        cv2.rectangle(overlay, (fw - 160, fh - 55), (fw - 20, fh - 20), (50, 50, 50), 1)
-        cv2.putText(overlay, "LINK STABLE", (fw - 145, fh - 32), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (220, 220, 220), 1, cv2.LINE_AA)
-
-        # 4. SCAN LINE (Fixed single cyan line as per image)
-        scan_y = int(fh * 0.85)
-        cv2.line(overlay, (0, scan_y), (fw, scan_y), (255, 255, 0), 1)
-        
-        # Blend original with overlay
-        cv2.addWeighted(overlay, 0.9, frame, 0.1, 0, frame)
+        # 2. Car Counter
+        car_count = len([d for d in detections if d[5] in [2, 7]]) # Count cars/trucks
+        cv2.putText(overlay, f"VEHICLES DETECTED: {car_count}", (20, fh - 30), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 255), 2)
 
         self.status_cache = current_status
+        
+        # Blend overlay
+        cv2.addWeighted(overlay, 0.8, frame, 0.2, 0, frame)
         return frame
 
 

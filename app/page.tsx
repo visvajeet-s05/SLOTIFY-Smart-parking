@@ -74,7 +74,7 @@ export default function LandingPage() {
   return (
     <main className="relative min-h-screen w-full bg-mesh selection:bg-primary/30">
       {/* Navigation */}
-      <nav className={`fixed top-0 w-full z-50 transition-all duration-500 ${isScrolled ? "py-4 glass border-b border-white/10" : "py-6"}`}>
+      <nav className={`fixed top-0 w-full z-50 transition-all duration-500 ${isScrolled ? "py-4 bg-slate-950/60 backdrop-blur-md border-b border-white/10 shadow-lg" : "py-6 bg-transparent"}`}>
         <div className="max-w-7xl mx-auto px-6 flex items-center justify-between">
           <div className="flex items-center group cursor-pointer" onClick={() => router.push("/")}>
             <Image
@@ -83,7 +83,7 @@ export default function LandingPage() {
               width={160}
               height={45}
               priority
-              className="h-10 w-auto object-contain brightness-110 group-hover:brightness-125 transition-all"
+              className="h-10 w-auto object-contain brightness-110 group-hover:brightness-125 transition-all invert mix-blend-screen"
             />
           </div>
 
@@ -128,9 +128,11 @@ export default function LandingPage() {
       {/* Hero Section */}
       <section className="relative min-h-[110vh] flex items-center justify-center overflow-hidden">
         {/* Background Map with deeper overlay */}
-        <div className="absolute inset-0 z-0">
-          <MapBackground />
-          <div className="absolute inset-0 bg-gradient-to-b from-background/70 via-background/10 to-background/90 backdrop-blur-[1px]" />
+        <div className="absolute inset-0 z-0 select-none pointer-events-none">
+          <div className="absolute inset-0 blur-[4px] scale-105">
+            <MapBackground />
+          </div>
+          <div className="absolute inset-0 bg-gradient-to-b from-slate-950/60 via-slate-950/10 to-slate-950/80 backdrop-blur-[0px]" />
           {/* Animated decorative blobs */}
           <div className="absolute top-1/4 -left-20 w-96 h-96 bg-primary/20 rounded-full blur-[120px] animate-pulse-soft" />
           <div className="absolute bottom-1/4 -right-20 w-96 h-96 bg-indigo-600/20 rounded-full blur-[120px] animate-pulse-soft delay-1000" />
@@ -138,46 +140,37 @@ export default function LandingPage() {
 
         <motion.div
           style={{ y: heroY, opacity: heroOpacity }}
-          className="relative z-10 max-w-5xl mx-auto px-6 pt-20 text-center"
+          className="relative z-10 max-w-4xl mx-auto px-6 text-center"
         >
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8 }}
-          >
+          <div className="bg-slate-950/60 backdrop-blur-md border border-white/10 rounded-[2.5rem] py-16 px-6 shadow-2xl">
+            <motion.div
+              initial={{ opacity: 0, y: 30 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.8 }}
+            >
 
-            <h1 className="text-4xl md:text-6xl font-black tracking-tighter mb-8 whitespace-nowrap">
-              <span className="text-white">Smart Parking.</span>{" "}
-              <span className="text-gradient-primary">Zero Stress.</span>
-            </h1>
+              <h1 className="text-4xl md:text-6xl font-black tracking-tighter mb-8 whitespace-nowrap drop-shadow-lg">
+                <span className="text-white">Smart Parking.</span>{" "}
+                <span className="text-gradient-primary">Zero Stress.</span>
+              </h1>
 
-            <p className="text-xl md:text-2xl text-gray-400 max-w-3xl mx-auto mb-12 leading-relaxed">
-              Find, book, and navigate to the perfect parking spot in seconds.
-              The most advanced parking ecosystem for modern urban living.
-            </p>
+              <p className="text-xl md:text-2xl text-slate-100 font-medium max-w-3xl mx-auto mb-12 leading-relaxed drop-shadow-md">
+                Find, book, and navigate to the perfect parking spot in seconds.
+                The most advanced parking ecosystem for modern urban living.
+              </p>
 
-            <div className="flex justify-center">
-              <Button
-                size="lg"
-                onClick={() => setShowLogin(true)}
-                className="h-16 px-10 text-lg font-bold rounded-2xl bg-primary text-white hover:bg-primary/90 hover:scale-105 transition-all duration-300 shadow-2xl shadow-primary/40 group"
-              >
-                Find Parking Now
-                <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
-              </Button>
-            </div>
-
-            {/* Trusted By */}
-            <div className="mt-20">
-              <p className="text-sm font-medium text-gray-500 uppercase tracking-widest mb-8">Trusted by Global Leaders</p>
-              <div className="flex flex-wrap justify-center gap-12 opacity-40 grayscale hover:grayscale-0 transition-all duration-500">
-                {/* Simplified SVG Logo Placeholders */}
-                {[1, 2, 3, 4, 5].map((i) => (
-                  <div key={i} className="h-8 w-24 bg-white/20 rounded-md animate-pulse" />
-                ))}
+              <div className="flex justify-center">
+                <Button
+                  size="lg"
+                  onClick={() => setShowLogin(true)}
+                  className="h-16 px-10 text-lg font-bold rounded-2xl bg-primary text-white hover:bg-primary/90 hover:scale-105 transition-all duration-300 shadow-2xl shadow-primary/40 group"
+                >
+                  Find Parking Now
+                  <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
+                </Button>
               </div>
-            </div>
-          </motion.div>
+            </motion.div>
+          </div>
         </motion.div>
 
         {/* Scroll Indicator */}
@@ -191,10 +184,10 @@ export default function LandingPage() {
           <span className="text-xs font-semibold text-gray-500 uppercase tracking-widest">Discover</span>
           <div className="w-[1px] h-12 bg-gradient-to-b from-primary to-transparent" />
         </motion.div>
-      </section>
+      </section >
 
       {/* Stats Section */}
-      <section className="relative py-24 z-20">
+      < section className="relative py-24 z-20" >
         <div className="max-w-7xl mx-auto px-6">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
             {stats.map((stat, idx) => (
@@ -212,10 +205,10 @@ export default function LandingPage() {
             ))}
           </div>
         </div>
-      </section>
+      </section >
 
       {/* Features Grid */}
-      <section id="features" className="py-32 relative overflow-hidden">
+      < section id="features" className="py-32 relative overflow-hidden" >
         <div className="max-w-7xl mx-auto px-6">
           <div className="mb-20">
             <h2 className="text-4xl md:text-6xl font-black text-white mb-8 tracking-tight">
@@ -250,10 +243,10 @@ export default function LandingPage() {
             ))}
           </div>
         </div>
-      </section>
+      </section >
 
       {/* How It Works - Premium Flow */}
-      <section id="how-it-works" className="py-32 bg-white/5 backdrop-blur-3xl relative">
+      < section id="how-it-works" className="py-32 bg-white/5 backdrop-blur-3xl relative" >
         <div className="max-w-7xl mx-auto px-6">
           <div className="text-center max-w-2xl mx-auto mb-20">
             <h2 className="text-4xl md:text-5xl font-black text-white mb-6 tracking-tight">How it Works</h2>
@@ -316,14 +309,14 @@ export default function LandingPage() {
                 </p>
                 <div className="flex flex-wrap gap-4">
                   <div className="flex items-center gap-4 px-6 py-3 rounded-2xl glass hover:bg-white/5 transition-all cursor-pointer">
-                    <Image src="/Logo.png" alt="Apple" width={24} height={24} className="brightness-200" />
+                    <Image src="/Logo.png" alt="Apple" width={24} height={24} className="brightness-200 invert mix-blend-screen" />
                     <div className="text-left">
                       <div className="text-[10px] uppercase font-medium text-gray-500">Download on</div>
                       <div className="text-sm font-bold text-white">App Store</div>
                     </div>
                   </div>
                   <div className="flex items-center gap-4 px-6 py-3 rounded-2xl glass hover:bg-white/5 transition-all cursor-pointer">
-                    <Image src="/Logo.png" alt="Google" width={24} height={24} className="brightness-200" />
+                    <Image src="/Logo.png" alt="Google" width={24} height={24} className="brightness-200 invert mix-blend-screen" />
                     <div className="text-left">
                       <div className="text-[10px] uppercase font-medium text-gray-500">Get it on</div>
                       <div className="text-sm font-bold text-white">Google Play</div>
@@ -347,7 +340,7 @@ export default function LandingPage() {
                     alt="App Preview"
                     width={320}
                     height={640}
-                    className="relative z-10 rounded-[3rem] border-8 border-gray-950 shadow-2xl"
+                    className="relative z-10 rounded-[3rem] border-8 border-gray-950 shadow-2xl object-cover invert mix-blend-screen"
                   />
                   {/* Floating Notification */}
                   <motion.div
@@ -415,13 +408,13 @@ export default function LandingPage() {
         <div className="max-w-7xl mx-auto px-6">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-16 mb-24">
             <div className="col-span-1 lg:col-span-1">
-              <div className="flex items-center group cursor-pointer" onClick={() => router.push("/")}>
+              <div className="flex items-center group cursor-pointer mb-6" onClick={() => router.push("/")}>
                 <Image
                   src="/Logo.png"
                   alt="Slotify"
                   width={180}
                   height={50}
-                  className="h-12 w-auto object-contain brightness-110 group-hover:brightness-125 transition-all"
+                  className="h-12 w-auto object-contain brightness-110 group-hover:brightness-125 transition-all invert mix-blend-screen"
                 />
               </div>
               <p className="text-gray-500 leading-relaxed mb-8 max-w-sm">
@@ -474,7 +467,8 @@ export default function LandingPage() {
       {/* Login Modal */}
       <LoginModal
         open={showLogin}
-        onClose={() => setShowLogin(false)}
+        onClose={() => setShowLogin(false)
+        }
       />
     </main>
   )

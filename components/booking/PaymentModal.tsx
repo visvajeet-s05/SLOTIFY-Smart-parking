@@ -22,7 +22,7 @@ import Confetti from "react-confetti"
 import QRCode from "qrcode"
 import { useRouter } from "next/navigation"
 import { loadStripe } from "@stripe/stripe-js"
-import { Elements, PaymentElement, useStripe, useElements } from "@stripe/react-stripe-js"
+import { Elements, PaymentElement, LinkAuthenticationElement, useStripe, useElements } from "@stripe/react-stripe-js"
 
 // Initialize Stripe
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!)
@@ -132,6 +132,8 @@ export default function PaymentModal({
                                 onSuccess={onSuccess}
                                 onClose={onClose}
                                 isMock={true}
+                                slotId={slotId}
+                                parkingLotId={parkingLotId}
                             />
                         </div>
                     ) : clientSecret ? (
@@ -165,6 +167,8 @@ export default function PaymentModal({
                                 onSuccess={onSuccess}
                                 onClose={onClose}
                                 isMock={isMock}
+                                slotId={slotId}
+                                parkingLotId={parkingLotId}
                             />
                         </Elements>
                     ) : (
@@ -191,7 +195,9 @@ function CheckoutContent({
     serviceFee,
     onSuccess,
     onClose,
-    isMock = false
+    isMock = false,
+    slotId,
+    parkingLotId
 }: any) {
     const stripe = isMock ? null : useStripe()
     const elements = isMock ? null : useElements()
@@ -249,10 +255,23 @@ function CheckoutContent({
 
         setIsProcessing(true)
 
+        // --- MOCK FLOW ---
         if (isMock) {
-            // SIMULATE PAYMENT
             setTimeout(async () => {
                 try {
+                    // 1. Confirm Booking API
+                    await fetch("/api/bookings/confirm", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            bookingId,
+                            slotId,
+                            parkingLotId,
+                            paymentId: "MOCK_PAYMENT_" + Date.now()
+                        })
+                    })
+
+                    // 2. Generate QR
                     const url = await QRCode.toDataURL(JSON.stringify({
                         bookingId: bookingId,
                         slot: slotNumber,
@@ -261,6 +280,7 @@ function CheckoutContent({
                     }))
                     setQrBase64(url)
                     setStep(2)
+
                     toast({
                         title: "Payment Successful (Test Mode)",
                         description: `Booking confirmed for Slot S${slotNumber}`,
@@ -268,6 +288,7 @@ function CheckoutContent({
                     onSuccess()
                 } catch (err) {
                     console.error(err)
+                    toast({ title: "Error", description: "Mock payment failed", variant: "destructive" })
                 } finally {
                     setIsProcessing(false)
                 }
@@ -275,17 +296,16 @@ function CheckoutContent({
             return
         }
 
+        // --- STRIPE FLOW ---
         try {
-            // Confirm the payment
+            // 1. Confirm Payment with Stripe
             const { error, paymentIntent } = await stripe!.confirmPayment({
                 elements: elements!,
-                redirect: "if_required", // Prevent redirect if not 3DS
+                redirect: "if_required",
                 confirmParams: {
-                    return_url: `${window.location.origin}/dashboard`, // Fallback
+                    return_url: `${window.location.origin}/dashboard`,
                     payment_method_data: {
-                        billing_details: {
-                            name: licensePlate // Store plate as name for easy tracking? Or just rely on metadata
-                        }
+                        billing_details: { name: licensePlate }
                     }
                 }
             })
@@ -297,7 +317,25 @@ function CheckoutContent({
                     variant: "destructive"
                 })
             } else if (paymentIntent && paymentIntent.status === "succeeded") {
-                // Generate QR Code
+
+                // 2. Confirm Booking API (Update Slot Status)
+                try {
+                    await fetch("/api/bookings/confirm", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            bookingId,
+                            slotId,
+                            parkingLotId,
+                            paymentId: paymentIntent.id
+                        })
+                    })
+                } catch (confirmError) {
+                    console.error("Failed to confirm booking backend:", confirmError)
+                    // We continue to show success because payment worked, but warn support
+                }
+
+                // 3. Generate QR
                 try {
                     const url = await QRCode.toDataURL(JSON.stringify({
                         bookingId: bookingId,
@@ -455,8 +493,8 @@ function CheckoutContent({
                                 </h3>
 
                                 {isMock ? (
-                                    <div className="bg-slate-900/50 p-6 rounded-xl border border-dashed border-yellow-500/30 relative overflow-hidden group">
-                                        <div className="absolute top-2 right-2 bg-yellow-500/90 text-black text-[10px] font-black px-2 py-0.5 rounded shadow-lg uppercase tracking-widest z-10">TEST MODE</div>
+                                    <div className="bg-slate-900/50 p-6 rounded-xl border border-dashed border-emerald-500/30 relative overflow-hidden group">
+                                        <div className="absolute top-2 right-2 bg-emerald-500/90 text-black text-[10px] font-black px-2 py-0.5 rounded shadow-lg uppercase tracking-widest z-10">SANDBOX ENV</div>
                                         <div className="space-y-4 opacity-75 grayscale transition-all group-hover:grayscale-0">
                                             <div className="space-y-2">
                                                 <Label className="text-xs text-slate-500">Card Number</Label>
@@ -479,20 +517,21 @@ function CheckoutContent({
                                                 </div>
                                             </div>
                                         </div>
-                                        <p className="text-center text-xs text-yellow-500/80 mt-4 font-bold uppercase tracking-widest animate-pulse">
-                                            Simulating Secure Provider Connection...
+                                        <p className="text-center text-xs text-emerald-500/80 mt-4 font-bold uppercase tracking-widest animate-pulse">
+                                            Secure Sandbox Channel Active
                                         </p>
                                     </div>
                                 ) : (
-                                    <div className="bg-slate-900/50 p-4 rounded-xl border border-white/5">
-                                        <PaymentElement />
+                                    <div className="bg-slate-900/50 p-4 rounded-xl border border-white/5 space-y-4">
+                                        <LinkAuthenticationElement />
+                                        <PaymentElement options={{ layout: "tabs" }} />
                                     </div>
                                 )}
 
                                 <div className="pt-6">
                                     <Button
                                         type="submit"
-                                        disabled={!stripe || isProcessing}
+                                        disabled={(!stripe && !isMock) || isProcessing}
                                         className="w-full h-14 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-black text-lg rounded-2xl shadow-[0_10px_30px_rgba(6,182,212,0.3)] transition-all hover:scale-[1.02] active:scale-95 disabled:grayscale"
                                     >
                                         {isProcessing ? (

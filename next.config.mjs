@@ -16,6 +16,10 @@ const nextConfig = {
         protocol: 'https',
         hostname: 'yourdomain.com',
       },
+      {
+        protocol: 'https',
+        hostname: 'images.unsplash.com',
+      },
     ],
   },
   // Output configuration for Docker

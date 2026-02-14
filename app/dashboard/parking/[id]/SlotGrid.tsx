@@ -11,7 +11,7 @@ interface SlotGridProps {
 
 export default function SlotGrid({ slots, selectedSlotId, onSelect }: SlotGridProps) {
   return (
-    <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-6 lg:grid-cols-8 gap-3">
+    <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-2">
       {slots.map((slot) => {
         // Map backend slot to SlotCard props
         let cardStatus: SlotProps["status"] = "AVAILABLE"

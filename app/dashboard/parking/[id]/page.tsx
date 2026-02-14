@@ -66,8 +66,9 @@ export default function CustomerParkingPage() {
           : slot
       ))
 
-      // Clear selection if slot becomes unavailable
-      if (selectedSlot?.id === data.slotId && data.status !== "AVAILABLE") {
+      // Clear selection if slot becomes unavailable, UNLESS we are currently booking it (modal open)
+      // This prevents the "Reserved" status update from kicking the user out of the payment flow
+      if (selectedSlot?.id === data.slotId && data.status !== "AVAILABLE" && !showPaymentModal) {
         setSelectedSlot(null)
       }
     },

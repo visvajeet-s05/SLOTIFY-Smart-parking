@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useCallback, useMemo, useEffect } from "react"
-import { GoogleMap, useJsApiLoader, MarkerF, InfoWindowF, HeatmapLayerF } from "@react-google-maps/api"
+import { GoogleMap, useJsApiLoader, OverlayView, HeatmapLayerF } from "@react-google-maps/api"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Map as MapIcon, Thermometer } from "lucide-react"
@@ -359,61 +359,58 @@ export default function ParkingMap({ parkingAreas, selectedId, onSelectParkingAr
           />
         )}
 
-        {/* Markers Layer */}
+        {/* Custom Overlay Markers */}
         {!showHeatmap && parkingAreas.map((area) => (
-          <MarkerF
+          <OverlayView
             key={area.id}
             position={{ lat: area.coordinates[0], lng: area.coordinates[1] }}
-            icon={getMarkerIcon(area.status)}
-            onClick={() => handleMarkerClick(area.id)}
+            mapPaneName={OverlayView.OVERLAY_MOUSE_TARGET}
           >
-            {activeMarker === area.id && (
-              <InfoWindowF
-                onCloseClick={() => setActiveMarker(null)}
-                position={{ lat: area.coordinates[0], lng: area.coordinates[1] }}
-              >
-                <div className="p-1 min-w-[200px]">
-                  <h3 className="font-bold text-lg mb-1 text-slate-900">{area.name}</h3>
-                  <p className="text-xs text-slate-500 mb-3 font-medium">{area.address}</p>
-
-                  <div className="flex justify-between items-center mb-3">
-                    <span className={`font-bold px-2 py-0.5 rounded text-[10px] uppercase tracking-wider ${area.status === 'available' ? 'bg-emerald-100 text-emerald-700' :
-                      area.status === 'limited' ? 'bg-amber-100 text-amber-700' :
-                        'bg-red-100 text-red-700'
-                      }`}>
-                      {area.status}
-                    </span>
-                    <span className="font-bold text-slate-700">₹{area.price}/hr</span>
+            <div
+              className={`relative group cursor-pointer transform -translate-x-1/2 -translate-y-full transition-all duration-300 ${activeMarker === area.id ? 'z-50 scale-110' : 'z-10 hover:z-40 hover:scale-110'
+                }`}
+              onClick={(e) => {
+                e.stopPropagation()
+                handleMarkerClick(area.id)
+              }}
+            >
+              {/* Thin Cyberpunk Pin Design */}
+              <div className="flex flex-col items-center">
+                {/* Glowing Heat/Info Badge on Hover */}
+                <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-300 absolute -top-12 bg-black/80 backdrop-blur-md border border-white/10 px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap text-white shadow-xl flex flex-col items-center">
+                  <span>{area.name}</span>
+                  <div className="flex gap-2 text-[10px] mt-0.5">
+                    <span className={area.availableSlots > 5 ? "text-emerald-400" : "text-amber-400"}>{area.availableSlots} Slots</span>
+                    <span className="text-zinc-500">|</span>
+                    <span>₹{area.price}/hr</span>
                   </div>
-
-                  <div className="mb-4">
-                    <div className="flex justify-between text-[10px] text-slate-400 mb-1 font-semibold uppercase tracking-wider">
-                      <span>Occupancy</span>
-                      <span>{Math.round(((area.totalSlots - area.availableSlots) / area.totalSlots) * 100)}%</span>
-                    </div>
-                    <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
-                      <div
-                        className={`h-full rounded-full ${area.status === 'available' ? 'bg-emerald-500' :
-                          area.status === 'limited' ? 'bg-amber-500' : 'bg-red-500'
-                          }`}
-                        style={{ width: `${((area.totalSlots - area.availableSlots) / area.totalSlots) * 100}%` }}
-                      />
-                    </div>
-                  </div>
-
-                  <button
-                    className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-2.5 px-3 rounded-lg text-xs transition-colors shadow-sm"
-                    onClick={() => handleViewDetails(area.id)}
-                  >
-                    View Parking Details
-                  </button>
+                  {/* Arrow */}
+                  <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-px w-2 h-2 bg-black/80 rotate-45 border-r border-b border-white/10"></div>
                 </div>
-              </InfoWindowF>
-            )}
-          </MarkerF>
+
+                {/* The Pin Head */}
+                <div className={`relative w-8 h-8 flex items-center justify-center`}>
+                  {/* Outer Ring Pulse */}
+                  <div className={`absolute inset-0 rounded-full opacity-0 group-hover:opacity-50 animate-ping ${area.status === 'available' ? 'bg-emerald-500' : area.status === 'limited' ? 'bg-amber-500' : 'bg-red-500'
+                    }`} />
+
+                  {/* Core Diamond/Circle */}
+                  <div className={`w-3 h-3 rotate-45 rounded-sm shadow-[0_0_15px_currentColor] transition-all duration-300 ${area.status === 'available' ? 'bg-emerald-400 text-emerald-400' : area.status === 'limited' ? 'bg-amber-400 text-amber-400' : 'bg-red-500 text-red-500'
+                    } ${activeMarker === area.id ? 'scale-150' : ''}`} />
+                </div>
+
+                {/* The Thin Stem (Laser Beam style) */}
+                <div className={`w-[1px] h-8 bg-gradient-to-b from-current to-transparent opacity-80 ${area.status === 'available' ? 'text-emerald-400' : area.status === 'limited' ? 'text-amber-400' : 'text-red-500'
+                  }`}></div>
+
+                {/* Base Anchor Point */}
+                <div className={`w-1.5 h-0.5 rounded-full blur-[1px] bg-current ${area.status === 'available' ? 'text-emerald-400' : area.status === 'limited' ? 'text-amber-400' : 'text-red-500'
+                  }`}></div>
+              </div>
+            </div>
+          </OverlayView>
         ))}
       </GoogleMap>
     </div>
   )
 }
-

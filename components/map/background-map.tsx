@@ -193,17 +193,40 @@ export default function BackgroundMap() {
   const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY || ""
   const isInvalidKey = apiKey === "" || apiKey === "YOUR_API_KEY"
 
+  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null)
+
+  useEffect(() => {
+    if ("geolocation" in navigator) {
+      navigator.geolocation.getCurrentPosition((position) => {
+        setUserLocation({
+          lat: position.coords.latitude,
+          lng: position.coords.longitude,
+        })
+      })
+    }
+  }, [])
+
   if (isInvalidKey) {
-    // If no key, show static placeholder that matches the dark aesthetic
     return (
-      <div className="w-full h-full bg-[#0f172a] flex items-center justify-center relative overflow-hidden">
-        <div
-          className="absolute inset-0 opacity-10"
-          style={{
-            backgroundImage: 'linear-gradient(#334155 1px, transparent 1px), linear-gradient(90deg, #334155 1px, transparent 1px)',
-            backgroundSize: '80px 80px'
-          }}
-        />
+      <div className="w-full h-full bg-[#0f172a] relative overflow-hidden">
+        {userLocation ? (
+          <iframe
+            src={`https://maps.google.com/maps?q=${userLocation.lat},${userLocation.lng}&z=14&output=embed&iwloc=near`}
+            className="w-full h-full mix-blend-normal contrast-110 saturate-50"
+            style={{ filter: "grayscale(20%) opacity(0.9)", border: 0 }}
+            allowFullScreen
+            loading="lazy"
+            referrerPolicy="no-referrer-when-downgrade"
+          />
+        ) : (
+          <div
+            className="absolute inset-0 bg-cover bg-center bg-no-repeat opacity-60 grayscale-[20%] contrast-125"
+            style={{
+              backgroundImage: `url('https://images.unsplash.com/photo-1524661135-423995f22d0b?q=80&w=2074&auto=format&fit=crop')`,
+            }}
+          />
+        )}
+        <div className="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-blue-500/10 via-transparent to-transparent pointer-events-none" />
       </div>
     )
   }

@@ -5,10 +5,31 @@ import crypto from "crypto"
 const prisma = new PrismaClient()
 
 async function main() {
-  // Clean up existing data
+  // Clean up existing data - CAREFUL ORDER
+  await prisma.refund.deleteMany()
+  await prisma.review.deleteMany()
+  await prisma.fastag.deleteMany()
   await prisma.slotStatusLog.deleteMany()
-  await prisma.slot.deleteMany()
   await prisma.booking.deleteMany()
+  await prisma.slot.deleteMany() // The new Slot model
+  await prisma.camera.deleteMany()
+  await prisma.pricingrule.deleteMany()
+  await prisma.priceaudit.deleteMany()
+  await prisma.parkingslot.deleteMany() // The old parkingslot model if exists
+  await prisma.maintenanceschedule.deleteMany()
+  await prisma.ownerincident.deleteMany()
+  await prisma.ownerinvoice.deleteMany()
+  await prisma.ownermaintenance.deleteMany()
+  await prisma.ownersettlement.deleteMany()
+  await prisma.ownerstaff.deleteMany()
+  await prisma.ownersupportticket.deleteMany()
+  await prisma.ownerverification.deleteMany()
+  await prisma.parkingincident.deleteMany()
+  await prisma.parkingsetupprogress.deleteMany()
+  await prisma.payment.deleteMany()
+  await prisma.vehicle.deleteMany()
+  await prisma.subscription.deleteMany()
+
   await prisma.parkinglot.deleteMany()
   await prisma.ownerprofile.deleteMany()
   await prisma.user.deleteMany()
@@ -35,7 +56,7 @@ async function main() {
       ownerPassword: "owner@123",
       ownerName: "Rajesh Kumar",
       basePrice: 80,
-      totalSlots: 120,
+      totalSlots: 150,
       cameraUrl: "http://10.245.197.193:8080/video",
       location: "Chennai Central Railway Station, Park Town",
       lat: 13.0827,
@@ -50,7 +71,7 @@ async function main() {
       ownerPassword: "owner1@123",
       ownerName: "Priya Sharma",
       basePrice: 60,
-      totalSlots: 80,
+      totalSlots: 54,
       cameraUrl: "http://10.245.197.193:8080/video",
       location: "Anna Nagar Tower Park, 2nd Avenue",
       lat: 13.0850,
@@ -65,7 +86,7 @@ async function main() {
       ownerPassword: "owner2@123",
       ownerName: "Karthik Venkat",
       basePrice: 100,
-      totalSlots: 90,
+      totalSlots: 134,
       cameraUrl: "http://10.245.197.193:8080/video",
       location: "Pondy Bazaar, T Nagar",
       lat: 13.0330,
@@ -80,7 +101,7 @@ async function main() {
       ownerPassword: "owner3@123",
       ownerName: "Anitha Raj",
       basePrice: 50,
-      totalSlots: 100,
+      totalSlots: 115,
       cameraUrl: "http://10.245.197.193:8080/video",
       location: "Velachery Main Road, Near Phoenix Mall",
       lat: 12.9815,
@@ -95,7 +116,7 @@ async function main() {
       ownerPassword: "owner4@123",
       ownerName: "Suresh Babu",
       basePrice: 45,
-      totalSlots: 150,
+      totalSlots: 110,
       cameraUrl: "http://10.245.197.193:8080/video",
       location: "Rajiv Gandhi Salai, OMR",
       lat: 12.9200,
@@ -110,7 +131,7 @@ async function main() {
       ownerPassword: "owner5@123",
       ownerName: "Lakshmi Narayan",
       basePrice: 70,
-      totalSlots: 50,
+      totalSlots: 130,
       cameraUrl: "http://10.245.197.193:8080/video",
       location: "Adyar Beach Road, Near Elliots Beach",
       lat: 13.0010,
@@ -125,7 +146,7 @@ async function main() {
       ownerPassword: "owner6@123",
       ownerName: "Mohammed Ali",
       basePrice: 40,
-      totalSlots: 70,
+      totalSlots: 94,
       cameraUrl: "http://10.245.197.193:8080/video",
       location: "Guindy Industrial Estate, Mount Road",
       lat: 13.0100,
@@ -140,7 +161,7 @@ async function main() {
       ownerPassword: "owner7@123",
       ownerName: "Deepa Chandran",
       basePrice: 35,
-      totalSlots: 60,
+      totalSlots: 70,
       cameraUrl: "http://10.245.197.193:8080/video",
       location: "Porur Junction, Mount-Poonamallee Road",
       lat: 13.0350,

@@ -1,4 +1,6 @@
-opencv-python==4.8.1.78
-numpy==1.24.3
-requests==2.31.0
-flask==2.3.3
+flask
+flask-cors
+opencv-python-headless
+numpy
+requests
+ultralytics

@@ -23,9 +23,11 @@ import {
   Zap,
   RotateCcw,
   MousePointer2,
-  Activity
+  Activity,
+  IndianRupee
 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { OWNER_PARKING_MAPPING } from "@/lib/owner-mapping"
 
 type SlotStatus = "AVAILABLE" | "OCCUPIED" | "RESERVED" | "DISABLED" | "CLOSED"
@@ -351,9 +353,9 @@ export default function OwnerSlotsPage({ params }: { params: Promise<{ id: strin
                     </div>
 
                     <div
-                      className="grid gap-2"
+                      className="grid gap-3"
                       style={{
-                        gridTemplateColumns: `repeat(auto-fill, minmax(100px, 1fr))`
+                        gridTemplateColumns: `repeat(8, 1fr)`
                       }}
                     >
                       {slotsByRow[row]
@@ -407,17 +409,21 @@ export default function OwnerSlotsPage({ params }: { params: Promise<{ id: strin
                   <div className="p-5 bg-black/40 border border-white/5 rounded-2x; space-y-4">
                     <p className="text-[10px] text-zinc-500 uppercase font-bold tracking-widest mb-2">Zone-Specific Command</p>
                     <div className="flex gap-2">
-                      <select
+                      <Select
                         value={selectedRow || ""}
-                        onChange={(e) => setSelectedRow(e.target.value || null)}
-                        className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-sm text-gray-300 outline-none focus:border-purple-500 transition-colors"
+                        onValueChange={(val) => setSelectedRow(val && val !== "ALL" ? val : null)}
                       >
-                        <option value="">Target Row</option>
-                        {rows.map(r => <option key={r} value={r}>Row {r}</option>)}
-                      </select>
+                        <SelectTrigger className="flex-1 bg-white/5 border-white/10 text-gray-300 rounded-xl h-10">
+                          <SelectValue placeholder="Target Row" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-zinc-900 border-white/10 text-gray-300">
+                          <SelectItem value="ALL">All Rows</SelectItem>
+                          {rows.map(r => <SelectItem key={r} value={r}>Row {r}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
                       <button
                         onClick={() => setSelectedRow(null)}
-                        className="p-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl transition-colors"
+                        className="p-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl transition-colors h-10 w-10 flex items-center justify-center"
                       >
                         <RotateCcw size={18} className="text-zinc-500" />
                       </button>
@@ -447,20 +453,7 @@ export default function OwnerSlotsPage({ params }: { params: Promise<{ id: strin
               <div className="bg-white/5 border border-white/10 rounded-[2rem] p-6 backdrop-blur-xl">
                 <h3 className="text-lg font-bold mb-6 flex items-center gap-2">
                   <div className="p-1.5 bg-green-500/10 rounded-lg text-green-400">
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      width="18"
-                      height="18"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    >
-                      <line x1="12" x2="12" y1="2" y2="22" />
-                      <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
-                    </svg>
+                    <IndianRupee size={18} />
                   </div>
                   Pricing Strategy
                 </h3>
@@ -592,12 +585,12 @@ function SlotNode({ slot, onStatusChange, statusColorClass }: { slot: Slot; onSt
         whileHover={{ scale: 1.05, y: -2 }}
         whileTap={{ scale: 0.95 }}
         onClick={() => setShowMenu(!showMenu)}
-        className={`w-full aspect-square rounded-xl flex flex-col items-center justify-center gap-1 transition-all duration-200 shadow-lg ${statusColorClass}`}
+        className={`w-full aspect-square rounded-xl flex flex-col items-center justify-center gap-0.5 transition-all duration-200 shadow-lg ${statusColorClass}`}
       >
-        <span className="text-xl font-bold text-white tracking-tight leading-none">S{slot.slotNumber}</span>
+        <span className="text-sm font-bold text-white tracking-tight leading-none">S{slot.slotNumber}</span>
 
         {/* Status Indicator (Text for Owner) */}
-        <span className="text-[9px] font-bold uppercase tracking-wider opacity-90">{slot.status}</span>
+        <span className="text-[8px] font-bold uppercase tracking-wider opacity-90">{slot.status}</span>
 
         {slot.status === "OCCUPIED" && slot.updatedBy === "AI" && (
           <div className="absolute top-1 right-1">

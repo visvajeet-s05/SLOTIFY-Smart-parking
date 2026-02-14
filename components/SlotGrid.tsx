@@ -40,15 +40,35 @@ export default function SlotGrid({
 
   return (
     <div className="space-y-6">
-      {/* Slot Grid - 8 slots per row */}
-      <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-4">
+      {/* Premium Legend */}
+      <div className="flex flex-wrap gap-4 mb-4 text-xs font-medium justify-center items-center bg-white/5 border border-white/5 p-4 rounded-full backdrop-blur-md w-fit mx-auto">
+        <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20">
+          <div className="w-2 h-2 bg-emerald-400 rounded-full shadow-[0_0_8px_rgba(52,211,153,0.8)]"></div>
+          <span className="text-emerald-200">Available</span>
+        </div>
+        <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/20">
+          <div className="w-2 h-2 bg-blue-400 rounded-full shadow-[0_0_8px_rgba(96,165,250,0.8)]"></div>
+          <span className="text-blue-200">EV Charging</span>
+        </div>
+        <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-teal-500/10 border border-teal-500/20">
+          <div className="w-2 h-2 bg-teal-400 rounded-full shadow-[0_0_8px_rgba(45,212,191,0.8)]"></div>
+          <span className="text-teal-200">Disabled</span>
+        </div>
+        <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-red-500/10 border border-red-500/20">
+          <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+          <span className="text-red-300">Occupied</span>
+        </div>
+      </div>
+
+      {/* Slot Grid - Medium Sized */}
+      <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-3">
         {slots.map((slot) => (
           <button
             key={slot.id}
             disabled={!selectable || slot.status !== "AVAILABLE"}
             onClick={() => onSelect?.(slot)}
             className={`
-              h-24 rounded-2xl relative flex flex-col items-center justify-center transition-all duration-300 border
+              h-20 rounded-xl relative flex flex-col items-center justify-center transition-all duration-300 border
               ${getSlotStyle(slot.status, slot.slotType)}
               ${selectable && slot.status === "AVAILABLE" ? "hover:scale-110 hover:-translate-y-1 hover:z-10 cursor-pointer hover:shadow-[0_0_25px_rgba(16,185,129,0.6)]" :
                 slot.status === "OCCUPIED" ? "cursor-not-allowed opacity-80 grayscale-[0.5]" : "cursor-not-allowed opacity-60"}
@@ -88,26 +108,6 @@ export default function SlotGrid({
             )}
           </button>
         ))}
-      </div>
-
-      {/* Premium Legend */}
-      <div className="flex flex-wrap gap-4 mt-8 text-xs font-medium justify-center items-center bg-white/5 border border-white/5 p-4 rounded-full backdrop-blur-md w-fit mx-auto">
-        <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20">
-          <div className="w-2 h-2 bg-emerald-400 rounded-full shadow-[0_0_8px_rgba(52,211,153,0.8)]"></div>
-          <span className="text-emerald-200">Available</span>
-        </div>
-        <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/20">
-          <div className="w-2 h-2 bg-blue-400 rounded-full shadow-[0_0_8px_rgba(96,165,250,0.8)]"></div>
-          <span className="text-blue-200">EV Charging</span>
-        </div>
-        <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-teal-500/10 border border-teal-500/20">
-          <div className="w-2 h-2 bg-teal-400 rounded-full shadow-[0_0_8px_rgba(45,212,191,0.8)]"></div>
-          <span className="text-teal-200">Disabled</span>
-        </div>
-        <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-red-500/10 border border-red-500/20">
-          <div className="w-2 h-2 bg-red-500 rounded-full"></div>
-          <span className="text-red-300">Occupied</span>
-        </div>
       </div>
     </div>
   )

@@ -292,8 +292,10 @@ function CheckoutContent({
 
         // --- MOCK FLOW ---
         if (isMock) {
+            console.log("[MOCK PAYMENT] Starting mock payment flow", { bookingId, slotId, parkingLotId })
             setTimeout(async () => {
                 try {
+                    console.log("[MOCK PAYMENT] Processing payment confirmation...")
                     // 1. Confirm Booking API
                     const res = await fetch("/api/bookings/confirm", {
                         method: "POST",
@@ -305,6 +307,16 @@ function CheckoutContent({
                             paymentId: "MOCK_PAYMENT_" + Date.now()
                         })
                     })
+
+                    // Check if booking confirmation succeeded
+                    if (!res.ok) {
+                        const errorText = await res.text()
+                        console.error("Booking confirmation failed:", errorText)
+                        throw new Error(`Booking confirmation failed: ${errorText}`)
+                    }
+
+                    const confirmData = await res.json()
+                    console.log("Booking confirmed successfully:", confirmData)
 
                     // 2. Generate QR
                     let url = ""
@@ -321,6 +333,7 @@ function CheckoutContent({
                     }
 
                     setQrBase64(url)
+                    console.log("[MOCK PAYMENT] QR generated, moving to success screen (step 2)")
                     setStep(2)
 
                     toast({
@@ -330,7 +343,12 @@ function CheckoutContent({
                     onSuccess()
                 } catch (err) {
                     console.error("Mock Process Error", err)
-                    toast({ title: "Error", description: "Mock payment process interrupted", variant: "destructive" })
+                    const errorMessage = err instanceof Error ? err.message : "Mock payment process interrupted"
+                    toast({
+                        title: "Payment Processing Failed",
+                        description: errorMessage,
+                        variant: "destructive"
+                    })
                 } finally {
                     setIsProcessing(false)
                 }
@@ -339,10 +357,13 @@ function CheckoutContent({
         }
 
         // --- STRIPE FLOW ---
+        console.log("[STRIPE PAYMENT] Starting Stripe payment flow", { bookingId, slotId, parkingLotId })
         try {
             // 0. Submit Elements (Validate & Prepare)
+            console.log("[STRIPE PAYMENT] Submitting payment elements for validation...")
             const { error: submitError } = await elements!.submit()
             if (submitError) {
+                console.error("[STRIPE PAYMENT] Validation error:", submitError)
                 toast({
                     title: "Validation Error",
                     description: submitError.message || "Please check your details.",
@@ -353,6 +374,7 @@ function CheckoutContent({
             }
 
             // 1. Confirm Payment with Stripe
+            console.log("[STRIPE PAYMENT] Elements submitted successfully, confirming payment with Stripe...")
             const result = await stripe!.confirmPayment({
                 elements: elements!,
                 redirect: "if_required",
@@ -364,7 +386,7 @@ function CheckoutContent({
                 }
             })
 
-            console.log("Stripe Result:", result)
+            console.log("[STRIPE PAYMENT] Stripe Result:", result)
 
             if (result.error) {
                 // Show meaningful error

@@ -1,6 +1,7 @@
 "use client"
 
-import { GoogleMap, useJsApiLoader, MarkerF } from "@react-google-maps/api"
+import { GoogleMap, MarkerF } from "@react-google-maps/api"
+import { useGoogleMapsLoader } from "@/lib/use-google-maps-loader"
 import { useState, useEffect, useMemo } from "react"
 import { Loader2 } from "lucide-react"
 
@@ -94,10 +95,7 @@ function ActualBackgroundMap({ apiKey }: { apiKey: string }) {
   const [center, setCenter] = useState({ lat: 13.0827, lng: 80.2707 }) // Default Chennai
   const [markers, setMarkers] = useState<{ id: number; lat: number; lng: number }[]>([])
 
-  const { isLoaded, loadError } = useJsApiLoader({
-    id: "google-map-script",
-    googleMapsApiKey: apiKey,
-  })
+  const { isLoaded, loadError } = useGoogleMapsLoader()
 
   useEffect(() => {
     // Try to get user's location

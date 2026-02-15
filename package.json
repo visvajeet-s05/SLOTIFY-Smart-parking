@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "ws-server": "tsx ws-server/index.ts"
+    "ws-server": "tsx ws-server/index.ts",
+    "check-maps": "node scripts/check-google-maps.js"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.1",

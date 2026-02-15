@@ -13,13 +13,120 @@ import sys
 app = Flask(__name__)
 CORS(app)  # Enable CORS for all routes
 
-# --- Configuration ---
-# Allow environment variable overrides
+# ============================================================================
+# MULTI-CAMERA URL CONFIGURATION (UP TO 30 CAMERAS)
+# ============================================================================
+# Configure individual camera URLs below. Each camera can have its own URL.
+# If a camera URL is not specified, it will use the database/API configuration.
+# 
+# USAGE:
+# - Camera 1-30: Set MANUAL_CAMERA_URL_1 through MANUAL_CAMERA_URL_30
+# - Leave as None to use database configuration
+# - Set to a URL string to override with manual configuration
+# ============================================================================
+
+MANUAL_CAMERA_URLS = {
+    # Camera 1-10
+    1: "http://10.227.24.164:8080/video",  # Camera 1 (Active)
+    2: "http://10.227.24.80:8080/video",  # Camera 2 (Active)
+    3: "http://10.227.24.164:8080/video",  # Camera 3 (Active)
+    4: "http://10.227.24.164:8080/video",  # Camera 4 (Active)
+    5: "http://10.227.24.164:8080/video",  # Camera 5 (Active)
+    6: None,  # Camera 6 (Use database URL)
+    7: None,  # Camera 7 (Use database URL)
+    8: None,  # Camera 8 (Use database URL)
+    9: None,  # Camera 9 (Use database URL)
+    10: None,  # Camera 10 (Use database URL)
+    
+    # Camera 11-20
+    11: None,  # Camera 11 (Use database URL)
+    12: None,  # Camera 12 (Use database URL)
+    13: None,  # Camera 13 (Use database URL)
+    14: None,  # Camera 14 (Use database URL)
+    15: None,  # Camera 15 (Use database URL)
+    16: None,  # Camera 16 (Use database URL)
+    17: None,  # Camera 17 (Use database URL)
+    18: None,  # Camera 18 (Use database URL)
+    19: None,  # Camera 19 (Use database URL)
+    20: None,  # Camera 20 (Use database URL)
+    
+    # Camera 21-30
+    21: None,  # Camera 21 (Use database URL)
+    22: None,  # Camera 22 (Use database URL)
+    23: None,  # Camera 23 (Use database URL)
+    24: None,  # Camera 24 (Use database URL)
+    25: None,  # Camera 25 (Use database URL)
+    26: None,  # Camera 26 (Use database URL)
+    27: None,  # Camera 27 (Use database URL)
+    28: None,  # Camera 28 (Use database URL)
+    29: None,  # Camera 29 (Use database URL)
+    30: None,  # Camera 30 (Use database URL)
+}
+
+# Helper function to get camera URL by camera number or ID
+def get_manual_camera_url(camera_id):
+    """
+    Get manual camera URL for a specific camera.
+    
+    Args:
+        camera_id: Camera ID (can be string or int)
+        
+    Returns:
+        Camera URL string if configured, None otherwise
+    """
+    if camera_id is None:
+        return None
+    
+    # Try to extract camera number from camera_id
+    # Supports formats like: "camera-1", "cam1", "1", 1, etc.
+    try:
+        if isinstance(camera_id, int):
+            cam_num = camera_id
+        elif isinstance(camera_id, str):
+            # Extract number from string
+            import re
+            match = re.search(r'\d+', camera_id)
+            if match:
+                cam_num = int(match.group())
+            else:
+                return None
+        else:
+            return None
+        
+        # Return URL if configured
+        return MANUAL_CAMERA_URLS.get(cam_num)
+    except:
+        return None
+
+# ============================================================================
+# EXAMPLE CONFIGURATIONS:
+# ============================================================================
+# 
+# SCENARIO 1: All cameras use same URL (current setup)
+# Set cameras 1-5 to same URL, rest to None
+#
+# SCENARIO 2: Each camera has different URL
+# 1: "http://192.168.1.101:8080/video"
+# 2: "http://192.168.1.102:8080/video"
+# 3: "http://192.168.1.103:8080/video"
+# etc.
+#
+# SCENARIO 3: Mixed configuration
+# 1-5: "http://10.227.24.164:8080/video"  (IP Camera 1)
+# 6-10: "http://10.227.24.165:8080/video" (IP Camera 2)
+# 11-30: None (Use database configuration)
+#
+# ============================================================================
+
+print("📹 Multi-Camera Configuration Loaded:")
+print(f"   Total Cameras Configured: {len([url for url in MANUAL_CAMERA_URLS.values() if url is not None])}")
+for cam_num, url in MANUAL_CAMERA_URLS.items():
+    if url:
+        print(f"   Camera {cam_num}: {url}")
+
+# --- API Configuration ---
 NEXTJS_API_URL = os.getenv("NEXTJS_API_URL", "http://localhost:3000").rstrip("/")
 PYTHON_SERVICE_PORT = int(os.getenv("PYTHON_SERVICE_PORT", 5000))
-
-# MANUAL_CAMERA_URL = "http://10.227.24.164:8080/video"  # <--- UNCOMMENT TO FORCE OVERRIDE
-MANUAL_CAMERA_URL = "http://10.227.24.164:8080/video"
 
 # --- Global State ---
 monitors = {}  # Dictionary to store active monitors: { lot_id: ParkingLotMonitor }
@@ -142,9 +249,13 @@ class ParkingLotMonitor:
                 self.camera_url = data.get("cameraUrl")
 
             # Override with manual configuration if set in main.py
-            if MANUAL_CAMERA_URL:
-                self.camera_url = MANUAL_CAMERA_URL
-                print(f"⚠️ Using MANUAL_CAMERA_URL override: {self.camera_url}", flush=True)
+            # New multi-camera URL system - check for camera-specific URL
+            manual_url = get_manual_camera_url(self.camera_id)
+            if manual_url:
+                self.camera_url = manual_url
+                print(f"📹 Using Manual Camera URL (Camera {self.camera_id}): {self.camera_url}", flush=True)
+            elif self.camera_url:
+                print(f"🗄️ Using Database Camera URL: {self.camera_url}", flush=True)
 
             if not self.camera_url:
                 print(f"❌ No camera URL found for {self.lot_id}/{self.camera_id}", flush=True)
@@ -186,8 +297,41 @@ class ParkingLotMonitor:
             self.cap.release()
         print(f"🛑 Stopped monitor for {self.lot_id}")
 
+    def check_camera_health(self):
+        """Verify if camera URL is reachable before starting stream"""
+        if not self.camera_url:
+            return False
+            
+        print(f"🔍 Checking camera health for {self.lot_id} ({self.camera_url})...")
+        try:
+            # Try to open a stream connection with a short timeout
+            cap = cv2.VideoCapture(self.camera_url)
+            if not cap.isOpened():
+                print(f"❌ Camera offline: {self.camera_url} (Unable to open stream)")
+                return False
+                
+            # Read one frame to verify stream integrity
+            ret, frame = cap.read()
+            cap.release()
+            
+            if not ret or frame is None:
+                print(f"⚠️ Camera connected but stream empty: {self.camera_url}")
+                return False
+                
+            print(f"✅ Camera online and streaming: {self.camera_url}")
+            return True
+            
+        except Exception as e:
+            print(f"❌ Camera check failed: {e}")
+            return False
+
     def _process_stream(self):
         """Main processing loop for this camera"""
+        
+        # Verify camera before starting loop
+        if not self.check_camera_health():
+            print(f"⚠️ specific camera {self.camera_url} failed health check. Retrying in loop...")
+        
         self.cap = cv2.VideoCapture(self.camera_url)
         
         print(f"👁️ Starting AI Vision Analysis (Google TF Model) for {self.lot_id}")
@@ -214,9 +358,7 @@ class ParkingLotMonitor:
             else:
                 # Fallback or just show frame if model missing
                 processed_frame = frame.copy()
-                cv2.putText(processed_frame, "MODEL MISSING - CHECK LOGS", (50, 50), 
-                           cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
-                # Attempt to load model again occasionally? No, heavy.
+                # Text overlay removed as per user request
             
             with self.lock:
                 self.last_frame = processed_frame
@@ -307,11 +449,7 @@ class ParkingLotMonitor:
             if is_occupied:
                 occupied_count += 1
                 current_status[slot_id] = "OCCUPIED"
-                # Highlight occupied slot
-                cv2.rectangle(overlay, (sx, sy), (sx + sw, sy + sh), (0, 0, 255), 2)
-                # Show label below slot
-                cv2.putText(overlay, "OCCUPIED", (sx, sy + sh + 20), 
-                           cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 2)
+                # Red rectangle and text removed as per user request
             else:
                 current_status[slot_id] = "AVAILABLE"
                 # Highlight available slot (optional, maybe faint green)

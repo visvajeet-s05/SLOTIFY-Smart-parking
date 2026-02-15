@@ -1,13 +1,15 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { useParams, useRouter } from "next/navigation"
+import { useParams, useRouter, useSearchParams } from "next/navigation"
 import SlotGrid from "@/components/SlotGrid"
 import { motion, AnimatePresence } from "framer-motion"
 import { MapPin, Clock, CreditCard, Car, CheckCircle2, ChevronDown, Building2, BatteryCharging, Accessibility, Zap, Timer, ArrowLeft, ShieldCheck } from "lucide-react"
 import { useParkingSocket } from "@/hooks/useParkingSocket"
 import { Slider } from "@/components/ui/slider"
 import { Button } from "@/components/ui/button"
+import { useToast } from "@/components/ui/use-toast"
+import PaymentModal from "@/components/booking/PaymentModal"
 
 type Slot = {
   id: string
@@ -41,11 +43,11 @@ const PARKING_LOTS = [
   { id: "PORUR", name: "Porur Junction Parking", price: 35 }
 ]
 
-import PaymentModal from "@/components/booking/PaymentModal"
-
 export default function CustomerParkingPage() {
   const params = useParams()
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const { toast } = useToast()
   const lotId = params.id as string
 
   const [slots, setSlots] = useState<Slot[]>([])
@@ -135,6 +137,23 @@ export default function CustomerParkingPage() {
     // Selected slot will be cleared when the modal closes or user navigates away
     // We can keep the modal open to show success state
   }
+
+  // Handle Stripe Redirect Success
+  useEffect(() => {
+    const paymentIntentSecret = searchParams.get("payment_intent_client_secret")
+    const redirectStatus = searchParams.get("redirect_status")
+
+    if (paymentIntentSecret && redirectStatus === "succeeded") {
+      const newUrl = window.location.pathname
+      window.history.replaceState({}, '', newUrl)
+
+      toast({
+        title: "Payment Successful",
+        description: "Your booking has been confirmed.",
+      })
+      handlePaymentSuccess()
+    }
+  }, [searchParams])
 
   const availableCount = slots.filter(s => s.status === "AVAILABLE").length
   const totalCount = slots.length
@@ -413,6 +432,7 @@ export default function CustomerParkingPage() {
           pricePerHour={selectedSlot.price}
           duration={duration}
           onSuccess={handlePaymentSuccess}
+          parkingAddress={lot?.address ?? "123 Main St, Downtown"}
         />
       )}
     </div>

@@ -43,8 +43,17 @@ export async function POST(req: NextRequest) {
             }
         })
 
+        const status = "RESERVED"
+
         // 4. Broadcast via WebSocket
-        const wsUrl = process.env.NEXT_PUBLIC_WEBSOCKET_URL?.replace('ws://', 'http://') || "http://localhost:4000"
+        let wsUrl = process.env.NEXT_PUBLIC_WEBSOCKET_URL || "http://localhost:4000"
+
+        // Ensure proper protocol for internal fetch (http/https) instead of ws/wss
+        if (wsUrl.startsWith("ws://")) {
+            wsUrl = wsUrl.replace("ws://", "http://")
+        } else if (wsUrl.startsWith("wss://")) {
+            wsUrl = wsUrl.replace("wss://", "https://")
+        }
 
         try {
             await fetch(`${wsUrl}/broadcast`, {
@@ -55,7 +64,7 @@ export async function POST(req: NextRequest) {
                     lotSlug: parkingLotId,
                     slotNumber: updatedSlot.slotNumber,
                     slotId: updatedSlot.id,
-                    status: "RESERVED",
+                    status: status,
                     oldStatus: slot.status,
                     source: "CUSTOMER",
                     bookingId: bookingId

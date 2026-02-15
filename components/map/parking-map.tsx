@@ -1,10 +1,11 @@
 "use client"
 
 import { useState, useCallback, useMemo, useEffect } from "react"
-import { GoogleMap, useJsApiLoader, OverlayView, HeatmapLayerF } from "@react-google-maps/api"
+import { GoogleMap, OverlayView, HeatmapLayerF } from "@react-google-maps/api"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Map as MapIcon, Thermometer } from "lucide-react"
+import { useGoogleMapsLoader } from "@/lib/use-google-maps-loader"
 
 // Map container style
 const containerStyle = {
@@ -139,11 +140,7 @@ export default function ParkingMap({ parkingAreas, selectedId, onSelectParkingAr
     }
   }, [])
 
-  const { isLoaded, loadError } = useJsApiLoader({
-    id: "google-map-script",
-    googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY || "",
-    libraries: ["visualization"], // Required for HeatmapLayer
-  })
+  const { isLoaded, loadError } = useGoogleMapsLoader()
 
   const onLoad = useCallback((map: google.maps.Map) => {
     // Fit bounds to show all markers

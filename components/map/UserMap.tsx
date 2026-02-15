@@ -1,8 +1,9 @@
 "use client"
 
-import { GoogleMap, useJsApiLoader, MarkerF, Circle, InfoWindowF } from "@react-google-maps/api"
+import { GoogleMap, MarkerF, Circle, InfoWindowF } from "@react-google-maps/api"
 import { useState } from "react"
 import { Loader2 } from "lucide-react"
+import { useGoogleMapsLoader } from "@/lib/use-google-maps-loader"
 
 interface Parking {
   id: string
@@ -25,10 +26,7 @@ const containerStyle = {
 export default function UserMap({ lat, lng, parkings = [] }: Props) {
   const [selectedParking, setSelectedParking] = useState<Parking | null>(null)
 
-  const { isLoaded } = useJsApiLoader({
-    id: "google-map-script",
-    googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY || "",
-  })
+  const { isLoaded } = useGoogleMapsLoader()
 
   if (!isLoaded) return (
     <div className="w-full h-screen flex items-center justify-center bg-gray-100">

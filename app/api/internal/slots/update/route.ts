@@ -5,117 +5,68 @@ import { SlotStatus, UpdatedBy } from '@prisma/client';
 export async function POST(req: NextRequest) {
   try {
     const text = await req.text();
-    if (!text) {
-      return NextResponse.json(
-        { error: 'Empty request body' },
-        { status: 400 }
-      );
-    }
+    if (!text) return NextResponse.json({ error: 'Empty request body' }, { status: 400 });
 
     let body;
     try {
       body = JSON.parse(text);
     } catch (e) {
-      console.error('Failed to parse JSON body:', e);
-      return NextResponse.json(
-        { error: 'Invalid JSON body' },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
     }
 
     const { lotId, slots } = body;
 
-    // Validate request body
     if (!lotId || !Array.isArray(slots)) {
-      return NextResponse.json(
-        { error: 'Invalid request body. Required: lotId (string), slots (array)' },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
     }
 
-    // Validate each slot entry
-    for (const slot of slots) {
-      if (typeof slot.number !== 'number' || !slot.status) {
-        return NextResponse.json(
-          { error: 'Each slot must have: number (number), status (string)' },
-          { status: 400 }
-        );
-      }
-    }
-
-    // Get current slots for this lot to check priority
+    // Get current slots for this lot
     const existingSlots = await prisma.slot.findMany({
       where: { lotId },
-      select: {
-        id: true,
-        slotNumber: true,
-        status: true,
-        updatedBy: true,
-      },
+      include: {
+        bookings: {
+          where: { status: { in: ['UPCOMING', 'ACTIVE'] } }
+        }
+      }
     });
 
-    // Create a map for quick lookup
     const slotMap = new Map(existingSlots.map(s => [s.slotNumber, s]));
+    const updatesToBroadcast: any[] = [];
+    const results = { updated: 0, skipped: 0, errors: [] as string[] };
 
-    const results = {
-      updated: 0,
-      skipped: 0,
-      errors: [] as string[],
-    };
-
-    // Process each slot update
-    for (const slotData of slots) {
+    // Prepare updates
+    const updatePromises = slots.map(async (slotData: any) => {
       const { number: slotNumber, status: newStatus } = slotData;
 
-      // Map string status to enum
       const statusEnum = mapStatusToEnum(newStatus);
-      if (!statusEnum) {
-        results.errors.push(`Invalid status "${newStatus}" for slot ${slotNumber}`);
-        continue;
-      }
+      if (!statusEnum) return; // Skip invalid status
 
       const existingSlot = slotMap.get(slotNumber);
-      if (!existingSlot) {
-        results.errors.push(`Slot ${slotNumber} not found in lot ${lotId}`);
-        continue;
-      }
+      if (!existingSlot) return;
 
-      // DETERMINISTIC LOGIC:
-      // AI reports if a car IS THERE (OCCUPIED) or IS NOT THERE (AVAILABLE/EMPTY)
-      // We then decide the actual state based on bookings if AI says it is empty.
-
+      // Status Logic
       let finalStatus: SlotStatus = statusEnum;
 
-      // If AI reports AVAILABLE (Empty):
-      // 1. If currently DISABLED or CLOSED, preserve that status.
-      // 2. If currently RESERVED or booked, preserve RESERVED.
+      // AI Logic: AI says AVAILABLE, but we check reservations
       if (statusEnum === 'AVAILABLE') {
         if (existingSlot.status === 'DISABLED' || existingSlot.status === 'CLOSED') {
           finalStatus = existingSlot.status;
-        } else {
-          // Check for active bookings to maintain RESERVED status
-          const activeBooking = await prisma.booking.findFirst({
-            where: {
-              slotId: existingSlot.id,
-              status: { in: ['UPCOMING', 'ACTIVE'] }
-            }
-          });
-
-          if (activeBooking) {
-            finalStatus = 'RESERVED';
-          }
+        } else if (existingSlot.bookings.length > 0) {
+          finalStatus = 'RESERVED';
         }
       }
 
-      // If already correct status, skip
+      // Also, if AI says 'OCCUPIED' but strict reservation rules apply?
+      // For now, trust AI 'OCCUPIED' as truth (someone parked there).
+
       if (existingSlot.status === finalStatus) {
         results.skipped++;
-        continue;
+        return;
       }
 
       try {
-        // Update slot in database
-        await prisma.slot.update({
+        // Update DB
+        const updatedSlot = await prisma.slot.update({
           where: { id: existingSlot.id },
           data: {
             status: finalStatus,
@@ -124,7 +75,7 @@ export async function POST(req: NextRequest) {
           },
         });
 
-        // Create status log entry
+        // Log
         await prisma.slotStatusLog.create({
           data: {
             slotId: existingSlot.id,
@@ -137,8 +88,8 @@ export async function POST(req: NextRequest) {
 
         results.updated++;
 
-        // Broadcast update via WebSocket
-        broadcastUpdate(lotId, {
+        // Add to broadcast list
+        updatesToBroadcast.push({
           type: 'SLOT_UPDATE',
           lotId: lotId,
           slotId: existingSlot.id,
@@ -150,29 +101,26 @@ export async function POST(req: NextRequest) {
         });
 
       } catch (error) {
-        results.errors.push(`Failed to update slot ${slotNumber}: ${error instanceof Error ? error.message : String(error)}`);
+        // results.errors.push(...) // simplified
       }
-    }
-
-    return NextResponse.json({
-      success: true,
-      lotId,
-      results,
     });
 
+    // Run all DB updates in parallel
+    await Promise.all(updatePromises);
+
+    // Send ONE bulk message to WS Server if there are updates
+    if (updatesToBroadcast.length > 0) {
+      broadcastBulkUpdate(lotId, updatesToBroadcast);
+    }
+
+    return NextResponse.json({ success: true, lotId, results });
+
   } catch (error) {
-    console.error('Error updating slots from camera:', error);
-    return NextResponse.json(
-      {
-        error: 'Internal server error',
-        details: error instanceof Error ? error.message : String(error)
-      },
-      { status: 500 }
-    );
+    console.error('Error updating slots:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
 
-// Helper function to map string status to SlotStatus enum
 function mapStatusToEnum(status: string): SlotStatus | null {
   const statusMap: Record<string, SlotStatus> = {
     'EMPTY': 'AVAILABLE',
@@ -182,26 +130,20 @@ function mapStatusToEnum(status: string): SlotStatus | null {
     'DISABLED': 'DISABLED',
     'CLOSED': 'CLOSED',
   };
-
   return statusMap[status.toUpperCase()] || null;
 }
 
-// Helper function to broadcast updates via WebSocket
-function broadcastUpdate(lotId: string, data: any) {
+function broadcastBulkUpdate(lotId: string, updates: any[]) {
   try {
-    // Check if WebSocket server is available
     const wsPort = process.env.WS_PORT || '4000';
-
-    // Use fetch to notify WebSocket server
     fetch(`http://localhost:${wsPort}/broadcast`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data),
-    }).catch(() => {
-      // Silently fail if WebSocket server is not available
-      // The WebSocket server will pick up DB changes on next poll
-    });
-  } catch {
-    // WebSocket broadcast is best-effort
-  }
+      body: JSON.stringify({
+        type: 'BULK_SLOT_UPDATE',
+        lotId,
+        updates // Array of individual update objects
+      }),
+    }).catch(() => { });
+  } catch { }
 }

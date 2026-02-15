@@ -1,0 +1,103 @@
+# ============================================================================
+# QUICK CAMERA URL CONFIGURATION TEMPLATE
+# ============================================================================
+# Copy this template and paste into opencv-service/main.py
+# Replace URLs with your actual camera URLs
+# ============================================================================
+
+MANUAL_CAMERA_URLS = {
+    # ========== PARKING AREA 1 (Cameras 1-5) ==========
+    1: "http://10.227.24.164:8080/video",  # Camera 1 - Entrance
+    2: "http://10.227.24.164:8080/video",  # Camera 2 - Section A
+    3: "http://10.227.24.164:8080/video",  # Camera 3 - Section B
+    4: "http://10.227.24.164:8080/video",  # Camera 4 - Section C
+    5: "http://10.227.24.164:8080/video",  # Camera 5 - Exit
+    
+    # ========== PARKING AREA 2 (Cameras 6-10) ==========
+    6: None,  # Camera 6 - Use database URL
+    7: None,  # Camera 7 - Use database URL
+    8: None,  # Camera 8 - Use database URL
+    9: None,  # Camera 9 - Use database URL
+    10: None,  # Camera 10 - Use database URL
+    
+    # ========== PARKING AREA 3 (Cameras 11-15) ==========
+    11: None,  # Camera 11 - Use database URL
+    12: None,  # Camera 12 - Use database URL
+    13: None,  # Camera 13 - Use database URL
+    14: None,  # Camera 14 - Use database URL
+    15: None,  # Camera 15 - Use database URL
+    
+    # ========== PARKING AREA 4 (Cameras 16-20) ==========
+    16: None,  # Camera 16 - Use database URL
+    17: None,  # Camera 17 - Use database URL
+    18: None,  # Camera 18 - Use database URL
+    19: None,  # Camera 19 - Use database URL
+    20: None,  # Camera 20 - Use database URL
+    
+    # ========== PARKING AREA 5 (Cameras 21-25) ==========
+    21: None,  # Camera 21 - Use database URL
+    22: None,  # Camera 22 - Use database URL
+    23: None,  # Camera 23 - Use database URL
+    24: None,  # Camera 24 - Use database URL
+    25: None,  # Camera 25 - Use database URL
+    
+    # ========== PARKING AREA 6 (Cameras 26-30) ==========
+    26: None,  # Camera 26 - Use database URL
+    27: None,  # Camera 27 - Use database URL
+    28: None,  # Camera 28 - Use database URL
+    29: None,  # Camera 29 - Use database URL
+    30: None,  # Camera 30 - Use database URL
+}
+
+# ============================================================================
+# COMMON URL FORMATS
+# ============================================================================
+
+# IP Webcam (Android App)
+# "http://192.168.1.100:8080/video"
+
+# RTSP IP Camera
+# "rtsp://admin:password@192.168.1.100:554/stream1"
+
+# USB Camera (Local)
+# 0  # First USB camera
+# 1  # Second USB camera
+
+# HTTP MJPEG Stream
+# "http://192.168.1.100:8080/video"
+
+# ============================================================================
+# EXAMPLE CONFIGURATIONS
+# ============================================================================
+
+# --- EXAMPLE 1: All cameras same URL ---
+# 1-5: "http://10.227.24.164:8080/video"
+# 6-30: None
+
+# --- EXAMPLE 2: Multiple IP cameras ---
+# 1-5: "http://192.168.1.101:8080/video"  # IP Camera 1
+# 6-10: "http://192.168.1.102:8080/video" # IP Camera 2
+# 11-15: "http://192.168.1.103:8080/video" # IP Camera 3
+# 16-30: None
+
+# --- EXAMPLE 3: RTSP cameras ---
+# 1: "rtsp://admin:pass123@192.168.1.101:554/stream1"
+# 2: "rtsp://admin:pass123@192.168.1.102:554/stream1"
+# 3: "rtsp://admin:pass123@192.168.1.103:554/stream1"
+
+# --- EXAMPLE 4: Mixed configuration ---
+# 1-5: Manual URLs (IP Camera)
+# 6-30: Database URLs
+
+# ============================================================================
+# QUICK START
+# ============================================================================
+
+# 1. Replace URLs above with your camera URLs
+# 2. Save file
+# 3. Restart Python service: python opencv-service/main.py
+# 4. Check logs for: "📹 Multi-Camera Configuration Loaded"
+# 5. Start cameras: POST http://localhost:5000/start/{lot_id}/{camera_id}
+# 6. View stream: http://localhost:5000/camera/{lot_id}/{camera_id}
+
+# ============================================================================

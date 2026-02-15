@@ -1,6 +1,7 @@
 "use client"
 
-import { GoogleMap, useJsApiLoader } from "@react-google-maps/api"
+import { GoogleMap } from "@react-google-maps/api"
+import { useGoogleMapsLoader } from "@/lib/use-google-maps-loader"
 import { useMemo } from "react"
 
 const containerStyle = {
@@ -37,10 +38,7 @@ const darkMapStyle = [
 ]
 
 function ActualMapBackground({ apiKey }: { apiKey: string }) {
-  const { isLoaded, loadError } = useJsApiLoader({
-    id: "google-map-script",
-    googleMapsApiKey: apiKey,
-  })
+  const { isLoaded, loadError } = useGoogleMapsLoader()
 
   const options = useMemo(() => ({
     styles: darkMapStyle,

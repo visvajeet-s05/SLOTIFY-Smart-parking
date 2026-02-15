@@ -1,7 +1,8 @@
 "use client"
 
 import { useState } from "react"
-import { GoogleMap, useJsApiLoader, MarkerF } from "@react-google-maps/api"
+import { GoogleMap, MarkerF } from "@react-google-maps/api"
+import { useGoogleMapsLoader } from "@/lib/use-google-maps-loader"
 import { Loader2 } from "lucide-react"
 
 const DEFAULT_POSITION = { lat: 28.6139, lng: 77.209 } // Delhi default
@@ -14,10 +15,7 @@ const containerStyle = {
 export default function LocationMapStep() {
   const [position, setPosition] = useState(DEFAULT_POSITION)
 
-  const { isLoaded } = useJsApiLoader({
-    id: "google-map-script",
-    googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY || "",
-  })
+  const { isLoaded } = useGoogleMapsLoader()
 
   // Handle click on map to set position
   const handleMapClick = (e: google.maps.MapMouseEvent) => {

@@ -51,8 +51,17 @@ const server = createServer((req: IncomingMessage, res: ServerResponse) => {
         const data = JSON.parse(body);
         console.log("📢 Received broadcast request:", data.type);
 
-        if (data.type === "SLOT_UPDATE" || data.type === "BULK_SLOT_UPDATE") {
+        if (data.type === "SLOT_UPDATE") {
           broadcastUpdate(data);
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ success: true }));
+        } else if (data.type === "BULK_SLOT_UPDATE" && Array.isArray(data.updates)) {
+          console.log(`📦 Processing BULK update with ${data.updates.length} items`);
+          // Iterate and broadcast each update individually to maintain client compatibility
+          // This moves the N-requests load from HTTP to internal WS loop (much faster)
+          data.updates.forEach((update: any) => {
+            broadcastUpdate(update);
+          });
           res.writeHead(200, { 'Content-Type': 'application/json' });
           res.end(JSON.stringify({ success: true }));
         } else {

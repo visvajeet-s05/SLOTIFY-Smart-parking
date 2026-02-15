@@ -183,6 +183,23 @@ export default function PaymentModal({
     )
 }
 
+interface CheckoutContentProps {
+    clientSecret: string
+    bookingId: string
+    total: number
+    slotNumber: string
+    parkingName: string
+    duration: number
+    pricePerHour: number
+    subtotal: number
+    serviceFee: number
+    onSuccess: () => void
+    onClose: () => void
+    isMock?: boolean
+    slotId: string
+    parkingLotId: string
+}
+
 function CheckoutContent({
     clientSecret,
     bookingId,
@@ -198,7 +215,7 @@ function CheckoutContent({
     isMock = false,
     slotId,
     parkingLotId
-}: any) {
+}: CheckoutContentProps) {
     const stripe = isMock ? null : useStripe()
     const elements = isMock ? null : useElements()
     const { toast } = useToast()

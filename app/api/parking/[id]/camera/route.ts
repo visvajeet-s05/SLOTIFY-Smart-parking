@@ -34,14 +34,42 @@ export async function GET(
       )
     }
 
+    // Check for virtual cameras based on slot count
+    const slotCount = await prisma.slot.count({ where: { lotId: parkingLot.id } });
+    const totalCamerasNeeded = Math.ceil(slotCount / 30);
+
+    // Start with real cameras
+    const finalCameras = [...(parkingLot.cameras || [])];
+
+    // Sort real cameras to match slots API logic
+    finalCameras.sort((a: any, b: any) => {
+      const timeDiff = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+      return timeDiff !== 0 ? timeDiff : a.id.localeCompare(b.id);
+    });
+
+    // Append virtual cameras if needed
+    if (finalCameras.length < totalCamerasNeeded) {
+      for (let i = finalCameras.length; i < totalCamerasNeeded; i++) {
+        finalCameras.push({
+          id: `virtual-cam-${i + 1}`,
+          name: `Camera ${i + 1}`,
+          url: parkingLot.cameraUrl, // Inherit main URL
+          lotId: parkingLot.id,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          isVirtual: true
+        });
+      }
+    }
+
     // Return camera URL and cameras list
     return NextResponse.json({
       success: true,
       lotId: parkingLot.id,
       name: parkingLot.name,
       streamUrl: parkingLot.cameraUrl || null,
-      hasCamera: !!(parkingLot.cameraUrl || parkingLot.cameras.length > 0),
-      cameras: parkingLot.cameras
+      hasCamera: !!(parkingLot.cameraUrl || finalCameras.length > 0),
+      cameras: finalCameras
     })
 
   } catch (error) {

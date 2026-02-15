@@ -30,7 +30,6 @@ export default function OwnerNavbar() {
 
   const ownerLinks = [
     { name: "Home", href: "/dashboard/owner" },
-    { name: "Surveillance", href: "/dashboard/owner/camera" },
     { name: "Bookings", href: "/dashboard/owner/bookings" },
     { name: "Analytics", href: "/dashboard/owner/analytics" },
     { name: "Reports", href: "/dashboard/owner/reports" },

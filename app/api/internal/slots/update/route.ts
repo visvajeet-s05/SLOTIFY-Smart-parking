@@ -86,17 +86,24 @@ export async function POST(req: NextRequest) {
 
       let finalStatus: SlotStatus = statusEnum;
 
-      // If AI says the slot is free, we check if someone has booked it (RESERVED)
+      // If AI reports AVAILABLE (Empty):
+      // 1. If currently DISABLED or CLOSED, preserve that status.
+      // 2. If currently RESERVED or booked, preserve RESERVED.
       if (statusEnum === 'AVAILABLE') {
-        const activeBooking = await prisma.booking.findFirst({
-          where: {
-            slotId: existingSlot.id,
-            status: { in: ['UPCOMING', 'ACTIVE'] }
-          }
-        });
+        if (existingSlot.status === 'DISABLED' || existingSlot.status === 'CLOSED') {
+          finalStatus = existingSlot.status;
+        } else {
+          // Check for active bookings to maintain RESERVED status
+          const activeBooking = await prisma.booking.findFirst({
+            where: {
+              slotId: existingSlot.id,
+              status: { in: ['UPCOMING', 'ACTIVE'] }
+            }
+          });
 
-        if (activeBooking) {
-          finalStatus = 'RESERVED';
+          if (activeBooking) {
+            finalStatus = 'RESERVED';
+          }
         }
       }
 

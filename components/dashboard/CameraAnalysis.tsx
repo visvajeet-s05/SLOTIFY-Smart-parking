@@ -602,10 +602,30 @@ function SlotsOverlay({ imgRef, slots, imgDimensions, isCalibrationMode, selecte
                         {/* Spatial Corner Accents */}
                         {!isCalibrationMode && (
                             <>
-                                <div className={`absolute top-0 left-0 w-2 h-2 border-t-2 border-l-2 ${slot.status === 'OCCUPIED' ? 'border-red-500' : 'border-emerald-500'} opacity-100`} />
-                                <div className={`absolute top-0 right-0 w-2 h-2 border-t-2 border-r-2 ${slot.status === 'OCCUPIED' ? 'border-red-500' : 'border-emerald-500'} opacity-100`} />
-                                <div className={`absolute bottom-0 left-0 w-2 h-2 border-b-2 border-l-2 ${slot.status === 'OCCUPIED' ? 'border-red-500' : 'border-emerald-500'} opacity-100`} />
-                                <div className={`absolute bottom-0 right-0 w-2 h-2 border-b-2 border-r-2 ${slot.status === 'OCCUPIED' ? 'border-red-500' : 'border-emerald-500'} opacity-100`} />
+                                <div className={`absolute top-0 left-0 w-2 h-2 border-t-2 border-l-2 ${slot.status === 'OCCUPIED' ? 'border-red-500' :
+                                        slot.status === 'RESERVED' ? 'border-amber-400' :
+                                            slot.status === 'DISABLED' ? 'border-stone-500' :
+                                                slot.status === 'CLOSED' ? 'border-zinc-500' :
+                                                    'border-emerald-500'
+                                    } opacity-100`} />
+                                <div className={`absolute top-0 right-0 w-2 h-2 border-t-2 border-r-2 ${slot.status === 'OCCUPIED' ? 'border-red-500' :
+                                        slot.status === 'RESERVED' ? 'border-amber-400' :
+                                            slot.status === 'DISABLED' ? 'border-stone-500' :
+                                                slot.status === 'CLOSED' ? 'border-zinc-500' :
+                                                    'border-emerald-500'
+                                    } opacity-100`} />
+                                <div className={`absolute bottom-0 left-0 w-2 h-2 border-b-2 border-l-2 ${slot.status === 'OCCUPIED' ? 'border-red-500' :
+                                        slot.status === 'RESERVED' ? 'border-amber-400' :
+                                            slot.status === 'DISABLED' ? 'border-stone-500' :
+                                                slot.status === 'CLOSED' ? 'border-zinc-500' :
+                                                    'border-emerald-500'
+                                    } opacity-100`} />
+                                <div className={`absolute bottom-0 right-0 w-2 h-2 border-b-2 border-r-2 ${slot.status === 'OCCUPIED' ? 'border-red-500' :
+                                        slot.status === 'RESERVED' ? 'border-amber-400' :
+                                            slot.status === 'DISABLED' ? 'border-stone-500' :
+                                                slot.status === 'CLOSED' ? 'border-zinc-500' :
+                                                    'border-emerald-500'
+                                    } opacity-100`} />
                             </>
                         )}
 
@@ -614,7 +634,12 @@ function SlotsOverlay({ imgRef, slots, imgDimensions, isCalibrationMode, selecte
                             <motion.div
                                 animate={slot.status === 'OCCUPIED' ? { scale: [1, 1.5, 1], opacity: [0.8, 1, 0.8] } : { scale: [1, 1.2, 1], opacity: [0.6, 0.9, 0.6] }}
                                 transition={{ duration: 2, repeat: Infinity }}
-                                className={`w-1.5 h-1.5 rounded-full ${slot.status === 'OCCUPIED' ? 'bg-red-500 shadow-[0_0_8px_red]' : 'bg-emerald-500 shadow-[0_0_8px_emerald]'}`}
+                                className={`w-1.5 h-1.5 rounded-full ${slot.status === 'OCCUPIED' ? 'bg-red-500 shadow-[0_0_8px_red]' :
+                                        slot.status === 'RESERVED' ? 'bg-amber-400 shadow-[0_0_8px_#fbbf24]' :
+                                            slot.status === 'DISABLED' ? 'bg-stone-500 shadow-[0_0_8px_#78716c]' :
+                                                slot.status === 'CLOSED' ? 'bg-zinc-500 shadow-[0_0_8px_#71717a]' :
+                                                    'bg-emerald-500 shadow-[0_0_8px_emerald]'
+                                    }`}
                             />
                         )}
 

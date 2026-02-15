@@ -27,11 +27,7 @@ const nextConfig = {
   // Disable Strict Mode to prevent double WebSocket connections in dev
   reactStrictMode: false,
   // Disable build workers to prevent hanging
-  experimental: {
-    webpackBuildWorker: false,
-    parallelServerBuildTraces: false,
-    parallelServerCompiles: false,
-  },
+
   // Webpack configuration to handle large builds
   webpack: (config, { isServer }) => {
     // Increase memory limit for builds

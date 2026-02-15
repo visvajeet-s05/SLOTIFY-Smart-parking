@@ -7,8 +7,8 @@ from flask import Flask, Response, jsonify, request
 from flask_cors import CORS
 import os
 import signal
+import signal
 import sys
-
 
 app = Flask(__name__)
 CORS(app)  # Enable CORS for all routes
@@ -18,8 +18,38 @@ CORS(app)  # Enable CORS for all routes
 NEXTJS_API_URL = os.getenv("NEXTJS_API_URL", "http://localhost:3000").rstrip("/")
 PYTHON_SERVICE_PORT = int(os.getenv("PYTHON_SERVICE_PORT", 5000))
 
+# MANUAL_CAMERA_URL = "http://10.227.24.164:8080/video"  # <--- UNCOMMENT TO FORCE OVERRIDE
+MANUAL_CAMERA_URL = "http://10.227.24.164:8080/video"
+
 # --- Global State ---
 monitors = {}  # Dictionary to store active monitors: { lot_id: ParkingLotMonitor }
+
+# COCO Class Labels (for SSD MobileNet V3)
+# Note: TensorFlow Object Detection API models trained on COCO usually have 90 classes.
+# We are only interested in 'car'. 'bus' and 'truck' are removed as per user request to detect ONLY cars.
+CLASSES = {
+    1: 'person', 2: 'bicycle', 3: 'car', 4: 'motorcycle', 5: 'airplane', 
+    6: 'bus', 7: 'train', 8: 'truck', 9: 'boat', 10: 'traffic light', 
+    11: 'fire hydrant', 13: 'stop sign', 14: 'parking meter', 15: 'bench', 
+    16: 'bird', 17: 'cat', 18: 'dog', 19: 'horse', 20: 'sheep', 
+    21: 'cow', 22: 'elephant', 23: 'bear', 24: 'zebra', 25: 'giraffe', 
+    27: 'backpack', 28: 'umbrella', 31: 'handbag', 32: 'tie', 
+    33: 'suitcase', 34: 'frisbee', 35: 'skis', 36: 'snowboard', 
+    37: 'sports ball', 38: 'kite', 39: 'baseball bat', 40: 'baseball glove', 
+    41: 'skateboard', 42: 'surfboard', 43: 'tennis racket', 44: 'bottle', 
+    46: 'wine glass', 47: 'cup', 48: 'fork', 49: 'knife', 50: 'spoon', 
+    51: 'bowl', 52: 'banana', 53: 'apple', 54: 'sandwich', 55: 'orange', 
+    56: 'broccoli', 57: 'carrot', 58: 'hot dog', 59: 'pizza', 60: 'donut', 
+    61: 'cake', 62: 'chair', 63: 'couch', 64: 'potted plant', 65: 'bed', 
+    67: 'dining table', 70: 'toilet', 72: 'tv', 73: 'laptop', 74: 'mouse', 
+    75: 'remote', 76: 'keyboard', 77: 'cell phone', 78: 'microwave', 
+    79: 'oven', 80: 'toaster', 81: 'sink', 82: 'refrigerator', 84: 'book', 
+    85: 'clock', 86: 'vase', 87: 'scissors', 88: 'teddy bear', 89: 'hair drier', 
+    90: 'toothbrush'
+}
+
+# Targeted Vehicles
+VEHICLES = {"car"} # USER REQUEST: Detect ONLY cars
 
 class ParkingLotMonitor:
     def __init__(self, lot_id, api_url, camera_id=None):
@@ -35,6 +65,50 @@ class ParkingLotMonitor:
         self.lock = threading.Lock()
         self.status_cache = {}
         self.frame_count = 0
+        self.net = None
+        self.model_loaded = False
+        
+        # Load Model
+        self._load_model()
+
+    def _load_model(self):
+        """Load TensorFlow SSD MobileNet V3 model"""
+        try:
+            base_dir = os.path.dirname(os.path.abspath(__file__))
+            # Adjusted paths for TF model
+            pb_path = os.path.join(base_dir, "models", "frozen_inference_graph.pb") 
+            pbtxt_path = os.path.join(base_dir, "models", "ssd_mobilenet_v3_large_coco_2020_01_14.pbtxt")
+
+            # Check if using the exact filenames from download script if name changed slightly
+            if not os.path.exists(pb_path):
+                 # Try searching for any .pb file in models
+                 for f in os.listdir(os.path.join(base_dir, "models")):
+                     if f.endswith(".pb"):
+                         pb_path = os.path.join(base_dir, "models", f)
+                         break
+
+            if not os.path.exists(pb_path) or not os.path.exists(pbtxt_path):
+                print(f"⚠️ Model files not found at {pb_path} or {pbtxt_path}.")
+                print("Run 'python opencv-service/download_tf_model.py' to fetch them.")
+                return
+
+            print(f"🧠 Loading TensorFlow Neural Network from {pb_path}...", flush=True)
+            self.net = cv2.dnn.readNetFromTensorflow(pb_path, pbtxt_path)
+            
+            # Use CUDA if available (optional, fallbacks to CPU)
+            try:
+                self.net.setPreferableBackend(cv2.dnn.DNN_BACKEND_CUDA)
+                self.net.setPreferableTarget(cv2.dnn.DNN_TARGET_CUDA)
+                print("🚀 CUDA Backend set (if available)")
+            except:
+                print("ℹ️ Using CPU Backend")
+                self.net.setPreferableBackend(cv2.dnn.DNN_BACKEND_OPENCV)
+                self.net.setPreferableTarget(cv2.dnn.DNN_TARGET_CPU)
+                
+            self.model_loaded = True
+            print("✅ Model loaded successfully!", flush=True)
+        except Exception as e:
+            print(f"❌ Error loading model: {e}")
 
     def load_config(self):
         """Fetch camera URL and slot coordinates from Next.js API"""
@@ -66,6 +140,11 @@ class ParkingLotMonitor:
                         self.camera_url = cam.get("url")
             else:
                 self.camera_url = data.get("cameraUrl")
+
+            # Override with manual configuration if set in main.py
+            if MANUAL_CAMERA_URL:
+                self.camera_url = MANUAL_CAMERA_URL
+                print(f"⚠️ Using MANUAL_CAMERA_URL override: {self.camera_url}", flush=True)
 
             if not self.camera_url:
                 print(f"❌ No camera URL found for {self.lot_id}/{self.camera_id}", flush=True)
@@ -111,14 +190,7 @@ class ParkingLotMonitor:
         """Main processing loop for this camera"""
         self.cap = cv2.VideoCapture(self.camera_url)
         
-        # Initialize YOLOv8 Model (Auto-downloads 'yolov8n.pt' on first run)
-        # Using the Nano model for speed. Use 'yolov8s.pt' or 'yolov8m.pt' for higher accuracy if GPU available.
-        try:
-            self.model = YOLO('yolov8n.pt')
-            print(f"🧠 YOLOv8 Model loaded for {self.lot_id}")
-        except Exception as e:
-            print(f"❌ Failed to load YOLO model: {e}")
-            self.model = None
+        print(f"👁️ Starting AI Vision Analysis (Google TF Model) for {self.lot_id}")
 
         # Simple reconnection loop
         while self.running:
@@ -137,11 +209,14 @@ class ParkingLotMonitor:
                 continue
 
             # Process frame for detection
-            if self.model:
-                processed_frame = self.detect_yolo(frame)
+            if self.model_loaded:
+                processed_frame = self.detect_dnn(frame)
             else:
-                # Fallback if model fails (though uncommon)
-                processed_frame = frame
+                # Fallback or just show frame if model missing
+                processed_frame = frame.copy()
+                cv2.putText(processed_frame, "MODEL MISSING - CHECK LOGS", (50, 50), 
+                           cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
+                # Attempt to load model again occasionally? No, heavy.
             
             with self.lock:
                 self.last_frame = processed_frame
@@ -153,29 +228,61 @@ class ParkingLotMonitor:
 
         self.cap.release()
 
-    def detect_yolo(self, frame):
-        """Standard YOLOv8 Inference for Vehicle Detection"""
+    def detect_dnn(self, frame):
+        """State-of-the-art Vehicle Detection using TensorFlow MobileNet V3"""
         overlay = frame.copy()
-        
-        # 1. Run inference on the frame
-        # Classes: 2=car, 3=motorcycle, 5=bus, 7=truck (COCO dataset IDs)
-        results = self.model(frame, classes=[2, 3, 5, 7], verbose=False, conf=0.4)
-        
-        # Get detections: [x1, y1, x2, y2, conf, cls]
-        detections = results[0].boxes.data.cpu().numpy() if len(results) > 0 else []
-
         current_status = {}
-        fh, fw = frame.shape[:2]
         
-        # Reference basis for saved coordinates (1080p)
-        REF_W, REF_H = 1920, 1080
-        scale_x = fw / REF_W
-        scale_y = fh / REF_H
+        (h, w) = frame.shape[:2]
         
+        # Prepare input blob 
+        # SSD MobileNet V3 expects 320x320 or 300x300 usually. 
+        # swapRB=True, crop=False.
+        blob = cv2.dnn.blobFromImage(frame, size=(300, 300), swapRB=True, crop=False)
+
+        self.net.setInput(blob)
+        detections = self.net.forward()
+
+        # Extract vehicle centroids
+        vehicle_centroids = []
+        
+        # Loop over the detections
+        # shape: [1, 1, N, 7]
+        for i in range(detections.shape[2]):
+            confidence = detections[0, 0, i, 2]
+
+            # Filter out weak detections
+            if confidence > 0.5: # 50% confidence
+                idx = int(detections[0, 0, i, 1])
+                label = CLASSES.get(idx, "unknown")
+
+                if label in VEHICLES:
+                    box = detections[0, 0, i, 3:7] * np.array([w, h, w, h])
+                    (startX, startY, endX, endY) = box.astype("int")
+
+                    # Calculate centroid
+                    cX = int((startX + endX) / 2)
+                    cY = int((startY + endY) / 2)
+                    vehicle_centroids.append((cX, cY))
+
+                    # Draw bounding box (Green for vehicle)
+                    cv2.rectangle(overlay, (startX, startY), (endX, endY), (0, 255, 0), 2)
+                    y = startY - 15 if startY - 15 > 15 else startY + 15
+                    cv2.putText(overlay, f"{label}: {confidence:.2f}", (startX, y),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
+
+        # Check occupancy against slots
+        # Map slots to current frame coordinates
+        REF_W, REF_H = 1920, 1080 
+        scale_x = w / REF_W
+        scale_y = h / REF_H
+        
+        occupied_count = 0
+
         for slot in self.slots:
-            slot_id = slot.get("slotNumber") or slot.get("number")
+            slot_id = slot.get("slotNumber") or slot.get("number") or "Unknown"
             
-            # Map slot coordinates to current frame
+            # 1. Map Coordinates
             raw_x = slot.get("x") or 0
             raw_y = slot.get("y") or 0
             raw_w = slot.get("width") or 100
@@ -186,61 +293,48 @@ class ParkingLotMonitor:
             sw = int(raw_w * scale_x)
             sh = int(raw_h * scale_y)
 
-            # Check for overlap with any detected vehicle
+            # Define Slot ROI
+            slot_roi = (sx, sy, sw, sh)
+            
             is_occupied = False
             
-            # Define slot center point
-            slot_cx = sx + sw // 2
-            slot_cy = sy + sh // 2
-
-            for det in detections:
-                dx1, dy1, dx2, dy2, conf, cls = det
-                
-                # Check if the CAR's center is inside the SLOT
-                car_cx = (dx1 + dx2) / 2
-                car_cy = (dy1 + dy2) / 2
-                
-                # Logic: If car center is within slot boundary (with some padding)
-                if (sx < car_cx < sx + sw) and (sy < car_cy < sy + sh):
+            # Check if any vehicle centroid is inside this slot
+            for (vx, vy) in vehicle_centroids:
+                if sx < vx < sx + sw and sy < vy < sy + sh:
                     is_occupied = True
-                    # Draw bounding box of the car itself (optional, helps debug)
-                    cv2.rectangle(overlay, (int(dx1), int(dy1)), (int(dx2), int(dy2)), (0, 0, 255), 1)
-                    break 
-
-            status_text = "Occupied" if is_occupied else "Empty"
-            current_status[slot_id] = "OCCUPIED" if is_occupied else "AVAILABLE"
+                    break
             
-            # --- VISUAL OVERLAY ---
-            color = (0, 0, 255) if is_occupied else (0, 255, 0)
-            
-            # Slot Box
-            cv2.rectangle(overlay, (sx, sy), (sx + sw, sy + sh), color, 2)
-            
-            # Center Target Dot
-            cv2.circle(overlay, (slot_cx, slot_cy), 3, color, -1)
-            
-            # Label
-            label_pos = (sx, sy - 10) if sy - 10 > 10 else (sx, sy + 20)
-            cv2.putText(overlay, f"{slot_id}", label_pos, cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 1, cv2.LINE_AA)
+            if is_occupied:
+                occupied_count += 1
+                current_status[slot_id] = "OCCUPIED"
+                # Highlight occupied slot
+                cv2.rectangle(overlay, (sx, sy), (sx + sw, sy + sh), (0, 0, 255), 2)
+                # Show label below slot
+                cv2.putText(overlay, "OCCUPIED", (sx, sy + sh + 20), 
+                           cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 2)
+            else:
+                current_status[slot_id] = "AVAILABLE"
+                # Highlight available slot (optional, maybe faint green)
+                # cv2.rectangle(overlay, (sx, sy), (sx + sw, sy + sh), (0, 255, 0), 1)
 
         # --- GLOBAL OVERLAYS (HUD) ---
-        # 1. AI ACTIVE INDICATOR
-        cv2.rectangle(overlay, (20, 20), (220, 55), (20, 20, 20), -1)
-        cv2.rectangle(overlay, (20, 20), (220, 55), (100, 100, 100), 1)
-        # Blipping light
-        pulse_color = (0, 255, 0) if (time.time() * 10) % 10 > 5 else (0, 100, 0)
-        cv2.circle(overlay, (40, 37), 5, pulse_color, -1)
-        cv2.putText(overlay, "YOLO NEURAL NET", (55, 42), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
+        # 1. SYSTEM STATUS
+        cv2.rectangle(overlay, (20, 20), (280, 70), (20, 20, 20), -1)
+        cv2.rectangle(overlay, (20, 20), (280, 70), (0, 255, 255), 2)
+        
+        # Pulsing effect
+        pulse = abs(np.sin(time.time() * 2))
+        cv2.circle(overlay, (40, 45), 6, (0, 255, 255), -1 if pulse > 0.5 else 1)
+        
+        cv2.putText(overlay, "AI VISION: ACTIVE", (60, 50), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
+        cv2.putText(overlay, "MODEL: TF-MobileNetV3", (60, 75), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (200, 200, 200), 1)
 
-        # 2. Car Counter
-        car_count = len([d for d in detections if d[5] in [2, 7]]) # Count cars/trucks
-        cv2.putText(overlay, f"VEHICLES DETECTED: {car_count}", (20, fh - 30), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 255), 2)
+        # 2. Occupancy Counter
+        cv2.putText(overlay, f"CARS DETECTED: {len(vehicle_centroids)}", (20, h - 60), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2)
+        cv2.putText(overlay, f"OCCUPIED SLOTS: {occupied_count}", (20, h - 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
 
         self.status_cache = current_status
-        
-        # Blend overlay
-        cv2.addWeighted(overlay, 0.8, frame, 0.2, 0, frame)
-        return frame
+        return overlay
 
 
     def send_updates(self):
@@ -259,7 +353,7 @@ class ParkingLotMonitor:
             # CORRECT API ENDPOINT
             url = f"{self.api_url}/api/internal/slots/update"
             requests.post(url, json=payload, timeout=5)
-            print(f"✅ Posted update for {self.lot_id}", flush=True) 
+            # print(f"✅ Posted update for {self.lot_id}", flush=True) 
         except Exception as e:
             print(f"⚠️ Failed to post update for {self.lot_id}: {e}", flush=True)
 

@@ -100,8 +100,19 @@ const darkMapStyle = [
   },
 ]
 
+interface ParkingArea {
+  id: string
+  name: string
+  coordinates: [number, number]
+  price: number
+  address: string
+  availableSlots: number
+  totalSlots: number
+  status: 'available' | 'limited' | 'full'
+}
+
 interface ParkingMapProps {
-  parkingAreas: any[]
+  parkingAreas: ParkingArea[]
   selectedId: string | null
   onSelectParkingArea: (id: string) => void
 }

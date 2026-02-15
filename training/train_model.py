@@ -1,5 +1,4 @@
 from ultralytics import YOLO
-import os
 
 def train():
     # 1. Initialize YOLOv8 Model

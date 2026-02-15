@@ -44,8 +44,10 @@ export async function POST(req: NextRequest) {
         })
 
         // 4. Broadcast via WebSocket
+        const wsUrl = process.env.NEXT_PUBLIC_WEBSOCKET_URL?.replace('ws://', 'http://') || "http://localhost:4000"
+
         try {
-            await fetch("http://localhost:4000/broadcast", {
+            await fetch(`${wsUrl}/broadcast`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({

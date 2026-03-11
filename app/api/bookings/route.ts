@@ -51,7 +51,7 @@ export async function GET() {
       bookingDate: b.startTime.toISOString(),
       bookingTime: new Date(b.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       duration: Math.round((new Date(b.endTime).getTime() - new Date(b.startTime).getTime()) / (1000 * 60 * 60)),
-      licensePlate: "TN-XX-XXXX",
+      licensePlate: "TN-XX-XXXX", // TODO: Fetch from booking vehicle relation if available
       vehicleModel: b.vehicleType,
       amount: b.amount,
       paymentMethod: "Online",
@@ -66,6 +66,7 @@ export async function GET() {
   }
 }
 
+
 export async function POST(req: Request) {
   try {
     const session = await getServerSession(authOptions)
@@ -75,10 +76,25 @@ export async function POST(req: Request) {
     }
 
     const body = await req.json()
-    const { slotId, duration, amount, licensePlate, vehicleModel, parkingLotId } = body
+    let { slotId, duration, amount, licensePlate, vehicleModel, parkingLotId } = body
 
-    if (!slotId || !duration || !amount || !parkingLotId) {
-      return new NextResponse("Missing required fields", { status: 400 })
+    if (!slotId || !duration || !amount) {
+      return new NextResponse("Missing required fields (slotId, duration, amount)", { status: 400 })
+    }
+
+    // Resolver: If parkingLotId is missing, try to find it via the Slot
+    if (!parkingLotId && slotId) {
+      const relatedSlot = await prisma.slot.findUnique({
+        where: { id: slotId },
+        select: { lotId: true }
+      });
+      if (relatedSlot) {
+        parkingLotId = relatedSlot.lotId;
+      }
+    }
+
+    if (!parkingLotId) {
+      return new NextResponse("Parking Lot ID is required and could not be resolved", { status: 400 })
     }
 
     const user = await prisma.user.findUnique({
@@ -100,18 +116,24 @@ export async function POST(req: Request) {
       vehicleId = existingVehicle.id
     } else if (licensePlate) {
       const specificVehicleModel = vehicleModel || "Unknown Model"
-      const newVehicle = await prisma.vehicle.create({
-        data: {
-          id: `VEH-${Date.now()}-${Math.random().toString(36).substr(2, 5).toUpperCase()}`,
-          userId: user.id,
-          licensePlate: licensePlate,
-          model: specificVehicleModel,
-          make: "Unknown",
-          color: "Unknown",
-          updatedAt: new Date()
-        }
-      })
-      vehicleId = newVehicle.id
+      // Use a try-catch for vehicle creation to avoid race conditions or duplicates crashing the whole flow
+      try {
+        const newVehicle = await prisma.vehicle.create({
+          data: {
+            id: `VEH-${Date.now()}-${Math.random().toString(36).substr(2, 5).toUpperCase()}`,
+            userId: user.id,
+            licensePlate: licensePlate,
+            model: specificVehicleModel,
+            make: "Unknown",
+            color: "Unknown",
+            updatedAt: new Date()
+          }
+        })
+        vehicleId = newVehicle.id
+      } catch (vErr) {
+        console.error("Vehicle creation warning:", vErr);
+        // Proceed without explicit vehicle ID linked if strictly necessary, or just use user-provided strings
+      }
     }
 
     const startTime = new Date()
@@ -131,13 +153,21 @@ export async function POST(req: Request) {
       return new NextResponse("Parking lot not found", { status: 404 })
     }
 
+    // Check if ownerprofile exists
+    // If data is inconsistent (parkingLot exists but no ownerProfile), we might need a fallback or fail.
+    // Failing is safer for data integrity, but let's be descriptive.
+    if (!parkingLot.ownerprofile) {
+      console.error(`Parking lot ${parkingLotId} has no owner profile linked. Data integrity issue.`)
+      return new NextResponse("Parking lot configuration error (No Linked Owner)", { status: 500 })
+    }
+
     const bookingId = `BK-${Date.now()}-${Math.random().toString(36).substr(2, 5).toUpperCase()}`
 
     const booking = await prisma.booking.create({
       data: {
         id: bookingId,
         customerId: user.id,
-        ownerId: parkingLot.ownerprofile.userId, // Use userId from profile, not profile.id
+        ownerId: parkingLot.ownerprofile.userId,
         parkingLotId: parkingLotId,
         slotId: slotId,
         startTime: startTime,
@@ -153,44 +183,50 @@ export async function POST(req: Request) {
       where: { id: slotId }
     })
 
-    if (!slot) {
-      return new NextResponse("Slot not found", { status: 404 })
-    }
-
-    // Update slot status
-    const updatedSlot = await prisma.slot.update({
-      where: { id: slotId },
-      data: {
-        status: "RESERVED",
-        updatedAt: new Date()
-      }
-    })
-
-    // Broadcast update via WebSocket server
-    try {
-      await fetch("http://localhost:4000/broadcast", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          type: "SLOT_UPDATE",
-          lotSlug: parkingLotId,
-          slotNumber: updatedSlot.slotNumber, // Ensure it's a number matches WS expectation
-          slotId: updatedSlot.id,
+    if (slot) {
+      // Update slot status
+      const updatedSlot = await prisma.slot.update({
+        where: { id: slotId },
+        data: {
           status: "RESERVED",
-          oldStatus: slot.status,
-          source: "CUSTOMER",
-          bookingId: booking.id
-        })
+          updatedAt: new Date()
+        }
       })
-    } catch (wsError) {
-      console.error("Failed to broadcast booking update:", wsError)
-      // Continue execution, don't fail the request just because WS failed
+
+      // Broadcast update via WebSocket server with TIMEOUT
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 2000); // 2 second timeout
+
+        await fetch("http://localhost:4000/broadcast", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            type: "SLOT_UPDATE",
+            lotSlug: parkingLotId,
+            slotNumber: updatedSlot.slotNumber,
+            slotId: updatedSlot.id,
+            status: "RESERVED",
+            oldStatus: slot.status,
+            source: "CUSTOMER",
+            bookingId: booking.id
+          }),
+          signal: controller.signal
+        })
+        clearTimeout(timeoutId);
+      } catch (wsError) {
+        console.error("Failed to broadcast booking update (continued anyway):", wsError)
+      }
     }
 
     return NextResponse.json(booking)
 
   } catch (error) {
-    console.error("[BOOKINGS_POST]", error)
-    return new NextResponse("Internal Error", { status: 500 })
+    console.error("[BOOKINGS_POST] Critical Error:", error)
+    // Return a JSON response even for 500 so frontend can parse it if possible, or at least text
+    return new NextResponse(JSON.stringify({ error: "Internal Server Error", details: String(error) }), {
+      status: 500,
+      headers: { "Content-Type": "application/json" }
+    })
   }
 }

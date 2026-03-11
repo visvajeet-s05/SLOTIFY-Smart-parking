@@ -6,7 +6,8 @@ import shutil
 # TensorFlow Model Zoo URL (Google hosted - very reliable)
 # SSD MobileNet V3 Large COCO 2020/01/14
 MODEL_URL = "http://download.tensorflow.org/models/object_detection/ssd_mobilenet_v3_large_coco_2020_01_14.tar.gz"
-CONFIG_URL = "https://gist.githubusercontent.com/dkurt/54a8e8b51beb3bd3f770b79e56927bd7/raw/2a20064a9d33b893dd95d25ac210d6c61863f932/ssd_mobilenet_v3_large_coco_2020_01_14.pbtxt"
+# Updated config URL (raw gist without commit ID for latest version)
+CONFIG_URL = "https://gist.githubusercontent.com/dkurt/54a8e8b51beb3bd3f770b79e56927bd7/raw/ssd_mobilenet_v3_large_coco_2020_01_14.pbtxt"
 
 # Paths
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))

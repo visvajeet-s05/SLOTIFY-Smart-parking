@@ -7,133 +7,65 @@ from flask import Flask, Response, jsonify, request
 from flask_cors import CORS
 import os
 import signal
-import signal
 import sys
+import re
+
+from dotenv import load_dotenv
+
+load_dotenv()
 
 app = Flask(__name__)
 CORS(app)  # Enable CORS for all routes
-
-# ============================================================================
-# MULTI-CAMERA URL CONFIGURATION (UP TO 30 CAMERAS)
-# ============================================================================
-# Configure individual camera URLs below. Each camera can have its own URL.
-# If a camera URL is not specified, it will use the database/API configuration.
-# 
-# USAGE:
-# - Camera 1-30: Set MANUAL_CAMERA_URL_1 through MANUAL_CAMERA_URL_30
-# - Leave as None to use database configuration
-# - Set to a URL string to override with manual configuration
-# ============================================================================
-
-MANUAL_CAMERA_URLS = {
-    # Camera 1-10
-    1: "http://10.227.24.164:8080/video",  # Camera 1 (Active)
-    2: "http://10.227.24.80:8080/video",  # Camera 2 (Active)
-    3: "http://10.227.24.164:8080/video",  # Camera 3 (Active)
-    4: "http://10.227.24.164:8080/video",  # Camera 4 (Active)
-    5: "http://10.227.24.164:8080/video",  # Camera 5 (Active)
-    6: None,  # Camera 6 (Use database URL)
-    7: None,  # Camera 7 (Use database URL)
-    8: None,  # Camera 8 (Use database URL)
-    9: None,  # Camera 9 (Use database URL)
-    10: None,  # Camera 10 (Use database URL)
-    
-    # Camera 11-20
-    11: None,  # Camera 11 (Use database URL)
-    12: None,  # Camera 12 (Use database URL)
-    13: None,  # Camera 13 (Use database URL)
-    14: None,  # Camera 14 (Use database URL)
-    15: None,  # Camera 15 (Use database URL)
-    16: None,  # Camera 16 (Use database URL)
-    17: None,  # Camera 17 (Use database URL)
-    18: None,  # Camera 18 (Use database URL)
-    19: None,  # Camera 19 (Use database URL)
-    20: None,  # Camera 20 (Use database URL)
-    
-    # Camera 21-30
-    21: None,  # Camera 21 (Use database URL)
-    22: None,  # Camera 22 (Use database URL)
-    23: None,  # Camera 23 (Use database URL)
-    24: None,  # Camera 24 (Use database URL)
-    25: None,  # Camera 25 (Use database URL)
-    26: None,  # Camera 26 (Use database URL)
-    27: None,  # Camera 27 (Use database URL)
-    28: None,  # Camera 28 (Use database URL)
-    29: None,  # Camera 29 (Use database URL)
-    30: None,  # Camera 30 (Use database URL)
-}
-
-# Helper function to get camera URL by camera number or ID
-def get_manual_camera_url(camera_id):
-    """
-    Get manual camera URL for a specific camera.
-    
-    Args:
-        camera_id: Camera ID (can be string or int)
-        
-    Returns:
-        Camera URL string if configured, None otherwise
-    """
-    if camera_id is None:
-        return None
-    
-    # Try to extract camera number from camera_id
-    # Supports formats like: "camera-1", "cam1", "1", 1, etc.
-    try:
-        if isinstance(camera_id, int):
-            cam_num = camera_id
-        elif isinstance(camera_id, str):
-            # Extract number from string
-            import re
-            match = re.search(r'\d+', camera_id)
-            if match:
-                cam_num = int(match.group())
-            else:
-                return None
-        else:
-            return None
-        
-        # Return URL if configured
-        return MANUAL_CAMERA_URLS.get(cam_num)
-    except:
-        return None
-
-# ============================================================================
-# EXAMPLE CONFIGURATIONS:
-# ============================================================================
-# 
-# SCENARIO 1: All cameras use same URL (current setup)
-# Set cameras 1-5 to same URL, rest to None
-#
-# SCENARIO 2: Each camera has different URL
-# 1: "http://192.168.1.101:8080/video"
-# 2: "http://192.168.1.102:8080/video"
-# 3: "http://192.168.1.103:8080/video"
-# etc.
-#
-# SCENARIO 3: Mixed configuration
-# 1-5: "http://10.227.24.164:8080/video"  (IP Camera 1)
-# 6-10: "http://10.227.24.165:8080/video" (IP Camera 2)
-# 11-30: None (Use database configuration)
-#
-# ============================================================================
-
-print("📹 Multi-Camera Configuration Loaded:")
-print(f"   Total Cameras Configured: {len([url for url in MANUAL_CAMERA_URLS.values() if url is not None])}")
-for cam_num, url in MANUAL_CAMERA_URLS.items():
-    if url:
-        print(f"   Camera {cam_num}: {url}")
 
 # --- API Configuration ---
 NEXTJS_API_URL = os.getenv("NEXTJS_API_URL", "http://localhost:3000").rstrip("/")
 PYTHON_SERVICE_PORT = int(os.getenv("PYTHON_SERVICE_PORT", 5000))
 
+# ============================================================================
+# MANUAL CAMERA URL CONFIGURATION
+# ============================================================================
+# Define manual URLs for cameras here if you wish to override the database.
+# Format: { camera_id_or_number: "RTSP_OR_HTTP_URL" }
+# "camera-1" or 1 will map to the same entry.
+# ============================================================================
+MANUAL_CAMERA_URLS = {
+    1: "http://10.151.236.96:8080/video",  # Camera 1
+    2: "http://10.151.236.80:8080/video",  # Camera 2
+    # Add more cameras here:
+    # 3: "http://192.168.1.103:8080/video",
+    # 4: "rtsp://admin:password@10.0.0.4:554/stream1",
+}
+# ============================================================================
+
+def get_manual_url(identifier):
+    """Helper to find manual URL for a given camera ID (str or int)"""
+    if identifier is None:
+        return None
+        
+    # direct lookup
+    if identifier in MANUAL_CAMERA_URLS:
+        return MANUAL_CAMERA_URLS[identifier]
+    
+    # string lookup
+    if str(identifier) in MANUAL_CAMERA_URLS:
+        return MANUAL_CAMERA_URLS[str(identifier)]
+
+    # regex extraction for "camera-1", "cam1" -> 1
+    try:
+        num_match = re.search(r'\d+', str(identifier))
+        if num_match:
+            cam_num = int(num_match.group())
+            return MANUAL_CAMERA_URLS.get(cam_num)
+    except:
+        pass
+        
+    return None
+
+
 # --- Global State ---
 monitors = {}  # Dictionary to store active monitors: { lot_id: ParkingLotMonitor }
 
 # COCO Class Labels (for SSD MobileNet V3)
-# Note: TensorFlow Object Detection API models trained on COCO usually have 90 classes.
-# We are only interested in 'car'. 'bus' and 'truck' are removed as per user request to detect ONLY cars.
 CLASSES = {
     1: 'person', 2: 'bicycle', 3: 'car', 4: 'motorcycle', 5: 'airplane', 
     6: 'bus', 7: 'train', 8: 'truck', 9: 'boat', 10: 'traffic light', 
@@ -174,6 +106,7 @@ class ParkingLotMonitor:
         self.frame_count = 0
         self.net = None
         self.model_loaded = False
+        self.consecutive_errors = 0
         
         # Load Model
         self._load_model()
@@ -182,26 +115,21 @@ class ParkingLotMonitor:
         """Load TensorFlow SSD MobileNet V3 model"""
         try:
             base_dir = os.path.dirname(os.path.abspath(__file__))
-            # Adjusted paths for TF model
             pb_path = os.path.join(base_dir, "models", "frozen_inference_graph.pb") 
             pbtxt_path = os.path.join(base_dir, "models", "ssd_mobilenet_v3_large_coco_2020_01_14.pbtxt")
 
-            # Check if using the exact filenames from download script if name changed slightly
             if not os.path.exists(pb_path):
-                 # Try searching for any .pb file in models
-                 for f in os.listdir(os.path.join(base_dir, "models")):
-                     if f.endswith(".pb"):
-                         pb_path = os.path.join(base_dir, "models", f)
-                         break
-
-            if not os.path.exists(pb_path) or not os.path.exists(pbtxt_path):
-                print(f"⚠️ Model files not found at {pb_path} or {pbtxt_path}.")
-                print("Run 'python opencv-service/download_tf_model.py' to fetch them.")
-                return
+                 print(f"⚠️ Model binary not found at {pb_path}.")
+                 return
 
             print(f"🧠 Loading TensorFlow Neural Network from {pb_path}...", flush=True)
-            self.net = cv2.dnn.readNetFromTensorflow(pb_path, pbtxt_path)
             
+            if os.path.exists(pbtxt_path):
+                self.net = cv2.dnn.readNetFromTensorflow(pb_path, pbtxt_path)
+            else:
+                 print(f"⚠️ Pbtxt not found at {pbtxt_path}. Trying config-less load...")
+                 self.net = cv2.dnn.readNetFromTensorflow(pb_path)
+
             # Use CUDA if available (optional, fallbacks to CPU)
             try:
                 self.net.setPreferableBackend(cv2.dnn.DNN_BACKEND_CUDA)
@@ -227,7 +155,7 @@ class ParkingLotMonitor:
             if self.camera_id:
                 url += f"?cameraId={self.camera_id}"
                 
-            response = requests.get(url)
+            response = requests.get(url, timeout=10)
             
             if response.status_code != 200:
                 print(f"❌ Failed to fetch config for {self.lot_id}: {response.status_code}", flush=True)
@@ -235,30 +163,20 @@ class ParkingLotMonitor:
             
             data = response.json()
             
-            # Extract camera URL for this specific camera
-            if self.camera_id:
-                # If we have a cameraId, look for that camera's specific URL if returned, 
-                # or default to the lot's cameraUrl
-                self.camera_url = data.get("cameraUrl") # Lot default
-                # Check if camera details are provided in the response
-                cameras = data.get("cameras", [])
-                for cam in cameras:
-                    if cam.get("id") == self.camera_id and cam.get("url"):
-                        self.camera_url = cam.get("url")
-            else:
-                self.camera_url = data.get("cameraUrl")
-
-            # Override with manual configuration if set in main.py
-            # New multi-camera URL system - check for camera-specific URL
-            manual_url = get_manual_camera_url(self.camera_id)
+            # 1. Check for Manual Override FIRST
+            manual_url = get_manual_url(self.camera_id)
             if manual_url:
                 self.camera_url = manual_url
-                print(f"📹 Using Manual Camera URL (Camera {self.camera_id}): {self.camera_url}", flush=True)
-            elif self.camera_url:
-                print(f"🗄️ Using Database Camera URL: {self.camera_url}", flush=True)
+                print(f"📹 Using Manual Camera URL for {self.camera_id}: {self.camera_url}")
+            else:
+                # 2. Fallback to API URL
+                self.camera_url = data.get("cameraUrl")
+                if self.camera_url:
+                    print(f"🌍 Using Database/API Camera URL: {self.camera_url}")
 
-            if not self.camera_url:
-                print(f"❌ No camera URL found for {self.lot_id}/{self.camera_id}", flush=True)
+            # Validate URL
+            if not self.camera_url or not isinstance(self.camera_url, str):
+                print(f"❌ No valid camera URL found for {self.lot_id}/{self.camera_id} (Manual or API)", flush=True)
                 return False
 
             self.slots = data.get("slots", [])
@@ -305,6 +223,7 @@ class ParkingLotMonitor:
         print(f"🔍 Checking camera health for {self.lot_id} ({self.camera_url})...")
         try:
             # Try to open a stream connection with a short timeout
+            # Note: OpenCV doesn't respect timeouts easily for streams, but we can try opening.
             cap = cv2.VideoCapture(self.camera_url)
             if not cap.isOpened():
                 print(f"❌ Camera offline: {self.camera_url} (Unable to open stream)")
@@ -330,35 +249,51 @@ class ParkingLotMonitor:
         
         # Verify camera before starting loop
         if not self.check_camera_health():
-            print(f"⚠️ specific camera {self.camera_url} failed health check. Retrying in loop...")
+             print(f"⚠️ Camera {self.camera_url} failed initial health check. Will retry in loop...")
         
         self.cap = cv2.VideoCapture(self.camera_url)
         
         print(f"👁️ Starting AI Vision Analysis (Google TF Model) for {self.lot_id}")
 
-        # Simple reconnection loop
         while self.running:
             if not self.cap.isOpened():
-                print(f"🔄 Reconnecting camera for {self.lot_id}...")
+                print(f"🔄 Camera disconnected for {self.lot_id}. Retrying connection...")
                 self.cap.release()
-                time.sleep(2)
-                self.cap = cv2.VideoCapture(self.camera_url)
+                time.sleep(5)  # Wait before retry
+                try:
+                    self.cap = cv2.VideoCapture(self.camera_url)
+                except Exception as e:
+                     print(f"❌ Connection attempt failed: {e}")
+                
                 if not self.cap.isOpened():
+                    time.sleep(5)
                     continue
+                else:
+                    print(f"✅ Reconnected to camera for {self.lot_id}")
 
             ret, frame = self.cap.read()
             if not ret:
-                print(f"⚠️ Failed to read frame for {self.lot_id}")
-                time.sleep(0.5)
+                # print(f"⚠️ Failed to read frame for {self.lot_id}")
+                self.consecutive_errors += 1
+                if self.consecutive_errors > 60: # If failed for ~2-3 seconds continuous (assuming 20-30fps loop speed)
+                     print(f"⚠️ Too many read errors. Reinitializing connection...")
+                     self.cap.release()
+                     self.consecutive_errors = 0
+                     time.sleep(2)
+                     try:
+                        self.cap = cv2.VideoCapture(self.camera_url)
+                     except: pass
+                time.sleep(0.1)
                 continue
+            
+            self.consecutive_errors = 0
 
             # Process frame for detection
             if self.model_loaded:
                 processed_frame = self.detect_dnn(frame)
             else:
-                # Fallback or just show frame if model missing
                 processed_frame = frame.copy()
-                # Text overlay removed as per user request
+                cv2.putText(processed_frame, "MODEL LOADING...", (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
             
             with self.lock:
                 self.last_frame = processed_frame
@@ -378,8 +313,6 @@ class ParkingLotMonitor:
         (h, w) = frame.shape[:2]
         
         # Prepare input blob 
-        # SSD MobileNet V3 expects 320x320 or 300x300 usually. 
-        # swapRB=True, crop=False.
         blob = cv2.dnn.blobFromImage(frame, size=(300, 300), swapRB=True, crop=False)
 
         self.net.setInput(blob)
@@ -389,7 +322,6 @@ class ParkingLotMonitor:
         vehicle_centroids = []
         
         # Loop over the detections
-        # shape: [1, 1, N, 7]
         for i in range(detections.shape[2]):
             confidence = detections[0, 0, i, 2]
 
@@ -407,14 +339,13 @@ class ParkingLotMonitor:
                     cY = int((startY + endY) / 2)
                     vehicle_centroids.append((cX, cY))
 
-                    # Draw bounding box (Green for vehicle)
+                    # Draw bounding box
                     cv2.rectangle(overlay, (startX, startY), (endX, endY), (0, 255, 0), 2)
                     y = startY - 15 if startY - 15 > 15 else startY + 15
                     cv2.putText(overlay, f"{label}: {confidence:.2f}", (startX, y),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
 
         # Check occupancy against slots
-        # Map slots to current frame coordinates
         REF_W, REF_H = 1920, 1080 
         scale_x = w / REF_W
         scale_y = h / REF_H
@@ -424,7 +355,7 @@ class ParkingLotMonitor:
         for slot in self.slots:
             slot_id = slot.get("slotNumber") or slot.get("number") or "Unknown"
             
-            # 1. Map Coordinates
+            # Map Coordinates
             raw_x = slot.get("x") or 0
             raw_y = slot.get("y") or 0
             raw_w = slot.get("width") or 100
@@ -436,7 +367,7 @@ class ParkingLotMonitor:
             sh = int(raw_h * scale_y)
 
             # Define Slot ROI
-            slot_roi = (sx, sy, sw, sh)
+            # slot_roi = (sx, sy, sw, sh)
             
             is_occupied = False
             
@@ -449,25 +380,12 @@ class ParkingLotMonitor:
             if is_occupied:
                 occupied_count += 1
                 current_status[slot_id] = "OCCUPIED"
-                # Red rectangle and text removed as per user request
+                cv2.rectangle(overlay, (sx, sy), (sx + sw, sy + sh), (0, 0, 255), 2) # Red for occupied
             else:
                 current_status[slot_id] = "AVAILABLE"
-                # Highlight available slot (optional, maybe faint green)
-                # cv2.rectangle(overlay, (sx, sy), (sx + sw, sy + sh), (0, 255, 0), 1)
+                cv2.rectangle(overlay, (sx, sy), (sx + sw, sy + sh), (0, 255, 0), 1) # Green for available
 
         # --- GLOBAL OVERLAYS (HUD) ---
-        # 1. SYSTEM STATUS
-        cv2.rectangle(overlay, (20, 20), (280, 70), (20, 20, 20), -1)
-        cv2.rectangle(overlay, (20, 20), (280, 70), (0, 255, 255), 2)
-        
-        # Pulsing effect
-        pulse = abs(np.sin(time.time() * 2))
-        cv2.circle(overlay, (40, 45), 6, (0, 255, 255), -1 if pulse > 0.5 else 1)
-        
-        cv2.putText(overlay, "AI VISION: ACTIVE", (60, 50), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
-        cv2.putText(overlay, "MODEL: TF-MobileNetV3", (60, 75), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (200, 200, 200), 1)
-
-        # 2. Occupancy Counter
         cv2.putText(overlay, f"CARS DETECTED: {len(vehicle_centroids)}", (20, h - 60), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2)
         cv2.putText(overlay, f"OCCUPIED SLOTS: {occupied_count}", (20, h - 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
 
@@ -488,7 +406,6 @@ class ParkingLotMonitor:
         }
         
         try:
-            # CORRECT API ENDPOINT
             url = f"{self.api_url}/api/internal/slots/update"
             requests.post(url, json=payload, timeout=5)
             # print(f"✅ Posted update for {self.lot_id}", flush=True) 
@@ -568,4 +485,5 @@ def health():
 if __name__ == "__main__":
     print(f"🚀 Python Multi-Camera Service starting...")
     print(f"🔗 API URL: {NEXTJS_API_URL}")
+    print(f"📹 Manual Camera URLs Loaded: {len(MANUAL_CAMERA_URLS)}")
     app.run(host="0.0.0.0", port=PYTHON_SERVICE_PORT, debug=False, threaded=True)

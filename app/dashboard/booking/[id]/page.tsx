@@ -45,6 +45,34 @@ export default function BookingPage({ params }: { params: { id: string } }) {
   const [bookingDate, setBookingDate] = useState(new Date().toISOString().split("T")[0])
   const [bookingTime, setBookingTime] = useState("09:50")
   const [errors, setErrors] = useState<Record<string, string>>({})
+  const [aiSuggestion, setAiSuggestion] = useState<{message: string | null, suggestedDurationHrs: number, hasOptimized: boolean} | null>(null)
+
+  // AI Duration Predictor
+  useEffect(() => {
+    const fetchPrediction = async () => {
+      try {
+        const res = await fetch('/api/predict-duration', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({
+            intendedDurationHrs: hours,
+            targetTime: `${bookingDate}T${bookingTime}`,
+            parkingLotId: parkingAreaId
+          })
+        });
+        const data = await res.json();
+        setAiSuggestion(data);
+      } catch (e) {
+        console.error("AI Prediction failed", e);
+      }
+    };
+    
+    if (hours > 2 && bookingDate && bookingTime && parkingAreaId) {
+      fetchPrediction();
+    } else {
+      setAiSuggestion(null);
+    }
+  }, [hours, bookingDate, bookingTime, parkingAreaId]);
 
   // Prevent direct access without slot selection
   useEffect(() => {
@@ -310,6 +338,22 @@ export default function BookingPage({ params }: { params: { id: string } }) {
                     </Button>
                   ))}
                 </div>
+                {aiSuggestion?.hasOptimized && aiSuggestion.message && (
+                  <div className="mt-4 p-3 bg-indigo-900/30 border border-indigo-500/50 rounded-md flex items-start gap-2 text-indigo-200 text-sm animate-in fade-in duration-300">
+                    <AlertCircle className="h-5 w-5 shrink-0 text-indigo-400" />
+                    <div>
+                      <span className="font-semibold block text-indigo-300">AI Optimization Suggestion</span>
+                      {aiSuggestion.message}
+                      <Button 
+                        variant="link" 
+                        className="p-0 h-auto text-indigo-400 hover:text-indigo-300 ml-2 font-bold"
+                        onClick={() => setHours(aiSuggestion.suggestedDurationHrs)}
+                      >
+                        Apply {aiSuggestion.suggestedDurationHrs}h
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </motion.div>

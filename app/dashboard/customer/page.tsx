@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 interface CustomerSlotState {
   total: number
   available: number
+  currentPrice?: number
 }
 
 export default function CustomerDashboard() {
@@ -123,17 +124,26 @@ export default function CustomerDashboard() {
             </CardHeader>
             <CardContent>
               <div className="space-y-2">
-                <div className="flex justify-between">
-                  <span className="text-gray-400">Hourly Rate:</span>
-                  <span className="text-[#7C3AED] font-semibold">$2.50/hr</span>
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-400">Current Dynamic Rate:</span>
+                  <div className="flex items-center gap-2">
+                    {slotState?.total !== slotState?.available && (
+                      <span className="text-xs text-orange-400 border border-orange-400/30 bg-orange-400/10 px-2 py-0.5 rounded-full animate-pulse">
+                        SURGE ACTIVE
+                      </span>
+                    )}
+                    <span className="text-[#7C3AED] font-semibold text-lg">
+                      ₹{slotState?.currentPrice || 50}/hr
+                    </span>
+                  </div>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-400">Daily Maximum:</span>
-                  <span className="text-[#7C3AED] font-semibold">$15.00</span>
+                  <span className="text-[#7C3AED] font-semibold">₹{(slotState?.currentPrice || 50) * 6}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-400">EV Charging:</span>
-                  <span className="text-[#7C3AED] font-semibold">+$1.00/hr</span>
+                  <span className="text-[#7C3AED] font-semibold">+₹20/hr</span>
                 </div>
               </div>
             </CardContent>

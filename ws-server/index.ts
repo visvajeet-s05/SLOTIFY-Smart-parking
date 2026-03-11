@@ -28,7 +28,8 @@ type SlotUpdate = {
 };
 
 
-const PORT = 4000;
+// Railway injects $PORT automatically in production; fallback to 4000 for local dev
+const PORT = parseInt(process.env.PORT || '4000', 10);
 
 
 // Create HTTP server for health checks and broadcasting

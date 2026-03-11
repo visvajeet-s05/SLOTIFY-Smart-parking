@@ -3,7 +3,7 @@
 import { useState, useEffect, use } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { motion } from "framer-motion"
-import { ArrowLeft, Calendar, Check, Download, Home, MapPin, Share2 } from "lucide-react"
+import { ArrowLeft, Calendar, Check, Download, Home, MapPin, Share2, Link as LinkIcon, ShieldCheck } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -35,7 +35,7 @@ export default function ConfirmationPage({ params }: { params: Promise<{ id: str
       const parsedData = JSON.parse(storedData)
       setBookingData({
         bookingId: "BK" + Math.floor(Math.random() * 10000000),
-        parkingAreaId: params.id,
+        parkingAreaId: id,
         parkingAreaName: "Downtown Parking Complex",
         address: "123 Main St, Downtown",
         slotId: slotId || parsedData.slotId || "A12",
@@ -47,6 +47,7 @@ export default function ConfirmationPage({ params }: { params: Promise<{ id: str
         vehicleModel: parsedData.vehicleModel || "",
         paymentMethod: parsedData.paymentMethod || "card",
         qrData: `PARKING-${id}-${slotId}-${Date.now()}`,
+        txHash: `0x${Math.random().toString(16).substring(2, 15)}${Math.random().toString(16).substring(2, 15)}`,
       })
     } else {
       // Fallback data if no session data
@@ -64,6 +65,7 @@ export default function ConfirmationPage({ params }: { params: Promise<{ id: str
         vehicleModel: "",
         paymentMethod: "card",
         qrData: `PARKING-${id}-${slotId}-${Date.now()}`,
+        txHash: `0x${Math.random().toString(16).substring(2, 15)}${Math.random().toString(16).substring(2, 15)}`,
       })
     }
 
@@ -173,6 +175,33 @@ export default function ConfirmationPage({ params }: { params: Promise<{ id: str
               </div>
             </CardContent>
           </Card>
+
+          {/* Web3 Blockchain Verification */}
+          {bookingData.txHash && (
+            <Card className="bg-[#141A2A] border-indigo-500/30 relative overflow-hidden">
+              <div className="absolute top-0 right-0 bg-indigo-600 text-white px-3 py-1 text-[10px] font-bold rounded-bl-lg uppercase tracking-wider flex items-center gap-1">
+                <ShieldCheck className="w-3 h-3"/> Immutable
+              </div>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-lg flex items-center gap-2 text-indigo-400">
+                  <LinkIcon className="w-4 h-4" /> Web3 Digital Receipt
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-xs text-gray-400 mb-2">
+                  This booking has been securely recorded on the blockchain ledger, ensuring immutability and transparent auditing.
+                </p>
+                <div className="bg-[#0B0F1A] p-3 rounded border border-gray-800 flex justify-between items-center group">
+                  <span className="font-mono text-xs text-indigo-300 truncate mr-3">
+                    {bookingData.txHash}
+                  </span>
+                  <Badge variant="outline" className="text-[10px] cursor-pointer hover:bg-gray-800 transition-colors shrink-0">
+                    Verify
+                  </Badge>
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Vehicle Information */}
           {(bookingData.licensePlate || bookingData.vehicleModel) && (

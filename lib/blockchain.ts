@@ -1,28 +1,24 @@
-import { ethers } from "ethers";
+import crypto from 'crypto';
 
-export const CHAINS = {
-  polygon: {
-    id: 137,
-    rpc: "https://polygon-rpc.com",
-    contract: "0xPOLYGON_CONTRACT"
-  },
-  arbitrum: {
-    id: 42161,
-    rpc: "https://arb1.arbitrum.io/rpc",
-    contract: "0xARBITRUM_CONTRACT"
-  },
-  base: {
-    id: 8453,
-    rpc: "https://mainnet.base.org",
-    contract: "0xBASE_CONTRACT"
-  }
-};
+/**
+ * SIMULATED BLOCKCHAIN INTEGRATION
+ * For academic research and demonstration purposes.
+ * Generates an immutable SHA-256 hash representing a Web3 Smart Contract transaction.
+ */
 
-export function getChainForRegion(userRegion: string) {
-  return userRegion === "US" ? "base" : "polygon";
+export interface TransactionPayload {
+  bookingId: string;
+  userId: string;
+  parkingLotId: string;
+  amount: number;
+  timestamp: string;
 }
 
-export async function getProvider(chain: string) {
-  const config = CHAINS[chain as keyof typeof CHAINS];
-  return new ethers.JsonRpcProvider(config.rpc);
+export function generateBlockchainTransaction(payload: TransactionPayload): string {
+  // Generate a mock Ethereum-style Hex Hash
+  const rawString = JSON.stringify(payload) + process.env.BLOCKCHAIN_SALT || 'salt';
+  const hash = crypto.createHash('sha256').update(rawString).digest('hex');
+  
+  // Format as a pseudo-Ethereum address/hash 0x...
+  return `0x${hash}`;
 }

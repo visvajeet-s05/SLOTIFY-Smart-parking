@@ -12,6 +12,11 @@ const nextConfig = {
         hostname: 'localhost',
         port: '',
       },
+      // Railway deployment domains
+      {
+        protocol: 'https',
+        hostname: '*.up.railway.app',
+      },
       {
         protocol: 'https',
         hostname: 'yourdomain.com',

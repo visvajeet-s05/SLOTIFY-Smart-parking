@@ -4,3 +4,7 @@ opencv-python-headless
 numpy
 requests
 ultralytics
+scikit-learn
+pandas
+mysql-connector-python
+python-dotenv

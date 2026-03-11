@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
+import { generateBlockchainTransaction } from "@/lib/blockchain"
 
 export async function POST(req: NextRequest) {
     try {
@@ -17,13 +18,25 @@ export async function POST(req: NextRequest) {
             data: { status: "ACTIVE" } // or UPCOMING/CONFIRMED
         })
 
-        // 2. Update Payment Status -> PAID (if not already handled by webhook)
-        // Ideally handled by webhook, but for direct flow:
+        // 2. Generate Blockchain Transaction Hash & Update Payment Status
+        // Simulate Web3 Ledger Interaction
+        const txHash = generateBlockchainTransaction({
+            bookingId: bookingId,
+            userId: "USER_SIMULATION",
+            parkingLotId: parkingLotId || "UNKNOWN",
+            amount: 50.0, // Default simulation amount
+            timestamp: new Date().toISOString()
+        });
+
         if (paymentId) {
             try {
                 await prisma.payment.update({
-                    where: { bookingId: bookingId }, // Assuming 1:1 relation or finding by stripeId
-                    data: { status: "PAID", confirmedAt: new Date() }
+                    where: { bookingId: bookingId }, 
+                    data: { 
+                        status: "PAID", 
+                        confirmedAt: new Date(),
+                        txHash: txHash
+                    }
                 })
             } catch (e) {
                 console.warn("Could not update payment status (might already be updated)", e)

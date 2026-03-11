@@ -18,7 +18,8 @@ export default function OwnerCameraView({ parkingLotId }: OwnerCameraViewProps) 
     const [activeCameraId, setActiveCameraId] = useState<string | null>(null)
     const { isConnected: wsConnected, lastMessage } = useOwnerWS()
 
-    const AI_SERVICE_URL = process.env.NEXT_PUBLIC_AI_SERVICE_URL || "http://localhost:5000"
+    // Use dynamic hostname to support LAN access (e.g. 192.168.x.x)
+    const AI_SERVICE_URL = process.env.NEXT_PUBLIC_AI_SERVICE_URL || (typeof window !== "undefined" ? `http://${window.location.hostname}:5000` : "http://localhost:5000")
 
     useEffect(() => {
         if (!parkingLotId) return

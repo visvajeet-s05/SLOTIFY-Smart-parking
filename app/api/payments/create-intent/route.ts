@@ -71,6 +71,26 @@ export async function POST(req: NextRequest) {
         const startTime = new Date()
         const endTime = new Date(startTime.getTime() + duration * 60 * 60 * 1000)
 
+        // Strict Time-Overlap Check: Prevent multiple concurrent checkouts for the same exact slot
+        const conflictingBooking = await prisma.booking.findFirst({
+            where: {
+                slotId: slotId,
+                status: { in: ["ACTIVE", "UPCOMING"] },
+                startTime: { lt: endTime },
+                endTime: { gt: startTime }
+            }
+        })
+
+        if (conflictingBooking) {
+            return new NextResponse(
+                JSON.stringify({ 
+                    error: "Slot Unavailable", 
+                    message: "Someone else is currently booking this slot for the selected time. Please choose another." 
+                }), 
+                { status: 409, headers: { "Content-Type": "application/json" } }
+            )
+        }
+
         // Fetch parking lot owner
         const parkingLot = await prisma.parkinglot.findUnique({
             where: { id: parkingLotId },

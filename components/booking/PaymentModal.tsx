@@ -9,7 +9,10 @@ import {
     ShieldCheck,
     Clock,
     Car,
-    Receipt,
+    ScrollText,
+    Wallet,
+    Building2,
+    Smartphone,
     QrCode,
     Tag,
     X,
@@ -253,6 +256,7 @@ function CheckoutContent({
     const [licensePlate, setLicensePlate] = useState("")
     const [vehicleModel, setVehicleModel] = useState("")
     const [isLoadingProfile, setIsLoadingProfile] = useState(true)
+    const [selectedMethod, setSelectedMethod] = useState<"card" | "upi" | "netbanking" | null>(null)
 
     useEffect(() => {
         if (typeof window !== "undefined") {
@@ -282,7 +286,19 @@ function CheckoutContent({
     const handlePayment = async (e: React.FormEvent) => {
         e.preventDefault()
 
-        if (!isMock && (!stripe || !elements)) return
+        const isCurrentFlowMock = isMock || selectedMethod === "upi" || selectedMethod === "netbanking"
+
+        console.log("[PAYMENT] Handle payment triggered", { isMock, isCurrentFlowMock, hasStripe: !!stripe, hasElements: !!elements })
+
+        if (!isCurrentFlowMock && (!stripe || !elements)) {
+            console.error("[PAYMENT] Stripe or Elements missing")
+            toast({
+                title: "Payment configuration error",
+                description: "Stripe has not initialized correctly. Please refresh or check configuration.",
+                variant: "destructive"
+            })
+            return
+        }
 
         // Auto-fill defaults for testing if empty to ensure flow isn't blocked
         const plateToUse = licensePlate || "TN-EX-9999"
@@ -291,8 +307,8 @@ function CheckoutContent({
         setIsProcessing(true)
 
         // --- MOCK FLOW ---
-        if (isMock) {
-            console.log("[MOCK PAYMENT] Starting mock payment flow", { bookingId, slotId, parkingLotId })
+        if (isCurrentFlowMock) {
+            console.log("[MOCK PAYMENT] Starting mock payment flow", { bookingId, slotId, parkingLotId, selectedMethod })
             setTimeout(async () => {
                 try {
                     console.log("[MOCK PAYMENT] Processing payment confirmation...")
@@ -448,6 +464,11 @@ function CheckoutContent({
                     console.log("Payment requires action - UI should have updated or redirected.")
                 } else {
                     console.log("Unexpected status:", status)
+                    toast({
+                        title: "Payment Status Unknown",
+                        description: `Status: ${status}. Please check your dashboard or try again.`,
+                        variant: "default" // or warning
+                    })
                 }
             }
         } catch (err) {
@@ -475,7 +496,7 @@ function CheckoutContent({
                     {/* Left Side: Summary */}
                     <div className="lg:w-1/3 bg-slate-900/80 p-6 border-r border-slate-800/50 overflow-y-auto">
                         <h3 className="text-lg font-semibold mb-6 flex items-center gap-2 text-white">
-                            <Receipt className="w-5 h-5 text-cyan-400" />
+                            <ScrollText className="w-5 h-5 text-cyan-400" />
                             Booking Summary
                         </h3>
 
@@ -583,68 +604,163 @@ function CheckoutContent({
                             {/* Payment Element */}
                             <div className="space-y-4 pt-4 border-t border-white/5">
                                 <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] flex items-center gap-2">
-                                    <CreditCard className="w-3 h-3" />
-                                    Payment Details
+                                    <Wallet className="w-3 h-3" />
+                                    Payment Method
                                 </h3>
 
-                                {isMock ? (
-                                    <div className="bg-slate-900/50 p-6 rounded-xl border border-dashed border-emerald-500/30 relative overflow-hidden group">
-                                        <div className="absolute top-2 right-2 bg-emerald-500/90 text-black text-[10px] font-black px-2 py-0.5 rounded shadow-lg uppercase tracking-widest z-10">SANDBOX ENV</div>
-                                        <div className="space-y-4 opacity-75 grayscale transition-all group-hover:grayscale-0">
-                                            <div className="space-y-2">
-                                                <Label className="text-xs text-slate-500">Card Number</Label>
-                                                <div className="h-12 bg-[#0B0E14] border border-slate-800 rounded flex items-center px-4 font-mono text-slate-400">
-                                                    xxxx xxxx xxxx 4242
-                                                </div>
+                                {!selectedMethod ? (
+                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3 animate-in fade-in zoom-in-95 duration-500 pt-2">
+                                        <button 
+                                            type="button"
+                                            onClick={() => setSelectedMethod("upi")}
+                                            className="p-5 bg-slate-900/40 hover:bg-[#06b6d4]/10 border border-white/5 hover:border-[#06b6d4]/50 rounded-2xl flex flex-col items-center justify-center gap-3 transition-all group shadow-sm hover:shadow-[0_0_20px_rgba(6,182,212,0.15)] focus:ring-2 focus:ring-[#06b6d4] focus:outline-none"
+                                        >
+                                            <div className="w-12 h-12 rounded-full bg-[#06b6d4]/10 flex items-center justify-center group-hover:scale-110 transition-transform shadow-inner">
+                                                <Smartphone className="w-6 h-6 text-[#06b6d4]" />
                                             </div>
-                                            <div className="grid grid-cols-2 gap-4">
-                                                <div className="space-y-2">
-                                                    <Label className="text-xs text-slate-500">Expiry</Label>
-                                                    <div className="h-12 bg-[#0B0E14] border border-slate-800 rounded flex items-center px-4 font-mono text-slate-400">
-                                                        12/28
-                                                    </div>
-                                                </div>
-                                                <div className="space-y-2">
-                                                    <Label className="text-xs text-slate-500">CVC</Label>
-                                                    <div className="h-12 bg-[#0B0E14] border border-slate-800 rounded flex items-center px-4 font-mono text-slate-400">
-                                                        •••
-                                                    </div>
-                                                </div>
+                                            <span className="text-sm font-bold text-white group-hover:text-[#06b6d4] transition-colors">UPI / GPay</span>
+                                        </button>
+
+                                        <button 
+                                            type="button"
+                                            onClick={() => setSelectedMethod("card")}
+                                            className="p-5 bg-slate-900/40 hover:bg-blue-500/10 border border-white/5 hover:border-blue-500/50 rounded-2xl flex flex-col items-center justify-center gap-3 transition-all group shadow-sm hover:shadow-[0_0_20px_rgba(59,130,246,0.15)] focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                                        >
+                                            <div className="w-12 h-12 rounded-full bg-blue-500/10 flex items-center justify-center group-hover:scale-110 transition-transform shadow-inner">
+                                                <CreditCard className="w-6 h-6 text-blue-400" />
                                             </div>
-                                        </div>
-                                        <p className="text-center text-xs text-emerald-500/80 mt-4 font-bold uppercase tracking-widest animate-pulse">
-                                            Secure Sandbox Channel Active
-                                        </p>
+                                            <span className="text-sm font-bold text-white group-hover:text-blue-400 transition-colors">Credit Card</span>
+                                        </button>
+
+                                        <button 
+                                            type="button"
+                                            onClick={() => setSelectedMethod("netbanking")}
+                                            className="p-5 bg-slate-900/40 hover:bg-purple-500/10 border border-white/5 hover:border-purple-500/50 rounded-2xl flex flex-col items-center justify-center gap-3 transition-all group shadow-sm hover:shadow-[0_0_20px_rgba(168,85,247,0.15)] focus:ring-2 focus:ring-purple-500 focus:outline-none"
+                                        >
+                                            <div className="w-12 h-12 rounded-full bg-purple-500/10 flex items-center justify-center group-hover:scale-110 transition-transform shadow-inner">
+                                                <Building2 className="w-6 h-6 text-purple-400" />
+                                            </div>
+                                            <span className="text-sm font-bold text-white group-hover:text-purple-400 transition-colors">Net Banking</span>
+                                        </button>
                                     </div>
                                 ) : (
-                                    <div className="bg-slate-900/50 p-4 rounded-xl border border-white/5 space-y-4">
-                                        <LinkAuthenticationElement
-                                            options={{ defaultValues: { email: session?.user?.email || "" } }}
-                                        />
-                                        <PaymentElement options={{ layout: "tabs" }} />
+                                    <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500 pt-2">
+                                        <div className="flex items-center justify-between bg-slate-900/40 p-3 rounded-xl border border-white/5 backdrop-blur-sm">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center">
+                                                    {selectedMethod === "card" ? <CreditCard className="w-4 h-4 text-blue-400" /> : 
+                                                     selectedMethod === "upi" ? <Smartphone className="w-4 h-4 text-[#06b6d4]" /> : 
+                                                     <Building2 className="w-4 h-4 text-purple-400" />}
+                                                </div>
+                                                <span className="text-sm font-bold text-white">
+                                                    {selectedMethod === "card" ? "Credit / Debit Card" : 
+                                                     selectedMethod === "upi" ? "UPI / GPay" : "Net Banking"}
+                                                </span>
+                                            </div>
+                                            <button 
+                                                type="button" 
+                                                onClick={() => setSelectedMethod(null)}
+                                                className="text-xs font-bold text-slate-400 hover:text-white transition-colors bg-slate-800 hover:bg-slate-700 px-3 py-1.5 rounded-lg border border-white/5"
+                                            >
+                                                Change
+                                            </button>
+                                        </div>
+
+                                        {selectedMethod === "upi" ? (
+                                            <div className="bg-slate-900/50 p-6 rounded-xl border border-dashed border-[#06b6d4]/30 relative overflow-hidden group">
+                                                <div className="space-y-5 relative z-10">
+                                                    <div className="space-y-2">
+                                                        <Label className="text-xs font-bold text-slate-400 ml-1">Enter your UPI ID</Label>
+                                                        <Input 
+                                                            placeholder="example@upi" 
+                                                            className="h-12 bg-[#0B0E14] border-slate-800 text-white placeholder:text-slate-600 focus:border-[#06b6d4]/50 focus:ring-1 focus:ring-[#06b6d4]/50 transition-all font-mono tracking-wider"
+                                                            required
+                                                        />
+                                                    </div>
+                                                    <div className="bg-[#06b6d4]/10 border border-[#06b6d4]/20 p-3 rounded-lg flex items-start gap-3">
+                                                        <Smartphone className="w-5 h-5 text-[#06b6d4] shrink-0 mt-0.5" />
+                                                        <p className="text-xs text-[#06b6d4]/80 leading-relaxed font-medium">You will receive a secure payment request on your registered UPI application (GPay, PhonePe, Paytm).</p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ) : selectedMethod === "netbanking" ? (
+                                            <div className="bg-slate-900/50 p-6 rounded-xl border border-dashed border-purple-500/30 relative overflow-hidden group">
+                                                <div className="space-y-5 relative z-10">
+                                                    <div className="space-y-2">
+                                                        <Label className="text-xs font-bold text-slate-400 ml-1">Select your Bank</Label>
+                                                        <select className="w-full h-12 bg-[#0B0E14] border border-slate-800 rounded-lg px-4 text-slate-200 focus:border-purple-500/50 outline-none hover:border-slate-700 transition-colors cursor-pointer appearance-none font-medium">
+                                                            <option>HDFC Bank</option>
+                                                            <option>State Bank of India</option>
+                                                            <option>ICICI Bank</option>
+                                                            <option>Axis Bank</option>
+                                                            <option>Kotak Mahindra Bank</option>
+                                                        </select>
+                                                    </div>
+                                                    <div className="bg-purple-500/10 border border-purple-500/20 p-3 rounded-lg flex items-start gap-3">
+                                                        <ShieldCheck className="w-5 h-5 text-purple-400 shrink-0 mt-0.5" />
+                                                        <p className="text-xs text-purple-400/80 leading-relaxed font-medium">You will be securely redirected to your bank's portal to authorize this payment.</p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ) : isMock ? (
+                                            <div className="bg-slate-900/50 p-6 rounded-xl border border-dashed border-blue-500/30 relative overflow-hidden group">
+                                                <div className="absolute top-2 right-2 bg-blue-500/90 text-black text-[10px] font-black px-2 py-0.5 rounded shadow-lg uppercase tracking-widest z-10">SANDBOX ENV</div>
+                                                <div className="space-y-4 opacity-75 grayscale transition-all group-hover:grayscale-0">
+                                                    <div className="space-y-2">
+                                                        <Label className="text-xs text-slate-500">Card Number</Label>
+                                                        <div className="h-12 bg-[#0B0E14] border border-slate-800 rounded flex items-center px-4 font-mono text-slate-400">
+                                                            xxxx xxxx xxxx 4242
+                                                        </div>
+                                                    </div>
+                                                    <div className="grid grid-cols-2 gap-4">
+                                                        <div className="space-y-2">
+                                                            <Label className="text-xs text-slate-500">Expiry</Label>
+                                                            <div className="h-12 bg-[#0B0E14] border border-slate-800 rounded flex items-center px-4 font-mono text-slate-400">
+                                                                12/28
+                                                            </div>
+                                                        </div>
+                                                        <div className="space-y-2">
+                                                            <Label className="text-xs text-slate-500">CVC</Label>
+                                                            <div className="h-12 bg-[#0B0E14] border border-slate-800 rounded flex items-center px-4 font-mono text-slate-400">
+                                                                •••
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            <div className="bg-slate-900/50 p-4 rounded-xl border border-white/5 space-y-4">
+                                                <LinkAuthenticationElement
+                                                    options={{ defaultValues: { email: session?.user?.email || "" } }}
+                                                />
+                                                <PaymentElement options={{ layout: "tabs" }} />
+                                            </div>
+                                        )}
+
+                                        <div className="pt-6">
+                                            {selectedMethod && (
+                                                <Button
+                                                    type="submit"
+                                                    disabled={(!stripe && !isMock && selectedMethod === "card") || isProcessing}
+                                                    className="w-full h-14 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-black text-lg rounded-2xl shadow-[0_10px_30px_rgba(6,182,212,0.3)] transition-all hover:scale-[1.02] active:scale-95 disabled:grayscale"
+                                                >
+                                                    {isProcessing ? (
+                                                        <span className="flex items-center gap-3">
+                                                            <Loader2 className="w-5 h-5 animate-spin" />
+                                                            Processing Securely...
+                                                        </span>
+                                                    ) : (
+                                                        `Pay Now • ₹${total}`
+                                                    )}
+                                                </Button>
+                                            )}
+                                            <p className="text-center text-[10px] text-slate-600 mt-4 flex items-center justify-center gap-2 font-bold uppercase tracking-widest">
+                                                <ShieldCheck size={10} className="text-emerald-600" />
+                                                PCI-DSS Compliant Secure Checkout
+                                            </p>
+                                        </div>
                                     </div>
                                 )}
-
-                                <div className="pt-6">
-                                    <Button
-                                        type="submit"
-                                        disabled={(!stripe && !isMock) || isProcessing}
-                                        className="w-full h-14 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-black text-lg rounded-2xl shadow-[0_10px_30px_rgba(6,182,212,0.3)] transition-all hover:scale-[1.02] active:scale-95 disabled:grayscale"
-                                    >
-                                        {isProcessing ? (
-                                            <span className="flex items-center gap-3">
-                                                <Loader2 className="w-5 h-5 animate-spin" />
-                                                Processing Securely...
-                                            </span>
-                                        ) : (
-                                            `Pay Now • ₹${total}`
-                                        )}
-                                    </Button>
-                                    <p className="text-center text-[10px] text-slate-600 mt-4 flex items-center justify-center gap-2 font-bold uppercase tracking-widest">
-                                        <ShieldCheck size={10} className="text-emerald-600" />
-                                        PCI-DSS Compliant Secure Checkout
-                                    </p>
-                                </div>
                             </div>
                         </form>
                     </div>
@@ -728,32 +844,37 @@ function CheckoutContent({
                                         </h3>
                                     </div>
 
-                                    {/* Placeholder Map */}
-                                    <div className="absolute inset-0 bg-[#0f1219] flex items-center justify-center">
-                                        {/* Grid Pattern */}
-                                        <div className="absolute inset-0 opacity-10" style={{
-                                            backgroundImage: "linear-gradient(#334155 1px, transparent 1px), linear-gradient(90deg, #334155 1px, transparent 1px)",
-                                            backgroundSize: "40px 40px"
-                                        }}></div>
-
-                                        {/* Animated Marker */}
-                                        <div className="relative z-10 flex flex-col items-center -mt-4">
-                                            <div className="w-4 h-4 bg-purple-500 rounded-full animate-ping absolute opacity-75"></div>
-                                            <div className="relative w-8 h-8 bg-purple-500/20 rounded-full flex items-center justify-center border border-purple-500 shadow-[0_0_20px_rgba(168,85,247,0.5)]">
-                                                <MapPin className="text-purple-400 w-4 h-4" />
-                                            </div>
-                                            <div className="px-3 py-1 bg-slate-900/90 border border-white/10 rounded-full text-[10px] font-bold mt-2 text-white shadow-xl backdrop-blur-md">
-                                                {parkingName}
-                                            </div>
-                                        </div>
+                                    {/* Interactive Embedded Map */}
+                                    <div className="absolute inset-0 bg-[#0f1219] overflow-hidden">
+                                        <iframe 
+                                            src={`https://maps.google.com/maps?q=${encodeURIComponent(parkingAddress || parkingName || "Chennai")}&t=&z=16&ie=UTF8&iwloc=&output=embed`}
+                                            className="w-full h-full"
+                                            style={{ border: 0, filter: 'invert(90%) hue-rotate(180deg) contrast(90%) brightness(110%)', opacity: 0.7 }}
+                                            allowFullScreen 
+                                            loading="lazy" 
+                                        />
+                                        {/* Inner shadow to blend map edges with card */}
+                                        <div className="absolute inset-0 pointer-events-none shadow-[inset_0_0_40px_rgba(21,25,33,1)]" />
                                     </div>
 
                                     <div className="absolute bottom-4 left-4 right-4 flex gap-3 z-30">
-                                        <Button size="sm" className="flex-1 bg-white/10 hover:bg-white/20 text-white backdrop-blur-md border border-white/10">
-                                            <MapPin className="w-3 h-3 mr-2" /> Get Directions
+                                        <Button 
+                                            size="sm" 
+                                            onClick={() => window.open(`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(parkingAddress || parkingName)}`, "_blank")}
+                                            className="flex-1 bg-white/10 hover:bg-white/20 text-white backdrop-blur-md border border-white/20 shadow-lg"
+                                        >
+                                            <MapPin className="w-3 h-3 mr-2 text-cyan-400" /> Get Directions
                                         </Button>
-                                        <Button size="sm" variant="ghost" className="flex-1 hover:bg-white/10 text-slate-300">
-                                            <Share2 className="w-3 h-3 mr-2" /> Share Location
+                                        <Button 
+                                            size="sm" 
+                                            variant="ghost" 
+                                            onClick={() => {
+                                                navigator.clipboard.writeText(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(parkingAddress || parkingName)}`);
+                                                toast({ title: "Link Copied!", description: "Location link copied to clipboard." });
+                                            }}
+                                            className="flex-1 hover:bg-white/10 text-white bg-slate-900/60 backdrop-blur-md border border-white/10 shadow-lg"
+                                        >
+                                            <Share2 className="w-3 h-3 mr-2 text-purple-400" /> Share Location
                                         </Button>
                                     </div>
                                 </div>

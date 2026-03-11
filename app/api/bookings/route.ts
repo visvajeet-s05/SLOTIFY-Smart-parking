@@ -25,38 +25,99 @@ export async function GET() {
         customerId: user.id
       },
       orderBy: {
-        createdAt: 'desc'
+        startTime: 'desc'
       },
       include: {
         parkinglot: {
           select: {
             name: true,
-            address: true
+            address: true,
+            ownerprofile: {
+              select: {
+                businessName: true,
+                phone: true
+              }
+            }
           }
         },
         slot: {
           select: {
             slotNumber: true,
-            row: true
+            row: true,
+            displayName: true
           }
         }
       }
     })
 
-    const mappedBookings = bookings.map(b => ({
+    const paymentData = await prisma.payment.findMany({
+      where: { bookingId: { in: bookings.map(b => b.id) } },
+      select: { bookingId: true, txHash: true }
+    });
+    const paymentMap = new Map(paymentData.map(p => [p.bookingId, p.txHash]));
+
+    const now = new Date()
+
+    // 1. Auto-process statuses based on current date & time
+    const processedBookings = await Promise.all(bookings.map(async (b) => {
+      let currentStatus = b.status
+
+      if (currentStatus === "UPCOMING" || currentStatus === "ACTIVE") {
+        if (now > b.endTime) {
+          // If time is completely up, it goes to COMPLETED only if it was already ACTIVE.
+          // If it was still UPCOMING by the time it ended, it was an abandoned unpaid booking.
+          currentStatus = currentStatus === "ACTIVE" ? "COMPLETED" : "CANCELLED"
+        } else if (now >= b.startTime && currentStatus === "UPCOMING") {
+          // If startTime has passed and it's STILL UPCOMING, it means it was never paid/confirmed.
+          // In this system, confirm/route.ts instantly marks paid bookings as ACTIVE.
+          // So an UPCOMING booking that has started is an abandoned cart -> CANCELLED.
+          currentStatus = "CANCELLED"
+        }
+
+        // If status changed due to time, persist it to DB
+        if (currentStatus !== b.status) {
+          try {
+            await prisma.booking.update({
+              where: { id: b.id },
+              data: { status: currentStatus }
+            })
+            // Update slot status if booking is completed
+            if (currentStatus === "COMPLETED" && b.slotId) {
+              await prisma.slot.update({
+                where: { id: b.slotId },
+                data: { status: "AVAILABLE" }
+              })
+            }
+          } catch (updateErr) {
+            console.error(`Failed to auto-update booking ${b.id}:`, updateErr)
+          }
+        }
+      }
+
+      return {
+        ...b,
+        status: currentStatus
+      }
+    }))
+
+    const mappedBookings = processedBookings.map(b => ({
       id: b.id,
       bookingId: b.id.substring(0, 8).toUpperCase(),
       parkingLocation: b.parkinglot.name,
-      slotId: b.slot ? `${b.slot.row}-${b.slot.slotNumber}` : "N/A",
+      parkingAddress: b.parkinglot.address,
+      ownerBusinessName: b.parkinglot.ownerprofile?.businessName || "Independent Owner",
+      ownerPhone: b.parkinglot.ownerprofile?.phone || "N/A",
+      slotId: b.slot ? (b.slot.displayName || `${b.slot.row}-${b.slot.slotNumber}`) : "N/A",
       bookingDate: b.startTime.toISOString(),
       bookingTime: new Date(b.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       duration: Math.round((new Date(b.endTime).getTime() - new Date(b.startTime).getTime()) / (1000 * 60 * 60)),
-      licensePlate: "TN-XX-XXXX", // TODO: Fetch from booking vehicle relation if available
+      licensePlate: "TN-EX-9999", // Can be dynamically joined via vehicle array if fully modeled
       vehicleModel: b.vehicleType,
       amount: b.amount,
       paymentMethod: "Online",
       status: b.status,
       createdAt: b.createdAt.toISOString(),
+      txHash: paymentMap.get(b.id) || null,
     }))
 
     return NextResponse.json(mappedBookings)

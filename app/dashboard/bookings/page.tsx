@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation"
 import { motion, AnimatePresence } from "framer-motion"
 import {
   Calendar, MapPin, Clock, Car, DollarSign, Eye, Trash2,
-  Download, Share2, AlertCircle, X, ChevronRight, Filter, Search
+  Download, Share2, AlertCircle, X, ChevronRight, Filter, Search, QrCode
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -17,6 +17,8 @@ import {
 } from "@/components/ui/select"
 import { Input } from "@/components/ui/input"
 import { cn } from "@/lib/utils"
+import QRCode from "qrcode"
+
 // We'll simulate fetching for now as the action created might need more setup (e.g. authOptions import fix if not standard)
 // better to use client-side fetching to an API route usually, but let's try to mock the successful "realtime" look first with robust data
 // waiting for the user to confirm the action, but I'll write the UI to be ready for data.
@@ -45,6 +47,10 @@ interface Booking {
   createdAt: string
   checkInTime?: string
   checkOutTime?: string
+  parkingAddress?: string
+  ownerBusinessName?: string
+  ownerPhone?: string
+  txHash?: string | null
 }
 
 // Initial empty state until fetch
@@ -60,6 +66,27 @@ export default function BookingsPage() {
   const [showDetailsModal, setShowDetailsModal] = useState(false)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [bookingToDelete, setBookingToDelete] = useState<string | null>(null)
+  const [qrCodeUrl, setQrCodeUrl] = useState<string | null>(null)
+
+  // Generate QR Code dynamically
+  useEffect(() => {
+    if (selectedBooking && selectedBooking.status === "ACTIVE") {
+      const qrData = JSON.stringify({
+        bookingId: selectedBooking.bookingId,
+        slot: selectedBooking.slotId,
+        plate: selectedBooking.licensePlate
+      })
+      QRCode.toDataURL(qrData, { 
+        width: 200,
+        margin: 1,
+        color: { dark: '#000000', light: '#ffffff' }
+      })
+      .then((url: string) => setQrCodeUrl(url))
+      .catch((err: unknown) => console.error("QR Generation Error", err))
+    } else {
+      setQrCodeUrl(null)
+    }
+  }, [selectedBooking])
 
   // Fetch Real Bookings from Database
   useEffect(() => {
@@ -300,6 +327,11 @@ export default function BookingsPage() {
                           <span className="px-1.5 py-0.5 rounded bg-slate-800 text-white text-xs font-mono">
                             Slot {booking.slotId}
                           </span>
+                          {booking.txHash && (
+                            <span className="hidden sm:flex items-center gap-1 px-1.5 py-0.5 rounded bg-indigo-500/10 text-indigo-400 text-xs font-mono border border-indigo-500/20">
+                              Web3 Confirmed
+                            </span>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -365,6 +397,8 @@ export default function BookingsPage() {
       {/* Details Modal - Premium Glass Style */}
       <Dialog open={showDetailsModal} onOpenChange={setShowDetailsModal}>
         <DialogContent className="bg-slate-900 border border-white/10 text-white max-w-lg p-0 overflow-hidden sm:rounded-3xl shadow-2xl shadow-black/50">
+          <DialogTitle className="sr-only">Booking Details</DialogTitle>
+          <DialogDescription className="sr-only">Details for your selected parking booking.</DialogDescription>
           {selectedBooking && (
             <>
               <div className="relative h-32 bg-gradient-to-br from-indigo-900/50 to-purple-900/50 flex items-center justify-center overflow-hidden">
@@ -417,6 +451,38 @@ export default function BookingsPage() {
                   </div>
                 </div>
 
+                {selectedBooking.txHash && (
+                  <div className="bg-[#141A2A] border border-indigo-500/30 rounded-xl p-4 relative overflow-hidden mt-4">
+                    <div className="absolute top-0 right-0 bg-indigo-600 text-white px-3 py-1 text-[10px] font-bold rounded-bl-lg uppercase tracking-wider flex items-center gap-1">
+                      Immutable
+                    </div>
+                    <p className="text-xs text-indigo-400 font-bold mb-1 flex items-center gap-1">
+                      Web3 Digital Receipt
+                    </p>
+                    <p className="font-mono text-[10px] text-indigo-300 truncate">
+                      TX: {selectedBooking.txHash}
+                    </p>
+                  </div>
+                )}
+
+                {selectedBooking.status === "ACTIVE" && qrCodeUrl && (
+                  <div className="bg-emerald-900/10 p-5 rounded-2xl border border-dashed border-emerald-500/30 flex flex-col items-center justify-center text-center mt-2 group relative overflow-hidden">
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 rounded-full blur-[40px] pointer-events-none" />
+                    
+                    <div className="bg-white p-2.5 rounded-2xl mb-4 shadow-[0_0_40px_rgba(16,185,129,0.15)] ring-4 ring-emerald-500/10 relative z-10">
+                      <img src={qrCodeUrl} alt="Entry QR Code" className="w-28 h-28 object-contain mix-blend-multiply" />
+                    </div>
+                    
+                    <div className="flex items-center gap-2 mb-1.5 z-10">
+                      <QrCode className="w-4 h-4 text-emerald-400" />
+                      <p className="text-emerald-400 font-extrabold tracking-[0.15em] text-sm uppercase">Active Gate Pass</p>
+                    </div>
+                    <p className="text-emerald-500/70 text-[10px] uppercase font-bold tracking-widest leading-relaxed max-w-[260px] z-10">
+                      Present this code at the boom barrier scanner for automated entry
+                    </p>
+                  </div>
+                )}
+
                 <div className="flex gap-3">
                   <Button className="flex-1 bg-white text-slate-900 hover:bg-slate-200 font-bold">
                     <Download className="w-4 h-4 mr-2" /> Receipt
@@ -425,6 +491,27 @@ export default function BookingsPage() {
                     <Share2 className="w-4 h-4 mr-2" /> Share
                   </Button>
                 </div>
+
+                {selectedBooking.ownerBusinessName && (
+                  <div className="bg-slate-950/40 p-4 rounded-xl border border-white/5 mt-4">
+                    <p className="text-[10px] text-slate-500 uppercase font-black tracking-widest mb-3">Service Provider</p>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-purple-500/10 rounded-full flex items-center justify-center border border-purple-500/20">
+                          <MapPin className="w-5 h-5 text-purple-400" />
+                        </div>
+                        <div>
+                          <p className="text-white font-bold text-sm tracking-wide">{selectedBooking.ownerBusinessName}</p>
+                          <p className="text-slate-400 text-xs mt-0.5">{selectedBooking.parkingAddress || "Pre-booked Slot"}</p>
+                        </div>
+                      </div>
+                      <Button variant="ghost" size="sm" className="text-cyan-400 hover:text-cyan-300 hover:bg-cyan-950 flex flex-col items-end h-auto py-1">
+                        <span className="text-xs font-bold leading-tight">Support</span>
+                        <span className="text-[10px] font-mono leading-tight mt-0.5">{selectedBooking.ownerPhone}</span>
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className="p-4 border-t border-white/5 bg-slate-950/30 flex justify-center">

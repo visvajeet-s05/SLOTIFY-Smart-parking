@@ -1,0 +1,40 @@
+# Python service — runs locally on owner's laptop, never deployed to Railway
+opencv-service/
+*.py
+
+# Python virtual environment
+.venv/
+venv/
+__pycache__/
+*.pyc
+*.pyd
+
+# AI model files (large binary files, not needed on Railway)
+**/models/*.pb
+**/models/*.pbtxt
+training/
+
+# Next.js cache (rebuilt on Railway)
+.next/cache/
+
+# Development files
+.vscode/
+*.log
+npm-debug.log*
+
+# Test files
+test_*.py
+diagnose_*.py
+verify_*.py
+check_system_status.py
+debug_model_load.py
+restart_camera_service.py
+quick_camera_test.py
+
+# Local env (Railway uses its own env vars)
+.env.local
+.env.production
+
+# OS files
+.DS_Store
+Thumbs.db

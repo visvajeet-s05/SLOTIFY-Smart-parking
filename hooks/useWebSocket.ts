@@ -88,7 +88,8 @@ export function useWebSocket(url: string, onMessage: (data: any) => void) {
 
 // Hook for parking updates specifically
 export function useParkingWebSocket(onUpdate: (data: any) => void) {
-  return useWebSocket('ws://localhost:3000/api/ws', (data: any) => {
+  const wsUrl = process.env.NEXT_PUBLIC_WEBSOCKET_URL || "ws://localhost:3000/api/ws";
+  return useWebSocket(wsUrl, (data: any) => {
     if (data.type === 'parking:update') {
       onUpdate(data);
     }

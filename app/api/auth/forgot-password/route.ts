@@ -23,7 +23,7 @@ export async function POST(req: Request) {
   })
 
   // In a real app, use NEXT_PUBLIC_BASE_URL or similar from env
-  const baseUrl = process.env.NEXTAUTH_URL || "http://localhost:3000"
+  const baseUrl = process.env.NEXTAUTH_URL || process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000"
   const resetUrl = `${baseUrl}/reset-password?token=${token}`
 
   // 👉 SEND EMAIL

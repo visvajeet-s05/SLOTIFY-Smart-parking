@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useEffect, useMemo, use } from "react"
+import React, { useState, useEffect, useMemo, use, Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { motion } from "framer-motion"
 import {
@@ -26,7 +26,7 @@ import { useSession } from "next-auth/react"
 import { Input } from "@/components/ui/input"
 import { cn } from "@/lib/utils"
 
-export default function BookingPage({ params }: { params: { id: string } }) {
+function BookingContent(props: any) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const slotId = searchParams.get("slot")
@@ -34,7 +34,7 @@ export default function BookingPage({ params }: { params: { id: string } }) {
   const { data: session, status } = useSession()
 
   // Unwrap the params Promise to access the id property
-  const parkingAreaId = use(params as any)
+  const { id: parkingAreaId } = use(props.params as Promise<{ id: string }>)
 
   const [isLoaded, setIsLoaded] = useState(false)
   const [paymentMethod, setPaymentMethod] = useState("card")
@@ -566,5 +566,17 @@ export default function BookingPage({ params }: { params: { id: string } }) {
         </motion.div>
       </div>
     </motion.div>
+  )
+}
+
+export default function BookingPage(props: any) {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-[#0A0A0B] flex items-center justify-center">
+        <div className="text-white text-xl animate-pulse">Loading booking...</div>
+      </div>
+    }>
+      <BookingContent {...props} />
+    </Suspense>
   )
 }

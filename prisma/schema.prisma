@@ -492,6 +492,8 @@ enum UpdatedBy {
   AI
   OWNER
   CUSTOMER
+  SYSTEM
+  BOOKING
 }
 
 model Camera {

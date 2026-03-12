@@ -1,12 +1,10 @@
 "use client"
 
+import { use } from "react"
 import { Button } from "@/components/ui/button"
 
-export default function AdminBookingDetailPage({
-  params,
-}: {
-  params: { bookingId: string }
-}) {
+export default function AdminBookingDetailPage(props: any) {
+  const { bookingId } = use(props.params as Promise<{ bookingId: string }>)
   return (
     <div className="max-w-4xl mx-auto bg-gray-900 border border-gray-800 rounded-lg p-6 space-y-4">
       <h2 className="text-lg font-semibold">

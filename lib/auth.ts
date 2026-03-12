@@ -13,7 +13,7 @@ export const authOptions: NextAuthOptions = {
         email: { label: "Email", type: "email" },
         password: { label: "Password", type: "password" }
       },
-      async authorize(credentials) {
+      async authorize(credentials, req) {
         if (!credentials?.email || !credentials?.password) {
           console.log("❌ Missing credentials")
           return null
@@ -62,7 +62,7 @@ export const authOptions: NextAuthOptions = {
           role: user.role,
           ownerStatus,
           parkingLotId,
-        }
+        } as any
 
       }
     })
@@ -87,7 +87,7 @@ export const authOptions: NextAuthOptions = {
         session.user.id = token.id as string
         session.user.name = token.name as string
         session.user.role = token.role as string
-        session.user.parkingLotId = token.parkingLotId as string | null
+        session.user.parkingLotId = token.parkingLotId as string | undefined
       }
       return session
     }

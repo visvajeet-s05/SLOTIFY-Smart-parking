@@ -1,13 +1,21 @@
-import { PrismaClient, SlotStatus, SlotSource } from "@prisma/client";
+/**
+ * ============================================================
+ *  RESERVATION MANAGER — Smart Parking
+ * ============================================================
+ *  Handles in-memory slot reservations with 15-minute timeouts.
+ *  Uses correct Prisma models: Slot, SlotStatusLog, UpdatedBy.
+ * ============================================================
+ */
 
-import { WebSocket } from "ws";
+import { PrismaClient, SlotStatus, UpdatedBy } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
-// Reservation timeout configuration
+// ── Config ──────────────────────────────────────────────────
 const RESERVATION_TIMEOUT_MINUTES = 15;
-const WS_URL = "ws://localhost:4000";
+const WS_SERVER_URL = process.env.WS_SERVER_URL || `http://localhost:${process.env.WS_PORT || 4000}`;
 
+// ── Types ────────────────────────────────────────────────────
 interface Reservation {
   slotId: string;
   userId: string;
@@ -18,8 +26,12 @@ interface Reservation {
 // In-memory reservation tracking (for quick lookups)
 const activeReservations = new Map<string, Reservation>();
 
+// ─────────────────────────────────────────────────────────────
+//  PUBLIC API
+// ─────────────────────────────────────────────────────────────
+
 /**
- * Create a new reservation with timeout
+ * Create a new reservation with a 15-minute timeout.
  */
 export async function createReservation(
   slotId: string,
@@ -28,286 +40,191 @@ export async function createReservation(
   const now = new Date();
   const expiresAt = new Date(now.getTime() + RESERVATION_TIMEOUT_MINUTES * 60 * 1000);
 
-  const reservation: Reservation = {
-    slotId,
-    userId,
-    reservedAt: now,
-    expiresAt,
-  };
+  const reservation: Reservation = { slotId, userId, reservedAt: now, expiresAt };
 
   // Store in memory
   activeReservations.set(slotId, reservation);
 
   // Update slot status in database
-  await prisma.parkingSlot.update({
+  await prisma.slot.update({
     where: { id: slotId },
     data: {
       status: SlotStatus.RESERVED,
-      source: SlotSource.BOOKING,
-      confidence: 100,
+      updatedBy: UpdatedBy.CUSTOMER,
+      aiConfidence: 100,
     },
   });
 
+  // Log status change
+  await prisma.slotStatusLog.create({
+    data: {
+      slotId,
+      oldStatus: SlotStatus.AVAILABLE,
+      newStatus: SlotStatus.RESERVED,
+      updatedBy: UpdatedBy.CUSTOMER,
+      aiConfidence: 100,
+    },
+  });
 
-  // Broadcast reservation created via WebSocket
-  await broadcastReservationCreated(slotId);
+  // Broadcast via WebSocket (fire-and-forget)
+  _broadcastSlotUpdate(slotId, "RESERVED").catch(() => {});
 
-  // Schedule timeout check
-  scheduleTimeoutCheck(slotId, expiresAt);
+  // Schedule timeout
+  _scheduleTimeoutCheck(slotId, expiresAt);
 
-  console.log(`✅ Reservation created for slot ${slotId}, expires at ${expiresAt.toISOString()}`);
-
+  console.log(`✅ Reservation created: slot=${slotId}, expires=${expiresAt.toISOString()}`);
   return reservation;
 }
 
 /**
- * Cancel a reservation and release the slot
+ * Cancel a reservation and release the slot back to AVAILABLE.
  */
 export async function cancelReservation(slotId: string): Promise<boolean> {
-  const reservation = activeReservations.get(slotId);
-  
-  if (!reservation) {
-    return false;
-  }
+  if (!activeReservations.has(slotId)) return false;
 
-  // Remove from memory
   activeReservations.delete(slotId);
 
-  // Update slot status back to AVAILABLE
-  await prisma.parkingSlot.update({
+  await prisma.slot.update({
     where: { id: slotId },
     data: {
-      status: "AVAILABLE",
-      source: "SYSTEM",
-      confidence: 100,
+      status: SlotStatus.AVAILABLE,
+      updatedBy: UpdatedBy.OWNER,
+      aiConfidence: 100,
     },
   });
 
-  // Broadcast update via WebSocket
-  await broadcastReservationExpired(slotId);
+  await prisma.slotStatusLog.create({
+    data: {
+      slotId,
+      oldStatus: SlotStatus.RESERVED,
+      newStatus: SlotStatus.AVAILABLE,
+      updatedBy: UpdatedBy.OWNER,
+      aiConfidence: 100,
+    },
+  });
 
-  console.log(`❌ Reservation cancelled for slot ${slotId}`);
-
+  _broadcastSlotUpdate(slotId, "AVAILABLE").catch(() => {});
+  console.log(`❌ Reservation cancelled: slot=${slotId}`);
   return true;
 }
 
 /**
- * Complete a reservation (convert to booking)
+ * Complete a reservation (slot becomes OCCUPIED via booking).
  */
 export async function completeReservation(slotId: string): Promise<boolean> {
-  const reservation = activeReservations.get(slotId);
-  
-  if (!reservation) {
-    return false;
-  }
-
-  // Remove from memory (slot becomes OCCUPIED via booking)
+  if (!activeReservations.has(slotId)) return false;
   activeReservations.delete(slotId);
-
-  console.log(`✅ Reservation completed for slot ${slotId}`);
-
+  console.log(`✅ Reservation completed: slot=${slotId}`);
   return true;
 }
 
 /**
- * Check if a reservation has expired and release the slot
+ * Check if a reservation has expired; release slot if so.
  */
 export async function checkReservationTimeout(slotId: string): Promise<boolean> {
   const reservation = activeReservations.get(slotId);
-  
-  if (!reservation) {
-    return false;
-  }
+  if (!reservation) return false;
 
-  const now = new Date();
-  
-  if (now > reservation.expiresAt) {
-    // Reservation has expired
-    console.log(`⏰ Reservation expired for slot ${slotId}`);
-    
-    // Remove from memory
+  if (new Date() > reservation.expiresAt) {
+    console.log(`⏰ Reservation expired: slot=${slotId}`);
     activeReservations.delete(slotId);
 
-    // Get slot details for WebSocket broadcast
-    const slot = await prisma.parkingSlot.findUnique({
+    await prisma.slot.update({
       where: { id: slotId },
-      include: { lot: true },
+      data: {
+        status: SlotStatus.AVAILABLE,
+        updatedBy: UpdatedBy.AI,
+        aiConfidence: 100,
+      },
     });
 
-    if (slot) {
-      // Update slot status back to AVAILABLE
-      await prisma.parkingSlot.update({
-        where: { id: slotId },
-        data: {
-          status: "AVAILABLE",
-          source: "SYSTEM",
-          confidence: 100,
-        },
-      });
+    await prisma.slotStatusLog.create({
+      data: {
+        slotId,
+        oldStatus: SlotStatus.RESERVED,
+        newStatus: SlotStatus.AVAILABLE,
+        updatedBy: UpdatedBy.AI,
+        aiConfidence: 100,
+      },
+    });
 
-      // Create status log entry
-      await prisma.slotStatusLog.create({
-        data: {
-          slotId: slotId,
-          oldStatus: "RESERVED",
-          newStatus: "AVAILABLE",
-          source: "SYSTEM",
-          confidence: 100,
-        },
-      });
-
-      // Broadcast update via WebSocket
-      await broadcastReservationExpired(slotId);
-
-      return true;
-    }
+    _broadcastSlotUpdate(slotId, "AVAILABLE").catch(() => {});
+    return true;
   }
 
   return false;
 }
 
-/**
- * Schedule a timeout check for a reservation
- */
-function scheduleTimeoutCheck(slotId: string, expiresAt: Date) {
-  const now = new Date();
-  const delay = expiresAt.getTime() - now.getTime();
-
-  if (delay > 0) {
-    setTimeout(async () => {
-      await checkReservationTimeout(slotId);
-    }, delay);
-  }
-}
-
-/**
- * Broadcast reservation created via WebSocket
- */
-async function broadcastReservationCreated(slotId: string) {
-  try {
-    const ws = new WebSocket(WS_URL);
-    
-    ws.on("open", () => {
-      // Get slot details
-      prisma.parkingSlot.findUnique({
-        where: { id: slotId },
-        include: { lot: true },
-      }).then((slot) => {
-        if (slot) {
-          ws.send(
-            JSON.stringify({
-              lotSlug: slot.lot.slug,
-              slotNumber: slot.slotNumber,
-              status: "RESERVED",
-              source: SlotSource.BOOKING,
-              confidence: 100,
-              reason: "RESERVATION_CREATED",
-              timestamp: new Date().toISOString(),
-            })
-          );
-
-        }
-        ws.close();
-      });
-    });
-
-    ws.on("error", (err) => {
-      console.error("WebSocket broadcast error:", err);
-    });
-  } catch (error) {
-    console.error("Failed to broadcast reservation creation:", error);
-  }
-}
-
-/**
- * Broadcast reservation expiration via WebSocket
- */
-async function broadcastReservationExpired(slotId: string) {
-  try {
-    const ws = new WebSocket(WS_URL);
-    
-    ws.on("open", () => {
-      // Get slot details
-      prisma.parkingSlot.findUnique({
-        where: { id: slotId },
-        include: { lot: true },
-      }).then((slot) => {
-        if (slot) {
-          ws.send(
-            JSON.stringify({
-              lotSlug: slot.lot.slug,
-              slotNumber: slot.slotNumber,
-              status: "AVAILABLE",
-              source: SlotSource.AI,
-              confidence: 100,
-              reason: "RESERVATION_TIMEOUT",
-              timestamp: new Date().toISOString(),
-            })
-          );
-
-        }
-        ws.close();
-      });
-    });
-
-    ws.on("error", (err) => {
-      console.error("WebSocket broadcast error:", err);
-    });
-  } catch (error) {
-    console.error("Failed to broadcast reservation expiration:", error);
-  }
-}
-
-/**
- * Get all active reservations
- */
+/** Get all active in-memory reservations. */
 export function getActiveReservations(): Reservation[] {
   return Array.from(activeReservations.values());
 }
 
-/**
- * Get reservation for a specific slot
- */
+/** Get reservation for a specific slot. */
 export function getReservation(slotId: string): Reservation | undefined {
   return activeReservations.get(slotId);
 }
 
-/**
- * Check if a slot has an active reservation
- */
+/** Check if a slot has an active reservation. */
 export function hasActiveReservation(slotId: string): boolean {
   return activeReservations.has(slotId);
 }
 
 /**
- * Initialize reservation manager (check for existing reservations on startup)
+ * Initialize reservation manager on startup — rebuilds in-memory
+ * state from any RESERVED slots currently in the database.
  */
 export async function initializeReservations() {
   console.log("🔄 Initializing reservation manager...");
-  
-  // Find all RESERVED slots in database
-  const reservedSlots = await prisma.parkingSlot.findMany({
-    where: { status: "RESERVED" },
+
+  const reservedSlots = await prisma.slot.findMany({
+    where: { status: SlotStatus.RESERVED },
   });
 
-  // Check each one and set up timeout handlers
   for (const slot of reservedSlots) {
-    // For now, set a default timeout of 15 minutes from now
-    // In production, you'd store the reservation time in the database
     const expiresAt = new Date(Date.now() + RESERVATION_TIMEOUT_MINUTES * 60 * 1000);
-    
     const reservation: Reservation = {
       slotId: slot.id,
-      userId: "unknown", // Would be stored in a reservations table
+      userId: "unknown",
       reservedAt: new Date(),
       expiresAt,
     };
-
     activeReservations.set(slot.id, reservation);
-    scheduleTimeoutCheck(slot.id, expiresAt);
+    _scheduleTimeoutCheck(slot.id, expiresAt);
   }
 
-  console.log(`✅ Initialized ${reservedSlots.length} active reservations`);
+  console.log(`✅ Reservation manager ready — ${reservedSlots.length} active reservations`);
+}
+
+// ─────────────────────────────────────────────────────────────
+//  INTERNALS
+// ─────────────────────────────────────────────────────────────
+
+function _scheduleTimeoutCheck(slotId: string, expiresAt: Date) {
+  const delay = expiresAt.getTime() - Date.now();
+  if (delay > 0) {
+    setTimeout(() => checkReservationTimeout(slotId), delay);
+  }
+}
+
+async function _broadcastSlotUpdate(slotId: string, status: string) {
+  try {
+    const { default: fetch } = await import("node-fetch").catch(() => ({ default: globalThis.fetch }));
+    await (fetch as typeof globalThis.fetch)(`${WS_SERVER_URL}/broadcast`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        type: "SLOT_UPDATE",
+        slotId,
+        status,
+        source: "SYSTEM",
+        timestamp: new Date().toISOString(),
+      }),
+      signal: AbortSignal.timeout(500),
+    });
+  } catch {
+    // WS server may not be running — gracefully ignore
+  }
 }
 
 // Auto-initialize on module load

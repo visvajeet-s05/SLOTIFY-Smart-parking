@@ -38,7 +38,7 @@ interface ConnectedMessage {
 type WebSocketMessage = SlotUpdate | BulkUpdate | HeartbeatMessage | PongMessage | ConnectedMessage
 
 interface UseParkingSocketOptions {
-  lotId: string
+  lotId?: string
   onSlotUpdate?: (update: SlotUpdate) => void
   onBulkUpdate?: (update: BulkUpdate) => void
   onConnect?: () => void
@@ -88,7 +88,7 @@ export function useParkingSocket({
           setIsConnected(true)
           onConnectRef.current?.()
 
-          // Subscribe to this parking lot as CUSTOMER
+          // Subscribe to this parking lot as CUSTOMER, or globally if no lotId
           ws.send(JSON.stringify({
             type: 'SUBSCRIBE',
             lotId: lotId,
@@ -108,14 +108,14 @@ export function useParkingSocket({
             const data: WebSocketMessage = JSON.parse(event.data)
 
             if (data.type === 'SLOT_UPDATE') {
-              // Only process updates for this parking lot
-              if (data.lotId === lotId) {
+              // Process updates for this parking lot or globally
+              if (!lotId || data.lotId === lotId) {
                 console.log(`📝 Customer received slot update: ${data.slotId} -> ${data.status}`)
                 onSlotUpdateRef.current?.(data)
               }
             } else if (data.type === 'BULK_SLOT_UPDATE') {
-              // Only process bulk updates for this parking lot
-              if (data.lotId === lotId) {
+              // Process bulk updates for this parking lot or globally
+              if (!lotId || data.lotId === lotId) {
                 console.log(`📦 Customer received bulk update: ${data.action} (${data.updatedCount} slots)`)
                 onBulkUpdateRef.current?.(data)
               }

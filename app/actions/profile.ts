@@ -57,18 +57,18 @@ export async function updateUserProfile(data: any) {
                 data: {
                     licensePlate: data.licensePlate,
                     model: data.vehicleModel,
-                    fastTagId: data.fastTagId
                 }
             })
         } else {
             await prisma.vehicle.create({
                 data: {
+                    id: globalThis.crypto.randomUUID(),
                     userId: session.user.id,
                     licensePlate: data.licensePlate,
                     model: data.vehicleModel,
                     make: "Unknown", // Default
                     color: "Unknown",
-                    fastTagId: data.fastTagId
+                    updatedAt: new Date()
                 }
             })
         }

@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, Suspense } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
 import { motion } from "framer-motion"
 import {
@@ -23,7 +23,7 @@ import { Button } from "@/components/ui/button"
 import Confetti from "react-confetti"
 import QRCode from "qrcode"
 
-export default function BookingSuccessPage() {
+function BookingSuccessContent() {
     const router = useRouter()
     const searchParams = useSearchParams()
 
@@ -359,5 +359,17 @@ export default function BookingSuccessPage() {
                 </div>
             </div>
         </div>
+    )
+}
+
+export default function BookingSuccessPage() {
+    return (
+        <Suspense fallback={
+            <div className="min-h-screen bg-slate-950 flex items-center justify-center">
+                <div className="text-white text-xl animate-pulse">Loading success details...</div>
+            </div>
+        }>
+            <BookingSuccessContent />
+        </Suspense>
     )
 }

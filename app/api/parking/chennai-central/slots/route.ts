@@ -6,13 +6,13 @@ const prisma = new PrismaClient();
 export async function GET() {
   try {
     // Find Chennai Central parking lot
-    const lot = await prisma.parkingLot.findUnique({
-      where: { slug: "chennai-central" },
+    const lot = await prisma.parkinglot.findUnique({
+      where: { id: "chennai-central" },
       include: {
       slots: {
           orderBy: [
             { row: "asc" },
-            { index: "asc" },
+            { slotNumber: "asc" },
           ],
         },
 
@@ -27,23 +27,19 @@ export async function GET() {
     }
 
     // Format slots for response with unified slot ID system
-    const slots = lot.slots.map((slot) => ({
+    const slots = lot.slots.map((slot: any) => ({
       id: slot.id,
       slotNumber: slot.slotNumber,
-      slotId: slot.slotId,
       row: slot.row,
-      index: slot.index,
       status: slot.status,
-      confidence: slot.confidence || 95,
-      source: slot.source || "SYSTEM",
+      confidence: slot.aiConfidence || 95,
+      source: slot.updatedBy || "SYSTEM",
     }));
-
 
     return NextResponse.json({
       lot: {
         id: lot.id,
         name: lot.name,
-        slug: lot.slug,
         totalSlots: lot.totalSlots,
       },
       slots,

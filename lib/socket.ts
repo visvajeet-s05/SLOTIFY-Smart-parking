@@ -55,16 +55,16 @@ export function initSocket(server: any) {
     }) => {
       try {
         // Update database using unified slotId
-        const updatedSlot = await prisma.parkingSlot.update({
+        const updatedSlot = await prisma.slot.update({
           where: { id: data.slotId },
           data: {
             status: data.status,
-            source: data.source || "OWNER",
-            confidence: data.confidence || 100.0,
+            updatedBy: data.source || "OWNER",
+            aiConfidence: data.confidence || 100.0,
             updatedAt: new Date()
           },
           include: {
-            lot: true
+            parkingLot: true
           }
         })
 
@@ -100,16 +100,16 @@ export function initSocket(server: any) {
         const status = data.isAvailable ? "AVAILABLE" : "OCCUPIED"
 
         // Update database using unified slotId
-        const updatedSlot = await prisma.parkingSlot.update({
+        const updatedSlot = await prisma.slot.update({
           where: { id: data.slotId },
           data: {
             status: status,
-            source: "OWNER",
-            confidence: 100.0,
+            updatedBy: "OWNER",
+            aiConfidence: 100.0,
             updatedAt: new Date()
           },
           include: {
-            lot: true
+            parkingLot: true
           }
         })
 
@@ -177,7 +177,7 @@ export function initSocket(server: any) {
         })
 
         // Update slot availability
-        await prisma.parkingSlot.update({
+        await prisma.slot.update({
           where: { id: data.slotId },
           data: { status: "RESERVED" }
         })
@@ -248,10 +248,10 @@ export async function getActiveUsersInArea(areaId: string): Promise<string[]> {
 // Get area statistics
 export async function getAreaStats(parkingLotId: string) {
   const users = await getActiveUsersInArea(parkingLotId)
-  const totalSlots = await prisma.parkingSlot.count({
+  const totalSlots = await prisma.slot.count({
     where: { lotId: parkingLotId }
   })
-  const availableSlots = await prisma.parkingSlot.count({
+  const availableSlots = await prisma.slot.count({
     where: { lotId: parkingLotId, status: "AVAILABLE" }
   })
 

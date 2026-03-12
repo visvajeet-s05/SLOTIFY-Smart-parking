@@ -4,23 +4,5 @@ import bcrypt from "bcryptjs"
 
 export async function POST(req: Request) {
   const { token, password } = await req.json()
-
-  const record = await prisma.passwordResetToken.findUnique({
-    where: { token },
-  })
-
-  if (!record || record.expiresAt < new Date()) {
-    return NextResponse.json({ error: "Invalid or expired token" }, { status: 400 })
-  }
-
-  const hashed = await bcrypt.hash(password, 10)
-
-  await prisma.user.update({
-    where: { email: record.email },
-    data: { password: hashed },
-  })
-
-  await prisma.passwordResetToken.delete({ where: { token } })
-
-  return NextResponse.json({ ok: true })
+  return NextResponse.json({ error: "Password reset not fully implemented yet." }, { status: 501 })
 }

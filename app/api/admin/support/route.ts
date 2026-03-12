@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
     // Get all tickets with owner info
     const tickets = await prisma.ownersupportticket.findMany({
       include: {
-        owner: {
+        ownerprofile: {
           include: {
             user: {
               select: { name: true, email: true }

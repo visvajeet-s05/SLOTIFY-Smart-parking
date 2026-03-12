@@ -16,7 +16,7 @@ export async function GET(req: NextRequest) {
       include: {
         slots: {
           include: {
-            booking: true,
+            bookings: true,
           },
         },
       },
@@ -61,7 +61,7 @@ export async function GET(req: NextRequest) {
       occupancyTrends: calculateOccupancyTrends(slotsWithLogs, days),
       revenue: calculateRevenue(lot, slotsWithLogs, days),
       aiAccuracy: calculateAIAccuracy(slotsWithLogs, startDate),
-      customerMetrics: calculateCustomerMetrics(slotsWithLogs, startDate),
+      customerMetrics: calculateCustomerMetrics(slotsWithLogs),
     };
 
     return NextResponse.json({
@@ -176,8 +176,8 @@ function calculateOccupancyTrends(slots: any[], days: number) {
 // Calculate revenue metrics
 function calculateRevenue(lot: any, slots: any[], days: number) {
   const bookings = slots
-    .filter((s: any) => s.booking)
-    .map((s: any) => s.booking);
+    .filter((s: any) => s.bookings && s.bookings.length > 0)
+    .flatMap((s: any) => s.bookings);
 
   const totalBookings = bookings.length;
   // Get average slot price or default to 50
@@ -239,10 +239,10 @@ function calculateAIAccuracy(slots: any[], startDate: Date) {
 }
 
 // Calculate customer metrics
-function calculateCustomerMetrics(slots: any[], startDate: Date) {
+function calculateCustomerMetrics(slots: any[]) {
   const bookings = slots
-    .filter((s: any) => s.booking)
-    .map((s: any) => s.booking);
+    .filter((s: any) => s.bookings && s.bookings.length > 0)
+    .flatMap((s: any) => s.bookings);
 
   const uniqueCustomers = new Set(bookings.map((b: any) => b.customerId)).size;
   const repeatCustomers = bookings.length > uniqueCustomers

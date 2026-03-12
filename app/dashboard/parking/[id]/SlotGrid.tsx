@@ -26,6 +26,7 @@ export default function SlotGrid({ slots, selectedSlotId, onSelect }: SlotGridPr
         return (
           <SlotCard
             key={slot.id}
+            id={slot.id}
             slotNumber={slot.slotNumber}
             status={cardStatus}
             price={slot.price}

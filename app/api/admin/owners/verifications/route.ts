@@ -9,7 +9,7 @@ export async function GET() {
 
   const verifications = await prisma.ownerverification.findMany({
     include: {
-      owner: {
+      ownerprofile: {
         include: {
           user: true
         }

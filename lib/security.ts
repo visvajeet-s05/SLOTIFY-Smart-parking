@@ -1,7 +1,6 @@
 import { NextApiRequest, NextApiResponse } from 'next'
 import jwt, { Secret, SignOptions } from 'jsonwebtoken'
 import bcrypt from 'bcryptjs'
-import { prisma } from './prisma'
 
 export interface SecurityConfig {
   passwordMinLength: number
@@ -117,52 +116,6 @@ export class SecurityManager {
     return true
   }
 
-  async recordLoginAudit(userId: string, ipAddress: string, userAgent: string): Promise<void> {
-    await this.logActivity({
-      userId,
-      action: 'LOGIN_SUCCESS',
-      metadata: {
-        ipAddress,
-        userAgent,
-        timestamp: new Date().toISOString()
-      }
-    })
-  }
-
-  async recordLogoutAudit(userId: string): Promise<void> {
-    await this.logActivity({
-      userId,
-      action: 'LOGOUT',
-      metadata: {
-        timestamp: new Date().toISOString()
-      }
-    })
-  }
-
-  async recordFailedLoginAudit(email: string, ipAddress: string, userAgent: string): Promise<void> {
-    await this.logActivity({
-      userId: '',
-      action: 'LOGIN_FAILED',
-      metadata: {
-        email,
-        ipAddress,
-        userAgent,
-        timestamp: new Date().toISOString()
-      }
-    })
-  }
-
-  async recordPasswordChange(userId: string, ipAddress: string): Promise<void> {
-    await this.logActivity({
-      userId,
-      action: 'PASSWORD_CHANGED',
-      metadata: {
-        ipAddress,
-        timestamp: new Date().toISOString()
-      }
-    })
-  }
-
   generateJwtToken(payload: any, expiresIn: string = '24h'): string {
     return jwt.sign(payload, this.config.jwtSecret as Secret, { expiresIn } as SignOptions)
   }
@@ -175,11 +128,6 @@ export class SecurityManager {
     }
   }
 
-  async getSession(userId: string): Promise<any> {
-    const sessionKey = `session:${userId}`
-    return await this.getCacheValue(sessionKey)
-  }
-
   async createSession(userId: string, sessionData: any): Promise<void> {
     const sessionKey = `session:${userId}`
     await this.setCacheValue(sessionKey, JSON.stringify(sessionData), this.config.sessionTimeoutMinutes * 60)
@@ -189,46 +137,12 @@ export class SecurityManager {
     await this.deleteCacheValue(`session:${userId}`)
   }
 
-  async refreshSession(userId: string): Promise<void> {
-    const sessionKey = `session:${userId}`
-    const sessionData = await this.getCacheValue(sessionKey)
-    
-    if (sessionData) {
-      await this.setCacheValue(sessionKey, sessionData, this.config.sessionTimeoutMinutes * 60)
-    }
-  }
-
-  async isSessionExpired(userId: string): Promise<boolean> {
-    const sessionKey = `session:${userId}`
-    const ttl = await this.getCacheTTL(sessionKey)
-    
-    return ttl === -2 || ttl === -1
-  }
-
   async encryptData(data: string): Promise<string> {
-    // Simple encryption for demonstration purposes
-    // In production, use proper encryption methods
     return Buffer.from(data).toString('base64')
   }
 
   async decryptData(encryptedData: string): Promise<string> {
     return Buffer.from(encryptedData, 'base64').toString('utf8')
-  }
-
-  async auditAction(action: string, userId: string, details: any): Promise<void> {
-    await this.logActivity({
-      userId,
-      action,
-      metadata: {
-        ...details,
-        timestamp: new Date().toISOString()
-      }
-    })
-  }
-
-  private async logActivity(data: { userId: string; action: string; metadata: any }): Promise<void> {
-    // TODO: wire activity logging when the model is available
-    void data
   }
 
   async sanitizeInput(input: any): Promise<any> {
@@ -239,7 +153,7 @@ export class SecurityManager {
         .trim()
     }
     
-    if (typeof input === 'object') {
+    if (typeof input === 'object' && input !== null) {
       if (Array.isArray(input)) {
         return input.map(item => this.sanitizeInput(item))
       }
@@ -256,29 +170,23 @@ export class SecurityManager {
 
   // Helper methods for cache operations
   private async getCacheValue(key: string): Promise<string | null> {
-    // In production, use Redis
     const cache = await import('./redis')
-    const value = await cache.redis.get(key)
-    return value
+    return await cache.redis.get(key)
   }
 
   private async setCacheValue(key: string, value: string, ttl: number): Promise<void> {
-    // In production, use Redis
     const cache = await import('./redis')
     await cache.redis.set(key, value, 'EX', ttl)
   }
 
   private async deleteCacheValue(key: string): Promise<void> {
-    // In production, use Redis
     const cache = await import('./redis')
     await cache.redis.del(key)
   }
 
   private async getCacheTTL(key: string): Promise<number> {
-    // In production, use Redis
     const cache = await import('./redis')
-    const ttl = await cache.redis.ttl(key)
-    return ttl
+    return await cache.redis.ttl(key)
   }
 }
 
@@ -303,9 +211,9 @@ export function createSecurityMiddleware(securityManager: SecurityManager) {
     const ipAddress = req.socket?.remoteAddress || "unknown"
     const rateLimitKey = `rate:${ipAddress}`
     const cache = await import('./redis')
-    const currentRequests = await cache.incrementRateLimit(rateLimitKey, 60000)
+    const { success } = await cache.incrementRateLimit(rateLimitKey, 100, 60)
     
-    if (currentRequests > 100) {
+    if (!success) {
       res.status(429).json({
         error: 'Too many requests',
         message: 'Please try again later'

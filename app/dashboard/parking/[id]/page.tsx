@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, Suspense } from "react"
 import { useParams, useRouter, useSearchParams } from "next/navigation"
 import SlotGrid from "@/components/SlotGrid"
 import { motion, AnimatePresence } from "framer-motion"
@@ -43,7 +43,7 @@ const PARKING_LOTS = [
   { id: "PORUR", name: "Porur Junction Parking", price: 35 }
 ]
 
-export default function CustomerParkingPage() {
+function CustomerParkingContent() {
   const params = useParams()
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -436,5 +436,23 @@ export default function CustomerParkingPage() {
         />
       )}
     </div>
+  )
+}
+
+export default function CustomerParkingPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen w-full bg-mesh flex items-center justify-center">
+        <div className="text-center space-y-4">
+          <div className="relative w-20 h-20 mx-auto">
+            <div className="absolute inset-0 rounded-full border-t-2 border-primary animate-spin"></div>
+            <div className="absolute inset-2 rounded-full border-r-2 border-primary/50 animate-spin-slow"></div>
+          </div>
+          <p className="text-gray-400 font-medium tracking-wide animate-pulse">Initializing Parking Grid...</p>
+        </div>
+      </div>
+    }>
+      <CustomerParkingContent />
+    </Suspense>
   )
 }

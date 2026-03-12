@@ -480,8 +480,8 @@ export default function Dashboard() {
                     <ParkingAreaCard
                       parkingArea={{
                         ...area,
-                        availableSpots: area.availableSlots,
-                        totalSpots: area.totalSlots,
+                        availableSlots: area.availableSlots,
+                        totalSlots: area.totalSlots,
                       }}
                       isSelected={selectedParkingArea === area.id}
                       onSelect={() => setSelectedParkingArea(area.id)}

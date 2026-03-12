@@ -25,26 +25,26 @@ const ParkingMap = dynamic(() => import("@/components/map/parking-map"), {
 
 // 🚗 Parking Data (Tamil Nadu, 12 locations)
 const parkingAreas = [
-  { id: "1", name: "Chennai Central Parking Complex", address: "Near Chennai Central Railway Station, Chennai", totalSpots: 120, availableSpots: 45, price: 30, rating: 4.5, distance: 0.8, coordinates: [13.0827, 80.2707], status: "available" },
-  { id: "2", name: "Coimbatore Gandhipuram Parking", address: "100 Feet Road, Gandhipuram, Coimbatore", totalSpots: 200, availableSpots: 12, price: 40, rating: 4.2, distance: 1.2, coordinates: [11.0168, 76.9558], status: "limited" },
-  { id: "3", name: "Madurai Meenakshi Temple Parking", address: "Near Meenakshi Amman Temple, Madurai", totalSpots: 80, availableSpots: 0, price: 25, rating: 3.8, distance: 1.5, coordinates: [9.9252, 78.1198], status: "full" },
-  { id: "4", name: "Marina Beach Parking", address: "Marina Beach Road, Chennai", totalSpots: 300, availableSpots: 150, price: 20, rating: 4.7, distance: 2.1, coordinates: [13.05, 80.2824], status: "available" },
-  { id: "5", name: "Anna Nagar Tower Park Parking", address: "Anna Nagar, Chennai", totalSpots: 100, availableSpots: 60, price: 35, rating: 4.3, distance: 3.0, coordinates: [13.0878, 80.2131], status: "available" },
-  { id: "6", name: "T Nagar Pondy Bazaar Parking", address: "T Nagar, Chennai", totalSpots: 150, availableSpots: 20, price: 50, rating: 4.1, distance: 2.5, coordinates: [13.0413, 80.2337], status: "limited" },
-  { id: "7", name: "Erode Central Parking", address: "Near Erode Central, Erode", totalSpots: 90, availableSpots: 30, price: 25, rating: 4.0, distance: 1.0, coordinates: [11.3410, 77.7172], status: "available" },
-  { id: "8", name: "Vellore Katpadi Parking", address: "Near Vellore Katpadi Railway Station", totalSpots: 70, availableSpots: 15, price: 20, rating: 3.9, distance: 1.3, coordinates: [12.9941, 79.1553], status: "limited" },
-  { id: "9", name: "Trichy Rockfort Parking", address: "Near Rockfort Temple, Trichy", totalSpots: 120, availableSpots: 50, price: 30, rating: 4.2, distance: 1.6, coordinates: [10.7905, 78.7047], status: "available" },
-  { id: "10", name: "Ooty Botanical Garden Parking", address: "Near Botanical Garden, Ooty", totalSpots: 80, availableSpots: 40, price: 35, rating: 4.5, distance: 2.8, coordinates: [11.4064, 76.6950], status: "available" },
-  { id: "11", name: "Salem Town Parking", address: "Near Salem Railway Station, Salem", totalSpots: 90, availableSpots: 30, price: 25, rating: 4.1, distance: 1.4, coordinates: [11.6643, 78.1460], status: "available" },
-  { id: "12", name: "Kanyakumari Beach Parking", address: "Near Kanyakumari Beach, Kanyakumari", totalSpots: 50, availableSpots: 20, price: 20, rating: 4.0, distance: 3.5, coordinates: [8.0883, 77.5385], status: "available" },
+  { id: "1", name: "Chennai Central Parking Complex", address: "Near Chennai Central Railway Station, Chennai", totalSlots: 120, availableSlots: 45, price: 30, rating: 4.5, distance: 0.8, coordinates: [13.0827, 80.2707], status: "available" },
+  { id: "2", name: "Coimbatore Gandhipuram Parking", address: "100 Feet Road, Gandhipuram, Coimbatore", totalSlots: 200, availableSlots: 12, price: 40, rating: 4.2, distance: 1.2, coordinates: [11.0168, 76.9558], status: "limited" },
+  { id: "3", name: "Madurai Meenakshi Temple Parking", address: "Near Meenakshi Amman Temple, Madurai", totalSlots: 80, availableSlots: 0, price: 25, rating: 3.8, distance: 1.5, coordinates: [9.9252, 78.1198], status: "full" },
+  { id: "4", name: "Marina Beach Parking", address: "Marina Beach Road, Chennai", totalSlots: 300, availableSlots: 150, price: 20, rating: 4.7, distance: 2.1, coordinates: [13.05, 80.2824], status: "available" },
+  { id: "5", name: "Anna Nagar Tower Park Parking", address: "Anna Nagar, Chennai", totalSlots: 100, availableSlots: 60, price: 35, rating: 4.3, distance: 3.0, coordinates: [13.0878, 80.2131], status: "available" },
+  { id: "6", name: "T Nagar Pondy Bazaar Parking", address: "T Nagar, Chennai", totalSlots: 150, availableSlots: 20, price: 50, rating: 4.1, distance: 2.5, coordinates: [13.0413, 80.2337], status: "limited" },
+  { id: "7", name: "Erode Central Parking", address: "Near Erode Central, Erode", totalSlots: 90, availableSlots: 30, price: 25, rating: 4.0, distance: 1.0, coordinates: [11.3410, 77.7172], status: "available" },
+  { id: "8", name: "Vellore Katpadi Parking", address: "Near Vellore Katpadi Railway Station", totalSlots: 70, availableSlots: 15, price: 20, rating: 3.9, distance: 1.3, coordinates: [12.9941, 79.1553], status: "limited" },
+  { id: "9", name: "Trichy Rockfort Parking", address: "Near Rockfort Temple, Trichy", totalSlots: 120, availableSlots: 50, price: 30, rating: 4.2, distance: 1.6, coordinates: [10.7905, 78.7047], status: "available" },
+  { id: "10", name: "Ooty Botanical Garden Parking", address: "Near Botanical Garden, Ooty", totalSlots: 80, availableSlots: 40, price: 35, rating: 4.5, distance: 2.8, coordinates: [11.4064, 76.6950], status: "available" },
+  { id: "11", name: "Salem Town Parking", address: "Near Salem Railway Station, Salem", totalSlots: 90, availableSlots: 30, price: 25, rating: 4.1, distance: 1.4, coordinates: [11.6643, 78.1460], status: "available" },
+  { id: "12", name: "Kanyakumari Beach Parking", address: "Near Kanyakumari Beach, Kanyakumari", totalSlots: 50, availableSlots: 20, price: 20, rating: 4.0, distance: 3.5, coordinates: [8.0883, 77.5385], status: "available" },
 ]
 
 interface ParkingArea {
   id: string
   name: string
   address: string
-  totalSpots: number
-  availableSpots: number
+  totalSlots: number
+  availableSlots: number
   price: number
   rating: number
   distance: number
@@ -63,27 +63,29 @@ export default function FindParkingPage() {
   const [filteredAreas, setFilteredAreas] = useState<ParkingArea[]>(parkingAreas as ParkingArea[])
 
   // Real-time parking updates
-  useParkingSocket((data: any) => {
-    setFilteredAreas(prevAreas => 
-      prevAreas.map(area => {
-        if (area.id === data.parkingId) {
-          const newAvailableSpots = data.availableSlots
-          let newStatus: "available" | "limited" | "full" = "available"
-          if (newAvailableSpots === 0) {
-            newStatus = "full"
-          } else if (newAvailableSpots / area.totalSpots <= 0.2) {
-            newStatus = "limited"
+  useParkingSocket({
+    onSlotUpdate: (data: any) => {
+      setFilteredAreas(prevAreas => 
+        prevAreas.map(area => {
+          if (area.id === data.parkingId) {
+            const newAvailableSpots = data.availableSlots
+            let newStatus: "available" | "limited" | "full" = "available"
+            if (newAvailableSpots === 0) {
+              newStatus = "full"
+            } else if (newAvailableSpots / area.totalSlots <= 0.2) {
+              newStatus = "limited"
+            }
+            
+            return {
+              ...area,
+              availableSlots: newAvailableSpots,
+              status: newStatus,
+            }
           }
-          
-          return {
-            ...area,
-            availableSpots: newAvailableSpots,
-            status: newStatus,
-          }
-        }
-        return area
-      })
-    )
+          return area
+        })
+      )
+    }
   })
 
   // Filter and sort effect
@@ -121,7 +123,7 @@ export default function FindParkingPage() {
   const stats = {
     total: parkingAreas.length,
     available: parkingAreas.filter(a => a.status === "available").length,
-    totalSpots: parkingAreas.reduce((sum, a) => sum + a.availableSpots, 0),
+    totalSpots: parkingAreas.reduce((sum, a) => sum + a.availableSlots, 0),
     avgRating: (parkingAreas.reduce((sum, a) => sum + a.rating, 0) / parkingAreas.length).toFixed(1),
   }
 

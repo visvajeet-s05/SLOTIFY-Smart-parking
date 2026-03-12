@@ -1,4 +1,3 @@
-import { getProvider, getChainForRegion } from "@/lib/blockchain";
 import RefundManager from "@/components/crypto/RefundManager";
 import BookingNFT from "@/components/crypto/BookingNFT";
 

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, use } from "react"
+import { useState, useEffect, use, Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { motion } from "framer-motion"
 import { ArrowLeft, Calendar, Check, Download, Home, MapPin, Share2, Link as LinkIcon, ShieldCheck } from "lucide-react"
@@ -10,11 +10,11 @@ import { Badge } from "@/components/ui/badge"
 import QRCode from "@/components/booking/qr-code"
 import ConfettiEffect from "@/components/ui/confetti"
 
-export default function ConfirmationPage({ params }: { params: Promise<{ id: string }> }) {
+function ConfirmationContent(props: any) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const slotId = searchParams.get("slot")
-  const { id } = use(params)
+  const { id } = use(props.params as Promise<{ id: string }>)
 
   const [isLoaded, setIsLoaded] = useState(false)
   const [showConfetti, setShowConfetti] = useState(true)
@@ -265,5 +265,17 @@ export default function ConfirmationPage({ params }: { params: Promise<{ id: str
         </div>
       </div>
     </div>
+  )
+}
+
+export default function ConfirmationPage(props: any) {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-[#0A0A0B] flex items-center justify-center">
+        <div className="text-white text-xl animate-pulse">Loading confirmation...</div>
+      </div>
+    }>
+      <ConfirmationContent {...props} />
+    </Suspense>
   )
 }

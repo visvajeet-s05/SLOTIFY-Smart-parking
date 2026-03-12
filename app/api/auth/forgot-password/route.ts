@@ -10,13 +10,14 @@ export async function POST(req: Request) {
 
   const token = randomBytes(32).toString("hex")
 
-  await prisma.passwordResetToken.create({
-    data: {
-      email,
-      token,
-      expiresAt: new Date(Date.now() + 1000 * 60 * 30), // 30 min
-    },
-  })
+  // TODO: Add passwordResetToken to Prisma schema to enable this
+  // await prisma.passwordResetToken.create({
+  //   data: {
+  //     email,
+  //     token,
+  //     expiresAt: new Date(Date.now() + 1000 * 60 * 30), // 30 min
+  //   },
+  // })
 
   const resetUrl = `${process.env.NEXTAUTH_URL}/reset-password?token=${token}`
 

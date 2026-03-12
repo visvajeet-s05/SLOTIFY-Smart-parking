@@ -1,6 +1,7 @@
 
 import { PrismaClient } from "@prisma/client"
 import { hash } from "bcryptjs"
+import { randomUUID } from "crypto"
 
 const prisma = new PrismaClient()
 
@@ -13,6 +14,7 @@ async function main() {
         where: { email },
         update: {},
         create: {
+            id: randomUUID(),
             email,
             name: "Visvajeet Example",
             password,
@@ -26,7 +28,6 @@ async function main() {
     console.log({ user })
 
     // 2. Clear existing vehicles/fastags for this user to avoid unique constraint errors on re-run
-    // We need to delete Fastags first because they depend on Vehicles (but actually Fastag depends on Vehicle ID... wait, let's delete Fastag first)
     await prisma.fastag.deleteMany({
         where: { userId: user.id },
     })
@@ -37,24 +38,27 @@ async function main() {
     // 3. Create Vehicles
     const vehicle1 = await prisma.vehicle.create({
         data: {
+            id: randomUUID(),
             userId: user.id,
             licensePlate: "KA-05-MJ-1234",
             make: "Tesla",
             model: "Model 3",
             color: "Red",
             isActive: true,
-
+            updatedAt: new Date(),
         },
     })
 
     const vehicle2 = await prisma.vehicle.create({
         data: {
+            id: randomUUID(),
             userId: user.id,
             licensePlate: "KA-01-AB-9999",
             make: "BMW",
             model: "X5",
             color: "Black",
             isActive: true,
+            updatedAt: new Date(),
         },
     })
 

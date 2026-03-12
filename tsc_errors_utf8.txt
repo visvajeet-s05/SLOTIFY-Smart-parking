@@ -1,0 +1,20 @@
+﻿app/dashboard/owner/page.tsx(216,41): error TS18048: 'lotDetails.price' is possibly 'undefined'.
+app/dashboard/page.tsx(483,25): error TS2561: Object literal may only specify known properties, but 'availableSpots' does not exist in type '{ id: string; name: string; address: string; availableSlots: number; totalSlots: number; price: number; rating: number; distance: number; status: "available" | "limited" | "full"; }'. Did you mean to write 'availableSlots'?
+app/dashboard/parking/[id]/SlotGrid.tsx(27,12): error TS2741: Property 'id' is missing in type '{ key: any; slotNumber: any; status: "AVAILABLE" | "OCCUPIED" | "RESERVED" | "DISABLED"; price: any; type: "EV" | "STANDARD" | "HANDICAP"; isSelected: boolean; onClick: () => void; }' but required in type 'SlotProps'.
+components/crypto/CryptoPay.tsx(5,17): error TS2307: Cannot find module '../../abi/SlotifyPayments.json' or its corresponding type declarations.
+components/ui/sidebar.tsx(674,9): error TS2322: Type '{ className: string; "data-sidebar": string; style: CSSProperties; }' is not assignable to type 'IntrinsicAttributes & { className?: string | undefined; }'.
+  Property 'style' does not exist on type 'IntrinsicAttributes & { className?: string | undefined; }'.
+lib/realtime/ws-server.ts(2,24): error TS2305: Module '"@prisma/client"' has no exported member 'SlotSource'.
+lib/realtime/ws-server.ts(117,30): error TS2551: Property 'parkingLot' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'parkinglot'?
+lib/realtime/ws-server.ts(128,34): error TS7006: Parameter 's' implicitly has an 'any' type.
+lib/realtime/ws-server.ts(145,9): error TS2561: Object literal may only specify known properties, but 'confidence' does not exist in type '(Without<SlotUpdateInput, SlotUncheckedUpdateInput> & SlotUncheckedUpdateInput) | (Without<...> & SlotUpdateInput)'. Did you mean to write 'aiConfidence'?
+lib/realtime/ws-server.ts(156,9): error TS2353: Object literal may only specify known properties, and 'source' does not exist in type '(Without<SlotStatusLogCreateInput, SlotStatusLogUncheckedCreateInput> & SlotStatusLogUncheckedCreateInput) | (Without<...> & SlotStatusLogCreateInput)'.
+lib/realtime/ws-server.ts(211,34): error TS2551: Property 'parkingLot' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'parkinglot'?
+lib/realtime/ws-server.ts(219,38): error TS7006: Parameter 's' implicitly has an 'any' type.
+lib/realtime/ws-server.ts(233,13): error TS2561: Object literal may only specify known properties, but 'confidence' does not exist in type '(Without<SlotUpdateInput, SlotUncheckedUpdateInput> & SlotUncheckedUpdateInput) | (Without<...> & SlotUpdateInput)'. Did you mean to write 'aiConfidence'?
+lib/realtime/ws-server.ts(244,13): error TS2353: Object literal may only specify known properties, and 'source' does not exist in type '(Without<SlotStatusLogCreateInput, SlotStatusLogUncheckedCreateInput> & SlotStatusLogUncheckedCreateInput) | (Without<...> & SlotStatusLogCreateInput)'.
+lib/security.ts(306,41): error TS2339: Property 'incrementRateLimit' does not exist on type 'typeof import("D:/Visvajeet/Projects/Parking/Smart-parking/lib/redis")'.
+lib/socket.ts(62,13): error TS2353: Object literal may only specify known properties, and 'source' does not exist in type '(Without<SlotUpdateInput, SlotUncheckedUpdateInput> & SlotUncheckedUpdateInput) | (Without<...> & SlotUpdateInput)'.
+lib/socket.ts(67,13): error TS2353: Object literal may only specify known properties, and 'lot' does not exist in type 'SlotInclude<DefaultArgs>'.
+lib/socket.ts(107,13): error TS2353: Object literal may only specify known properties, and 'source' does not exist in type '(Without<SlotUpdateInput, SlotUncheckedUpdateInput> & SlotUncheckedUpdateInput) | (Without<...> & SlotUpdateInput)'.
+lib/socket.ts(112,13): error TS2353: Object literal may only specify known properties, and 'lot' does not exist in type 'SlotInclude<DefaultArgs>'.

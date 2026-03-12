@@ -31,4 +31,15 @@ export const CACHE_TTL = {
   lotSlots: 5,    // 5 seconds for lot data
 };
 
+export async function incrementRateLimit(key: string, limit: number, windowSeconds: number): Promise<{ success: boolean, current: number }> {
+    const current = await redis.incr(key);
+    if (current === 1) {
+        await redis.expire(key, windowSeconds);
+    }
+    return {
+        success: current <= limit,
+        current
+    };
+}
+
 export default redis;

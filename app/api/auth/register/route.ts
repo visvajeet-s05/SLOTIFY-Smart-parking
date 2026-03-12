@@ -27,7 +27,6 @@ export async function POST(req: Request) {
         email,
         password: hashedPassword,
         role: "CUSTOMER",
-        updatedAt: new Date(),
       },
     })
 

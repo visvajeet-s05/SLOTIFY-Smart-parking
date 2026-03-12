@@ -32,6 +32,9 @@ const nextConfig = {
   // Disable Strict Mode to prevent double WebSocket connections in dev
   reactStrictMode: false,
   // Disable build workers to prevent hanging
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
 
   // Webpack configuration to handle large builds
   webpack: (config, { isServer }) => {

@@ -1,5 +1,5 @@
 import { WebSocketServer, WebSocket } from "ws";
-import { PrismaClient, SlotSource, SlotStatus } from "@prisma/client";
+import { PrismaClient, UpdatedBy, SlotStatus } from "@prisma/client";
 import { createServer, IncomingMessage, ServerResponse } from "http";
 import { redis, CACHE_KEYS, CACHE_TTL } from "../redis.ts";
 
@@ -17,7 +17,7 @@ type SlotUpdate = {
   slotNumber: number;
   status: SlotStatus;
   confidence?: number;
-  source: SlotSource;
+  source: UpdatedBy;
 };
 
 const PORT = 4000;
@@ -41,8 +41,8 @@ const server = createServer((req: IncomingMessage, res: ServerResponse) => {
 const wss = new WebSocketServer({ server });
 
 // Slot Priority Logic (IMPORTANT)
-function canOverride(existing: SlotSource, incoming: SlotSource): boolean {
-  const priority: Record<string, number> = { OWNER: 3, BOOKING: 2, AI: 1 };
+function canOverride(existing: UpdatedBy, incoming: UpdatedBy): boolean {
+  const priority: Record<string, number> = { OWNER: 3, SYSTEM: 3, BOOKING: 2, AI: 1 };
   return priority[incoming] >= priority[existing];
 }
 
@@ -61,7 +61,7 @@ wss.on("connection", (ws: WebSocket) => {
       console.log("📥 Received slot update:", data);
 
       // Priority check: OWNER updates bypass batching
-      if (data.source === SlotSource.OWNER) {
+      if (data.source === "OWNER") {
         await processImmediateUpdate(data);
       } else {
         // AI updates go to batch queue
@@ -114,8 +114,8 @@ async function processImmediateUpdate(data: SlotUpdate) {
     );
 
     // Find the parking lot
-    const lot = await prisma.parkingLot.findUnique({
-      where: { slug: data.lotSlug },
+    const lot = await prisma.parkinglot.findUnique({
+      where: { id: data.lotSlug },
       include: { slots: true },
     });
 
@@ -125,25 +125,25 @@ async function processImmediateUpdate(data: SlotUpdate) {
     }
 
     // Find the specific slot
-    const slot = lot.slots.find((s) => s.slotNumber === data.slotNumber);
+    const slot = lot.slots.find((s: any) => s.slotNumber === data.slotNumber);
     if (!slot) {
       console.error("❌ Slot not found:", data.slotNumber);
       return;
     }
 
     // Priority check: can this update override the existing status?
-    if (!canOverride(slot.source, data.source)) {
-      console.log(`⛔ Blocked: ${data.source} cannot override ${slot.source}`);
+    if (!canOverride(slot.updatedBy, data.source)) {
+      console.log(`⛔ Blocked: ${data.source} cannot override ${slot.updatedBy}`);
       return;
     }
 
     // Update slot in DB
-    await prisma.parkingSlot.update({
+    await prisma.slot.update({
       where: { id: slot.id },
       data: {
         status: data.status,
-        confidence: data.confidence ?? 100,
-        source: data.source,
+        aiConfidence: data.confidence ?? 100,
+        updatedBy: data.source,
       },
     });
 
@@ -153,8 +153,8 @@ async function processImmediateUpdate(data: SlotUpdate) {
         slotId: slot.id,
         oldStatus: slot.status,
         newStatus: data.status,
-        source: data.source,
-        confidence: data.confidence ?? 100,
+        updatedBy: data.source,
+        aiConfidence: data.confidence ?? 100,
       },
     });
 
@@ -208,30 +208,30 @@ async function processBatchUpdates() {
         );
 
         // Find the parking lot
-        const lot = await prisma.parkingLot.findUnique({
-          where: { slug: data.lotSlug },
+        const lot = await prisma.parkinglot.findUnique({
+          where: { id: data.lotSlug },
           include: { slots: true },
         });
 
         if (!lot) return;
 
         // Find the specific slot
-        const slot = lot.slots.find((s) => s.slotNumber === data.slotNumber);
+        const slot = lot.slots.find((s: any) => s.slotNumber === data.slotNumber);
         if (!slot) return;
 
         // Priority check: can this update override the existing status?
-        if (!canOverride(slot.source, data.source)) {
-          console.log(`⛔ Blocked: ${data.source} cannot override ${slot.source}`);
+        if (!canOverride(slot.updatedBy, data.source)) {
+          console.log(`⛔ Blocked: ${data.source} cannot override ${slot.updatedBy}`);
           return;
         }
 
         // Update slot in DB
-        await prisma.parkingSlot.update({
+        await prisma.slot.update({
           where: { id: slot.id },
           data: {
             status: data.status,
-            confidence: data.confidence ?? 100,
-            source: data.source,
+            aiConfidence: data.confidence ?? 100,
+            updatedBy: data.source,
           },
         });
 
@@ -241,8 +241,8 @@ async function processBatchUpdates() {
             slotId: slot.id,
             oldStatus: slot.status,
             newStatus: data.status,
-            source: data.source,
-            confidence: data.confidence ?? 100,
+            updatedBy: data.source,
+            aiConfidence: data.confidence ?? 100,
           },
         });
 

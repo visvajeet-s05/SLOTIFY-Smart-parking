@@ -13,8 +13,8 @@ interface ParkingAreaCardProps {
     id: string
     name: string
     address: string
-    availableSpots: number
-    totalSpots: number
+    availableSlots: number
+    totalSlots: number
     price: number
     rating: number
     distance: number
@@ -30,8 +30,8 @@ function ParkingAreaCard({
   onSelect,
 }: ParkingAreaCardProps) {
   const router = useRouter()
-  const occupancyPercent = Math.round((parkingArea.availableSpots / parkingArea.totalSpots) * 100)
-  const availabilityPercent = (parkingArea.availableSpots / parkingArea.totalSpots) * 100
+  const occupancyPercent = Math.round((parkingArea.availableSlots / parkingArea.totalSlots) * 100)
+  const availabilityPercent = (parkingArea.availableSlots / parkingArea.totalSlots) * 100
 
   const handleViewDetails = () => {
     router.push(`/dashboard/parking/${parkingArea.id}`)
@@ -119,8 +119,8 @@ function ParkingAreaCard({
             <span className="font-bold text-white">
               <span className={cn(
                 availabilityPercent > 50 ? "text-emerald-400" : availabilityPercent > 20 ? "text-amber-400" : "text-red-400"
-              )}>{parkingArea.availableSpots}</span>
-              <span className="text-slate-600 text-xs ml-1">/ {parkingArea.totalSpots}</span>
+              )}>{parkingArea.availableSlots}</span>
+              <span className="text-slate-600 text-xs ml-1">/ {parkingArea.totalSlots}</span>
             </span>
           </div>
           <div className="w-full h-2 bg-slate-800 rounded-full overflow-hidden shadow-inner">

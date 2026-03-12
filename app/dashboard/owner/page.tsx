@@ -213,7 +213,7 @@ export default function OwnerDashboardPage() {
           />
           <StatCard
             title="Revenue Trend"
-            value={`₹${stats.occupied * lotDetails.price}`}
+            value={`₹${stats.occupied * (lotDetails.price ?? 0)}`}
             icon={<TrendingUp className="text-purple-400" />}
             trend="Estimated Today"
             color="purple"

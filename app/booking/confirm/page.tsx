@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, Suspense } from "react"
 import { motion } from "framer-motion"
 import { useSearchParams, useRouter } from "next/navigation"
 import { ArrowLeft, QrCode, Check, Calendar, Clock, Car, MapPin } from "lucide-react"
@@ -44,7 +44,7 @@ const parkingLocationsData: Record<string, any> = {
   },
 }
 
-export default function BookingConfirmPage() {
+function BookingConfirmContent() {
   const searchParams = useSearchParams()
   const router = useRouter()
 
@@ -316,6 +316,18 @@ export default function BookingConfirmPage() {
         )}
       </main>
     </div>
+  )
+}
+
+export default function BookingConfirmPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex items-center justify-center h-screen bg-black">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-purple-500"></div>
+      </div>
+    }>
+      <BookingConfirmContent />
+    </Suspense>
   )
 }
 

@@ -8,9 +8,11 @@ export default function TestSocketPage() {
   const [status, setStatus] = useState('Connecting...')
 
   // Use WebSocket hook
-  useParkingSocket((data: any) => {
-    const message = `📡 Received: ${data.parkingId} - ${data.availableSlots} slots`
-    setMessages(prev => [...prev, message])
+  useParkingSocket({
+    onSlotUpdate: (data: any) => {
+      const message = `📡 Received: ${data.parkingId} - ${data.availableSlots} slots`
+      setMessages(prev => [...prev, message])
+    }
   })
 
   return (

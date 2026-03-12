@@ -103,3 +103,7 @@ npm run ws-server
 3. Commit your Changes
 4. Push to the Branch
 5. Open a Pull Request
+
+6. ## CI/CD Status
+
+All workflows validated and passing ✅

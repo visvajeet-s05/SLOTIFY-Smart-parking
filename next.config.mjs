@@ -28,7 +28,7 @@ const nextConfig = {
     ],
   },
   // Output configuration for Docker
-  output: 'standalone',
+  // output: 'standalone',
   // Disable Strict Mode to prevent double WebSocket connections in dev
   reactStrictMode: false,
   // Disable build workers to prevent hanging

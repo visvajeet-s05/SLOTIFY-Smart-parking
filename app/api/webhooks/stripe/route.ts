@@ -54,9 +54,20 @@ export async function POST(req: Request) {
             })
 
             // 4. Broadcast via WebSocket (using the broadcast endpoint for convenience)
-            // Ideally use a direct Redis/PubSub if available, but this works for MVP
             try {
-                await fetch("http://localhost:4000/broadcast", {
+                // Priority: Internal Railway URL -> Dedicated Public URL -> localhost
+                let broadcastUrl = process.env.INTERNAL_WS_SERVER_URL || 
+                                   process.env.NEXT_PUBLIC_WEBSOCKET_URL?.replace("wss://", "https://").replace("ws://", "http://") || 
+                                   "http://localhost:4000"
+
+                // For backwards compatibility and safety, ensure we are using http/https for internal fetch
+                if (broadcastUrl.startsWith("ws://")) {
+                    broadcastUrl = broadcastUrl.replace("ws://", "http://")
+                } else if (broadcastUrl.startsWith("wss://")) {
+                    broadcastUrl = broadcastUrl.replace("wss://", "https://")
+                }
+
+                await fetch(`${broadcastUrl}/broadcast`, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
@@ -65,7 +76,7 @@ export async function POST(req: Request) {
                         slotNumber: updatedSlot.slotNumber,
                         slotId: updatedSlot.id,
                         status: "RESERVED",
-                        oldStatus: "AVAILABLE", // Approximated
+                        oldStatus: "AVAILABLE",
                         source: "CUSTOMER",
                         bookingId: bookingId
                     })
@@ -74,6 +85,14 @@ export async function POST(req: Request) {
                 console.error("Failed to broadcast webhook update:", wsError)
             }
         }
+    } else if (event.type === "payment_intent.payment_failed") {
+        const bookingId = session.metadata.bookingId
+        console.error(`[WEBHOOK] Payment failed for booking ${bookingId}`)
+        
+        await prisma.booking.update({
+            where: { id: bookingId },
+            data: { status: "CANCELLED" }
+        })
     }
 
     return new NextResponse(null, { status: 200 })

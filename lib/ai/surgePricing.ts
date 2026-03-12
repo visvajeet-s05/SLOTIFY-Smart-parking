@@ -77,7 +77,7 @@ export class SurgePricingEngine {
         status: 'ACTIVE'
       },
       include: {
-        parkingslot: true
+        slots: true
       }
     })
   }
@@ -96,15 +96,15 @@ export class SurgePricingEngine {
       }
     })
 
-    const slots = await prisma.parkingslot.findMany({
+    const slots = await prisma.slot.findMany({
       where: {
-        parkingLotId: areaId
+        lotId: areaId
       }
     })
 
     const totalSlots = slots.length
-    const activeSlots = slots.filter((slot) => slot.isActive).length
-    const occupancyRate = totalSlots > 0 ? (totalSlots - activeSlots) / totalSlots : 0
+    const occupiedSlots = slots.filter((slot) => slot.status === "OCCUPIED" || slot.status === "RESERVED").length
+    const occupancyRate = totalSlots > 0 ? occupiedSlots / totalSlots : 0
     const bookingRate = bookings / (timeWindow / 3600)
 
     const rawMultiplier = this.calculateBaseMultiplier(occupancyRate, bookingRate)
@@ -209,15 +209,15 @@ export class SurgePricingEngine {
   }
 
   async getAreaSurgeInfo(areaId: string): Promise<{ multiplier: number; occupancyRate: number; bookingRate: number; demandScore: number }> {
-    const slots = await prisma.parkingslot.findMany({
+    const slots = await prisma.slot.findMany({
       where: {
-        parkingLotId: areaId
+        lotId: areaId
       }
     })
 
     const totalSlots = slots.length
-    const activeSlots = slots.filter((s: any) => s.isActive).length
-    const occupancyRate = totalSlots > 0 ? (totalSlots - activeSlots) / totalSlots : 0
+    const occupiedSlots = slots.filter((s: any) => s.status === "OCCUPIED" || s.status === "RESERVED").length
+    const occupancyRate = totalSlots > 0 ? occupiedSlots / totalSlots : 0
 
     const bookings = await prisma.booking.count({
       where: {
@@ -262,9 +262,9 @@ export class SurgePricingEngine {
         highSurgeAreas.push(area.id)
       }
 
-      area.parkingslot.forEach((slot: any) => {
+      area.slots.forEach((slot: any) => {
         totalSlots++
-        if (!slot.isActive) {
+        if (slot.status === "OCCUPIED" || slot.status === "RESERVED") {
           occupiedSlots++
         }
       })

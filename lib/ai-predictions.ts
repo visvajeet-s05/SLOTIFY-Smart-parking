@@ -104,7 +104,7 @@ export class DemandPredictor {
         createdAt: { gte: thirtyDaysAgo }
       },
       include: {
-        parkinglot: { include: { parkingslot: true } }
+        parkinglot: { include: { slots: true } }
       }
     })
 
@@ -116,7 +116,7 @@ export class DemandPredictor {
 
     for (const booking of bookings) {
       const key = `${booking.parkingLotId}-${booking.createdAt.getHours()}-${booking.createdAt.getDay()}`
-      const existing = hourlyData.get(key) || { bookings: 0, totalSlots: booking.parkinglot.parkingslot.length }
+      const existing = hourlyData.get(key) || { bookings: 0, totalSlots: (booking.parkinglot as any).slots.length }
 
       hourlyData.set(key, {
         bookings: existing.bookings + 1,
@@ -178,12 +178,12 @@ export class DemandPredictor {
     // Get parking lot data
     const parkingLot = await prisma.parkinglot.findUnique({
       where: { id: parkingLotId },
-      include: { parkingslot: true }
+      include: { slots: true }
     })
 
     if (!parkingLot) return predictions
 
-    const totalSlots = parkingLot.parkingslot.length
+    const totalSlots = (parkingLot as any).slots.length
 
     for (let hour = 0; hour < 24; hour++) {
       const date = new Date(tomorrow)

@@ -59,9 +59,11 @@ export async function POST(req: NextRequest) {
         const status = "RESERVED"
 
         // 4. Broadcast via WebSocket
-        let wsUrl = process.env.NEXT_PUBLIC_WEBSOCKET_URL || "http://localhost:4000"
+        let wsUrl = process.env.INTERNAL_WS_SERVER_URL || 
+                    process.env.NEXT_PUBLIC_WEBSOCKET_URL?.replace("wss://", "https://").replace("ws://", "http://") || 
+                    "http://localhost:4000"
 
-        // Ensure proper protocol for internal fetch (http/https) instead of ws/wss
+        // For backwards compatibility and safety, ensure we are using http/https for internal fetch
         if (wsUrl.startsWith("ws://")) {
             wsUrl = wsUrl.replace("ws://", "http://")
         } else if (wsUrl.startsWith("wss://")) {

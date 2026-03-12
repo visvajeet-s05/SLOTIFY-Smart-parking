@@ -259,7 +259,19 @@ export async function POST(req: Request) {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 2000); // 2 second timeout
 
-        await fetch("http://localhost:4000/broadcast", {
+        // Priority: Internal Railway URL -> Dedicated Public URL -> localhost
+        let broadcastUrl = process.env.INTERNAL_WS_SERVER_URL || 
+                           process.env.NEXT_PUBLIC_WEBSOCKET_URL?.replace("wss://", "https://").replace("ws://", "http://") || 
+                           "http://localhost:4000"
+
+        // For backwards compatibility and safety, ensure we are using http/https for internal fetch
+        if (broadcastUrl.startsWith("ws://")) {
+            broadcastUrl = broadcastUrl.replace("ws://", "http://")
+        } else if (broadcastUrl.startsWith("wss://")) {
+            broadcastUrl = broadcastUrl.replace("wss://", "https://")
+        }
+
+        await fetch(`${broadcastUrl}/broadcast`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({

@@ -17,16 +17,16 @@ export async function GET() {
     where: {
       ownerId: owner.id,
     },
-    include: { parkingslot: true },
+    include: { slots: true },
   })
 
-  const occupancy = lots.map((lot) => {
-    const totalSlots = lot.parkingslot.length
-    const activeSlots = lot.parkingslot.filter((slot: { isActive: boolean }) => slot.isActive).length
+  const occupancy = lots.map((lot: any) => {
+    const totalSlots = lot.slots.length
+    const occupiedSlots = lot.slots.filter((slot: any) => slot.status === "OCCUPIED" || slot.status === "RESERVED").length
     return {
       parkingLotId: lot.id,
       totalSlots,
-      activeSlots,
+      activeSlots: totalSlots - occupiedSlots,
     }
   })
 

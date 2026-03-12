@@ -209,7 +209,13 @@ export default function LoginModal({
                       >
                         Create Account
                       </button>
-                      <button className="text-xs font-bold text-primary hover:text-primary/80 transition-colors">
+                      <button 
+                        onClick={() => {
+                          onClose()
+                          router.push("/forgot-password")
+                        }}
+                        className="text-xs font-bold text-primary hover:text-primary/80 transition-colors"
+                      >
                         Forgot Password?
                       </button>
                     </div>

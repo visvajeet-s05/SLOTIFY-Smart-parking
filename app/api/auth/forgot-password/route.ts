@@ -10,19 +10,25 @@ export async function POST(req: Request) {
 
   const token = randomBytes(32).toString("hex")
 
-  // TODO: Add passwordResetToken to Prisma schema to enable this
-  // await prisma.passwordResetToken.create({
-  //   data: {
-  //     email,
-  //     token,
-  //     expiresAt: new Date(Date.now() + 1000 * 60 * 30), // 30 min
-  //   },
-  // })
+  // Create password reset token in database
+  await prisma.passwordresettoken.create({
+    data: {
+      email,
+      token,
+      expiresAt: new Date(Date.now() + 1000 * 60 * 30), // 30 min
+    },
+  })
 
-  const resetUrl = `${process.env.NEXTAUTH_URL}/reset-password?token=${token}`
+  // In a real app, use NEXT_PUBLIC_BASE_URL or similar from env
+  const baseUrl = process.env.NEXTAUTH_URL || "http://localhost:3000"
+  const resetUrl = `${baseUrl}/reset-password?token=${token}`
 
-  // 👉 send email (nodemailer / resend)
-  console.log("RESET LINK:", resetUrl)
+  // 👉 In production, send this via email. For now, we log it.
+  console.log("------------------------------------------")
+  console.log("📧 PASSWORD RESET REQUEST")
+  console.log("Email:", email)
+  console.log("Reset Link:", resetUrl)
+  console.log("------------------------------------------")
 
-  return NextResponse.json({ ok: true })
+  return NextResponse.json({ ok: true, message: "If an account exists with that email, a reset link has been sent." })
 }

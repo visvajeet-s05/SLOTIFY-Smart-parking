@@ -16,7 +16,10 @@ export async function POST(req: NextRequest) {
         const body = await req.json()
         const { slotId, duration, amount, licensePlate, vehicleModel, parkingLotId, currency = "inr" } = body
 
+        console.log(`[PAYMENT_INTENT] Creating intent for Lot: ${parkingLotId}, Slot: ${slotId}, Amount: ${amount}`)
+
         if (!slotId || !duration || !amount || !parkingLotId) {
+            console.error("[PAYMENT_INTENT] Missing fields:", { slotId, duration, amount, parkingLotId })
             return new NextResponse("Missing required fields", { status: 400 })
         }
 
@@ -113,7 +116,13 @@ export async function POST(req: NextRequest) {
         let isMock = false
 
         // Check for valid Stripe keys
-        const hasStripeKeys = process.env.STRIPE_SECRET_KEY && !process.env.STRIPE_SECRET_KEY.includes("placeholder")
+        const sk = process.env.STRIPE_SECRET_KEY || ""
+        const hasStripeKeys = sk.startsWith("sk_") && 
+                             !sk.includes("placeholder") && 
+                             !sk.includes("your_stripe") && 
+                             !sk.includes("secret_key")
+
+        console.log(`[PAYMENT_INTENT] Stripe Key Check: ${hasStripeKeys ? "VALID" : "INVALID (Demo Mode Active)"}`)
 
         if (hasStripeKeys) {
             try {
@@ -131,9 +140,9 @@ export async function POST(req: NextRequest) {
                 clientSecret = paymentIntent.client_secret!
                 paymentIntentId = paymentIntent.id
             } catch (error) {
-                console.error("Stripe API Error:", error)
+                console.error("[PAYMENT_INTENT] Stripe API Error:", error)
                 // Fallback to mock if Stripe fails despite having keys
-                console.warn("Falling back to Mock Mode due to Stripe API error")
+                console.warn("[PAYMENT_INTENT] Falling back to Mock Mode due to Stripe API error")
                 clientSecret = "mock_secret_live_demo"
                 paymentIntentId = `pi_mock_${Date.now()}`
                 isMock = true
@@ -177,6 +186,8 @@ export async function POST(req: NextRequest) {
 
         // REMOVED: Immediate slot reservation and broadcast. 
         // Logic moved to /api/bookings/confirm to execute only AFTER successful payment.
+
+        console.log(`[PAYMENT_INTENT] Success: Booking ${bookingId} created. Returning clientSecret.`)
 
         return NextResponse.json({
             clientSecret: clientSecret,

@@ -75,7 +75,11 @@ export default function PaymentModal({
     useEffect(() => {
         if (isOpen) {
             const createIntent = async () => {
+                const controller = new AbortController()
+                const timeoutId = setTimeout(() => controller.abort(), 15000) // 15s timeout
+
                 try {
+                    console.log("[PAYMENT] Initializing intent call...")
                     const res = await fetch("/api/payments/create-intent", {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
@@ -84,26 +88,43 @@ export default function PaymentModal({
                             duration,
                             amount: total,
                             parkingLotId,
-                            currency: "inr" // Assuming INR based on previous code context
-                        })
+                            currency: "inr"
+                        }),
+                        signal: controller.signal
                     })
 
+                    clearTimeout(timeoutId)
+
                     if (!res.ok) {
-                        throw new Error(await res.text())
+                        const errText = await res.text()
+                        console.error("[PAYMENT] API Error:", errText)
+                        throw new Error(errText)
                     }
 
                     const data = await res.json()
+                    console.log("[PAYMENT] Intent created successfully", { isMock: data.isMock })
                     setClientSecret(data.clientSecret)
                     setBookingId(data.bookingId)
                     setIsMock(data.isMock)
-                } catch (error) {
-                    console.error("Failed to init payment", error)
+                } catch (error: any) {
+                    clearTimeout(timeoutId)
+                    console.error("[PAYMENT] Failed to init payment", error)
+                    
+                    let message = "Could not set up payment. Please try again."
+                    if (error.name === 'AbortError') {
+                        message = "Payment service is taking too long to respond. Please check your connection or try again."
+                    } else if (error.message.includes("Slot is no longer available")) {
+                        message = "This slot was just taken. Please choose another one."
+                    }
+
                     toast({
-                        title: "Initialization Failed",
-                        description: "Could not set up payment. Please try again.",
+                        title: "Checkout Error",
+                        description: message,
                         variant: "destructive"
                     })
-                    // onClose() // Optional: auto close on fail
+                    
+                    // If it failed, don't leave them on the spinner
+                    setTimeout(() => onClose(), 3000)
                 }
             }
             createIntent()

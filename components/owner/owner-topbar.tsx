@@ -37,7 +37,7 @@ export default function OwnerTopbar() {
   ]
 
   return (
-    <header className="h-16 border-b border-slate-800 px-6 flex items-center justify-between bg-slate-950">
+    <header className="h-16 border-b border-white/5 px-6 flex items-center justify-between bg-slate-950/40 backdrop-blur-xl sticky top-0 z-50">
       {/* LEFT: Logo */}
       <div className="flex items-center">
         <Link href="/dashboard/owner" className="flex items-center group">

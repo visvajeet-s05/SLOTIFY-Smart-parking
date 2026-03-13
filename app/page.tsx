@@ -75,7 +75,7 @@ export default function LandingPage() {
   return (
     <main className="relative min-h-screen w-full bg-mesh selection:bg-primary/30">
       {/* Navigation */}
-      <nav className={`fixed top-0 w-full z-50 transition-all duration-500 ${isScrolled ? "py-4 bg-slate-950/60 backdrop-blur-md border-b border-white/10 shadow-lg" : "py-6 bg-transparent"}`}>
+      <nav className={`fixed top-0 w-full z-50 transition-all duration-500 ${isScrolled ? "py-4 bg-slate-950/40 backdrop-blur-2xl border-b border-white/5 shadow-2xl shadow-purple-900/10" : "py-6 bg-transparent"}`}>
         <div className="max-w-7xl mx-auto px-6 flex items-center justify-between">
           <div className="flex items-center group cursor-pointer" onClick={() => router.push("/")}>
             <Logo size="default" className="hover:scale-105 transition-transform duration-300" />

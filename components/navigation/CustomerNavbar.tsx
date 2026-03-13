@@ -43,7 +43,7 @@ export default function CustomerNavbar() {
       initial={{ y: -100 }}
       animate={{ y: 0 }}
       transition={{ duration: 0.3 }}
-      className="fixed top-0 left-0 right-0 z-50 bg-gray-950/80 border-b border-white/5 backdrop-blur-xl shadow-lg"
+      className="fixed top-0 left-0 right-0 z-50 bg-slate-950/30 border-b border-white/5 backdrop-blur-2xl shadow-2xl shadow-purple-900/10"
     >
       <div className="max-w-[1600px] mx-auto px-6 h-16 flex items-center justify-between">
         {/* Logo */}

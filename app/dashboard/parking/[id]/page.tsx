@@ -9,6 +9,14 @@ import { useParkingSocket } from "@/hooks/useParkingSocket"
 import { Slider } from "@/components/ui/slider"
 import { Button } from "@/components/ui/button"
 import { useToast } from "@/components/ui/use-toast"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog"
 import PaymentModal from "@/components/booking/PaymentModal"
 
 type Slot = {
@@ -276,149 +284,139 @@ function CustomerParkingContent() {
       </header>
 
       <main className="max-w-7xl mx-auto px-6 py-10">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+        <div className="space-y-6">
+          {/* Main Slot Grid Section - Now Full Width */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="glass-card rounded-[2.5rem] p-8 md:p-12 border-white/5 relative overflow-hidden group min-h-[60vh]"
+          >
+            {/* Decorative background glow */}
+            <div className="absolute top-0 right-0 w-96 h-96 bg-primary/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 group-hover:bg-primary/20 transition-all duration-1000"></div>
 
-          {/* Main Slot Grid Section */}
-          <div className="lg:col-span-8 space-y-6">
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="glass-card rounded-[2.5rem] p-8 border-white/5 relative overflow-hidden group"
-            >
-              {/* Decorative background glow */}
-              <div className="absolute top-0 right-0 w-96 h-96 bg-primary/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 group-hover:bg-primary/20 transition-all duration-1000"></div>
+            <div className="relative z-10">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-10">
+                <div>
+                  <h2 className="text-3xl font-black text-white mb-2 tracking-tight">Slot Selection</h2>
+                  <p className="text-gray-400 text-sm">Tap an available spot to initiate your booking session</p>
+                </div>
+                <div className={`flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold uppercase tracking-widest border self-start md:self-auto ${wsConnected ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400" : "bg-red-500/10 border-red-500/20 text-red-400"}`}>
+                  <span className={`w-2.5 h-2.5 rounded-full ${wsConnected ? "bg-emerald-500 animate-pulse" : "bg-red-500"}`}></span>
+                  {wsConnected ? "Syncing Live" : "Reconnecting"}
+                </div>
+              </div>
 
-              <div className="relative z-10">
-                <div className="flex items-center justify-between mb-8">
+              <SlotGrid
+                slots={slots}
+                selectable={true}
+                onSelect={handleSlotSelect}
+              />
+            </div>
+          </motion.div>
+        </div>
+      </main>
+
+      {/* Checkout Dialog - Quick Interaction */}
+      <Dialog open={!!selectedSlot && !showPaymentModal} onOpenChange={(open) => !open && setSelectedSlot(null)}>
+        <DialogContent className="bg-[#0B0E14] border-white/10 text-white max-w-md p-0 overflow-hidden rounded-[2rem] shadow-2xl">
+          <div className="relative p-8 space-y-8">
+            {/* Background Ambient Glow */}
+            <div className="absolute -top-24 -right-24 w-48 h-48 bg-primary/20 rounded-full blur-[80px] pointer-events-none" />
+            
+            <DialogHeader className="relative z-10">
+              <div className="flex items-center gap-3 mb-2">
+                <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center border border-primary/20">
+                  <CreditCard size={20} className="text-primary" />
+                </div>
+                <div>
+                  <DialogTitle className="text-xl font-black tracking-tight uppercase">Checkout</DialogTitle>
+                  <DialogDescription className="text-gray-500 text-xs font-bold tracking-widest uppercase">Timer Active • Secure Channel</DialogDescription>
+                </div>
+              </div>
+            </DialogHeader>
+
+            {selectedSlot && (
+              <div className="space-y-8 relative z-10">
+                {/* Slot Snapshot */}
+                <div className="p-6 rounded-2xl bg-white/5 border border-white/5 flex items-center justify-between shadow-inner">
                   <div>
-                    <h2 className="text-2xl font-bold text-white mb-2">Slot Selection</h2>
-                    <p className="text-gray-400 text-sm">Select an available spot to initiate booking</p>
+                    <p className="text-[10px] text-gray-500 uppercase tracking-[0.2em] font-black mb-1">Selected Spot</p>
+                    <div className="text-4xl font-black text-white tracking-tighter">S{selectedSlot.slotNumber}</div>
+                    <div className="text-xs text-primary font-bold mt-1.5 flex items-center gap-1.5 uppercase tracking-wider">
+                      <MapPin size={10} />
+                      {selectedSlot.row} Zone
+                    </div>
                   </div>
-                  <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider border ${wsConnected ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400" : "bg-red-500/10 border-red-500/20 text-red-400"}`}>
-                    <span className={`w-2 h-2 rounded-full ${wsConnected ? "bg-emerald-500 animate-pulse" : "bg-red-500"}`}></span>
-                    {wsConnected ? "System Online" : "Reconnecting"}
+                  <div className="text-right">
+                    <div className="text-2xl font-black text-white">₹{selectedSlot.price}<span className="text-xs text-gray-500 font-bold ml-1">/hr</span></div>
+                    {selectedSlot.slotType === "EV" && (
+                      <div className="text-[10px] text-cyan-400 font-black flex items-center justify-end gap-1 mt-2 uppercase tracking-widest">
+                        <Zap size={10} fill="currentColor" /> EV Link
+                      </div>
+                    )}
                   </div>
                 </div>
 
-                <SlotGrid
-                  slots={slots}
-                  selectable={true}
-                  onSelect={handleSlotSelect}
-                />
+                {/* Duration Control */}
+                <div className="space-y-5">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-black text-gray-500 uppercase tracking-[0.2em] flex items-center gap-2">
+                      <Timer size={14} className="text-primary" />
+                      Parking Time
+                    </label>
+                    <span className="text-2xl font-black text-white tabular-nums">{duration} <span className="text-xs text-gray-500 font-bold ml-0.5 uppercase">hrs</span></span>
+                  </div>
+                  <div className="px-2">
+                    <Slider
+                      defaultValue={[2]}
+                      max={24}
+                      min={1}
+                      step={1}
+                      value={[duration]}
+                      onValueChange={(value) => setDuration(value[0])}
+                      className="py-4"
+                    />
+                  </div>
+                  <div className="flex justify-between text-[10px] font-black text-gray-700 uppercase tracking-widest px-1">
+                    <span>min. 1h</span>
+                    <span className="text-gray-500">Scale to needs</span>
+                    <span>max. 24h</span>
+                  </div>
+                </div>
+
+                <div className="h-px bg-white/5 w-full" />
+
+                {/* Total Calc */}
+                <div className="flex items-end justify-between">
+                  <div className="space-y-1">
+                    <span className="text-[10px] text-gray-500 uppercase font-black tracking-widest">Total Estimate</span>
+                    <div className="text-xs text-gray-400 font-medium">Incl. service fees & GST</div>
+                  </div>
+                  <div className="text-5xl font-black text-transparent bg-clip-text bg-gradient-to-br from-white via-white to-gray-500 tabular-nums tracking-tighter">
+                    ₹{selectedSlot.price * duration}
+                  </div>
+                </div>
               </div>
-            </motion.div>
+            )}
+
+            <DialogFooter className="flex flex-col sm:flex-row gap-3 pt-4 pt-0">
+              <Button
+                variant="ghost"
+                onClick={() => setSelectedSlot(null)}
+                className="flex-1 h-14 rounded-2xl border border-white/5 hover:bg-white/5 text-gray-400 hover:text-white font-bold transition-all"
+              >
+                Change Spot
+              </Button>
+              <Button
+                onClick={handleBooking}
+                className="flex-[1.5] h-14 rounded-2xl bg-gradient-to-br from-primary via-primary to-indigo-600 hover:from-primary/90 hover:to-indigo-600/90 text-white font-black uppercase tracking-widest text-xs shadow-xl shadow-primary/20 transition-all hover:scale-[1.02] active:scale-95"
+              >
+                Proceed to Payment
+              </Button>
+            </DialogFooter>
           </div>
-
-          {/* Booking Sidebar */}
-          <div className="lg:col-span-4">
-            <div className="sticky top-28 space-y-6">
-
-              <AnimatePresence mode="wait">
-                {selectedSlot ? (
-                  <motion.div
-                    initial={{ opacity: 0, x: 20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: 20 }}
-                    className="glass-card rounded-3xl p-8 border-white/10 relative overflow-hidden"
-                  >
-                    <div className="relative z-10 space-y-6">
-                      <div className="flex items-center justify-between">
-                        <h2 className="text-xl font-bold flex items-center gap-2">
-                          <CreditCard size={20} className="text-primary" />
-                          Checkout
-                        </h2>
-                        <span className="text-xs font-bold bg-primary/20 text-primary px-2 py-1 rounded-md uppercase tracking-wider">
-                          Timer Active
-                        </span>
-                      </div>
-
-                      {/* Slot Summary */}
-                      <div className="p-4 rounded-2xl bg-white/5 border border-white/5 flex items-center justify-between">
-                        <div>
-                          <p className="text-xs text-gray-400 uppercase tracking-widest font-bold mb-1">Selected Spot</p>
-                          <div className="text-3xl font-black text-white tracking-tight">S{selectedSlot.slotNumber}</div>
-                          <div className="text-xs text-primary font-medium mt-1">{selectedSlot.row} Zone</div>
-                        </div>
-                        <div className="text-right">
-                          <div className="text-2xl font-bold text-white">₹{selectedSlot.price}<span className="text-sm text-gray-500 font-medium">/hr</span></div>
-                          {selectedSlot.slotType === "EV" && <div className="text-[10px] text-blue-400 flex items-center justify-end gap-1 mt-1"><Zap size={10} /> EV Charging</div>}
-                        </div>
-                      </div>
-
-                      {/* Duration Slider */}
-                      <div className="space-y-4">
-                        <div className="flex items-center justify-between">
-                          <label className="text-sm font-medium text-gray-300 flex items-center gap-2">
-                            <Timer size={16} className="text-primary" />
-                            Duration
-                          </label>
-                          <span className="text-2xl font-bold text-white tabular-nums">{duration} <span className="text-sm text-gray-500 font-medium">hrs</span></span>
-                        </div>
-                        <div className="px-1">
-                          <Slider
-                            defaultValue={[2]}
-                            max={24}
-                            min={1}
-                            step={1}
-                            value={[duration]}
-                            onValueChange={(value) => setDuration(value[0])}
-                            className="py-2"
-                          />
-                        </div>
-                        <div className="flex justify-between text-[10px] uppercase font-bold text-gray-600 tracking-wider">
-                          <span>1 Hour</span>
-                          <span>12 Hours</span>
-                          <span>24 Hours</span>
-                        </div>
-                      </div>
-
-                      <div className="h-px bg-white/10 my-6"></div>
-
-                      {/* Total */}
-                      <div className="flex items-end justify-between mb-2">
-                        <span className="text-gray-400 font-medium">Total Estimate</span>
-                        <div className="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-white to-gray-400">
-                          ₹{selectedSlot.price * duration}
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-3">
-                        <Button
-                          variant="ghost"
-                          onClick={() => setSelectedSlot(null)}
-                          className="h-14 rounded-2xl border border-white/10 hover:bg-white/5 text-gray-400 hover:text-white"
-                        >
-                          Cancel
-                        </Button>
-                        <Button
-                          onClick={handleBooking}
-                          className="h-14 rounded-2xl bg-gradient-to-r from-primary to-purple-600 hover:from-primary/90 hover:to-purple-600/90 text-white font-bold shadow-lg shadow-primary/25"
-                        >
-                          Proceed to Payment
-                        </Button>
-                      </div>
-                    </div>
-                  </motion.div>
-                ) : (
-                  <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    className="glass-card rounded-3xl p-10 border-white/5 text-center flex flex-col items-center justify-center min-h-[400px]"
-                  >
-                    <div className="w-24 h-24 bg-white/5 rounded-full flex items-center justify-center mb-6 border border-white/5 animate-pulse-soft">
-                      <Car size={40} className="text-gray-600" />
-                    </div>
-                    <h3 className="text-xl font-bold text-white mb-2">No Spot Selected</h3>
-                    <p className="text-gray-400 text-sm leading-relaxed max-w-[200px]">
-                      Select an available green slot from the grid to view pricing and booking options.
-                    </p>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
-          </div>
-        </div>
-      </main>
+        </DialogContent>
+      </Dialog>
 
       {/* Payment Modal */}
       {selectedSlot && lot && (

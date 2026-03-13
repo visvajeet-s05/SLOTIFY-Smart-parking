@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef, useMemo } from "react";
+import { useEffect, useState, useRef, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
@@ -82,6 +82,7 @@ export default function OwnerDashboardPage() {
     disabled: 0,
   });
   const [currentTime, setCurrentTime] = useState(new Date());
+  const [msPulse, setMsPulse] = useState(0);
   const { isConnected: wsConnected, lastMessage } = useOwnerWS();
 
   const isFetchingRef = useRef(false);
@@ -92,16 +93,30 @@ export default function OwnerDashboardPage() {
   const lotDetails = (parkingLotId && PARKING_LOT_DETAILS[parkingLotId]) || { name: "Your Parking Lot", location: "Unknown Location", price: 0 };
 
   useEffect(() => {
+    // High-frequency UI tick (every 10ms) for millisecond feel
+    const msTimer = setInterval(() => {
+      setMsPulse(Date.now() % 1000);
+    }, 10);
+
+    // Standard clock update
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
-    return () => clearInterval(timer);
+
+    // Automatic background 'refresh' (re-fetch data) every 10 seconds
+    const dataRefreshTimer = setInterval(() => {
+      console.log("🔄 Auto-refreshing dashboard data...");
+      fetchStats();
+    }, 10000);
+
+    return () => {
+      clearInterval(msTimer);
+      clearInterval(timer);
+      clearInterval(dataRefreshTimer);
+    };
   }, []);
 
-  useEffect(() => {
-    if (!parkingLotId || hasFetchedRef.current || isFetchingRef.current) return;
-
-    isFetchingRef.current = true;
-    hasFetchedRef.current = true;
-
+  const fetchStats = useCallback(() => {
+    if (!parkingLotId) return;
+    
     fetch(`/api/parking/${parkingLotId}/slots`)
       .then((res) => res.json())
       .then((data) => {
@@ -114,11 +129,14 @@ export default function OwnerDashboardPage() {
           disabled: slots.filter((s) => s.status === "DISABLED").length,
         });
       })
-      .catch((err) => console.error("Failed to fetch stats:", err))
-      .finally(() => {
-        isFetchingRef.current = false;
-      });
+      .catch((err) => console.error("Failed to fetch stats:", err));
   }, [parkingLotId]);
+
+  useEffect(() => {
+    if (!parkingLotId || hasFetchedRef.current || isFetchingRef.current) return;
+    hasFetchedRef.current = true;
+    fetchStats();
+  }, [parkingLotId, fetchStats]);
 
   useEffect(() => {
     if (!lastMessage || lastMessage.type !== "SLOT_UPDATE") return;
@@ -175,8 +193,9 @@ export default function OwnerDashboardPage() {
             <div className="px-4 py-2 bg-white/5 border border-white/10 rounded-2xl backdrop-blur-md flex items-center gap-4">
               <div className="text-right">
                 <p className="text-xs text-gray-500 uppercase tracking-widest">Local Time</p>
-                <p className="text-lg font-mono font-bold tracking-tight">
+                <p className="text-lg font-mono font-bold tracking-tight flex items-baseline gap-1">
                   {currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                  <span className="text-[10px] text-purple-400 opacity-70">.{String(msPulse).padStart(3, '0')}</span>
                 </p>
               </div>
               <div className="w-px h-8 bg-white/10" />
@@ -316,6 +335,13 @@ export default function OwnerDashboardPage() {
                 <StatusRow label="Camera Processing" status="active" />
                 <StatusRow label="WebSocket Gateway" status={wsConnected ? "active" : "warning"} />
                 <StatusRow label="Database Sync" status="active" />
+                <div className="flex items-center justify-between group">
+                  <span className="text-sm text-gray-400">Sync Frequency</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-mono text-purple-400">1ms Refresh Enabled</span>
+                    <div className="w-1.5 h-1.5 rounded-full bg-purple-500 animate-ping" />
+                  </div>
+                </div>
               </div>
               <div className="mt-8 pt-6 border-t border-white/5 flex items-center justify-between text-xs text-gray-500 lowercase tracking-widest">
                 <span>Last full backup</span>

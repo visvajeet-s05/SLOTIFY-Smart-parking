@@ -140,7 +140,7 @@ export default function PaymentModal({
                     initial={{ opacity: 0, scale: 0.95 }}
                     animate={{ opacity: 1, scale: 1 }}
                     exit={{ opacity: 0, scale: 0.95 }}
-                    className={`bg-slate-950 border border-slate-800 rounded-3xl w-full ${step === 2 ? 'max-w-6xl h-[90vh]' : 'max-w-4xl max-h-[90vh]'} overflow-hidden flex flex-col shadow-2xl relative transition-all duration-500`}
+                    className={`bg-slate-950 border border-slate-800 rounded-2xl md:rounded-3xl w-full ${step === 2 ? 'max-w-6xl h-[95vh] md:h-[90vh]' : 'max-w-4xl h-fit max-h-[95vh] md:max-h-[90vh]'} overflow-hidden flex flex-col shadow-2xl relative transition-all duration-500 m-2 md:m-0`}
                 >
                     {/* Close Button */}
                     <button
@@ -213,9 +213,25 @@ export default function PaymentModal({
                             />
                         </Elements>
                     ) : (
-                        <div className="flex flex-col items-center justify-center h-96 gap-4">
-                            <Loader2 className="w-12 h-12 text-cyan-500 animate-spin" />
-                            <p className="text-slate-400 font-medium">Initializing Secure Payment...</p>
+                        <div className="flex flex-col items-center justify-center h-[50vh] gap-6 text-center px-6">
+                            <div className="relative">
+                                <Loader2 className="w-16 h-16 text-cyan-500 animate-spin" />
+                                <div className="absolute inset-0 flex items-center justify-center">
+                                    <ShieldCheck className="w-6 h-6 text-cyan-500/50" />
+                                </div>
+                            </div>
+                            <div className="space-y-2">
+                                <p className="text-white text-xl font-bold">Initializing Secure Checkout</p>
+                                <p className="text-slate-400 text-sm max-w-[280px]">Configuring encrypted tunnel to payment gateway...</p>
+                            </div>
+                            <Button
+                                variant="ghost"
+                                onClick={onClose}
+                                className="mt-4 text-slate-500 hover:text-white"
+                            >
+                                <ArrowLeft className="w-4 h-4 mr-2" />
+                                Cancel and Return
+                            </Button>
                         </div>
                     )}
                 </motion.div>

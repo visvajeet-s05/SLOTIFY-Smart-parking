@@ -257,8 +257,8 @@ export default function Dashboard() {
                 Find Your Perfect Spot
               </span>
             </h1>
-            <div className="overflow-hidden">
-              <p className="text-lg text-slate-400 max-w-none whitespace-nowrap text-ellipsis overflow-hidden leading-relaxed">
+            <div className="max-w-2xl mx-auto md:mx-0">
+              <p className="text-base md:text-lg text-slate-400 leading-relaxed">
                 Experience seamless parking across Tamil Nadu with real-time availability and smart booking.
               </p>
             </div>
@@ -403,7 +403,7 @@ export default function Dashboard() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.3 }}
-          className="relative z-0 bg-slate-900/50 border border-white/5 rounded-3xl overflow-hidden h-[500px] shadow-2xl shadow-black/40"
+          className="relative z-10 bg-slate-900/50 border border-white/5 rounded-3xl overflow-hidden h-[350px] md:h-[500px] shadow-2xl shadow-black/40"
         >
           <div className="absolute inset-0 z-0">
             <ParkingMap

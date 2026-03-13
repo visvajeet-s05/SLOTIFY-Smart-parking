@@ -149,7 +149,7 @@ export default function LandingPage() {
               transition={{ duration: 0.8 }}
             >
 
-              <h1 className="text-4xl md:text-6xl font-black tracking-tighter mb-8 whitespace-nowrap drop-shadow-lg">
+              <h1 className="text-4xl md:text-6xl font-black tracking-tighter mb-8 drop-shadow-lg leading-tight">
                 <span className="text-white">Smart Parking.</span>{" "}
                 <span className="text-gradient-primary">Zero Stress.</span>
               </h1>

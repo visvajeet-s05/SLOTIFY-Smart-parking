@@ -79,11 +79,11 @@ function ParkingAreaCard({
       <div className="absolute inset-0 bg-gradient-to-br from-white/[0.03] to-transparent opacity-100 pointer-events-none" />
       <div className="absolute inset-0 bg-gradient-to-b from-purple-500/0 via-purple-500/0 to-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
 
-      <div className="relative p-6 space-y-5 flex-1 flex flex-col z-10">
+      <div className="relative p-4 md:p-6 space-y-4 md:space-y-5 flex-1 flex flex-col z-10">
         {/* Header - Name & Status */}
-        <div className="space-y-3">
-          <div className="flex items-start justify-between gap-3">
-            <h3 className="text-xl font-bold text-white line-clamp-2 leading-tight group-hover:text-purple-200 transition-colors tracking-tight">
+        <div className="space-y-2 md:space-y-3">
+          <div className="flex items-start justify-between gap-2 md:gap-3">
+            <h3 className="text-lg md:text-xl font-bold text-white line-clamp-2 leading-tight group-hover:text-purple-200 transition-colors tracking-tight">
               {parkingArea.name}
             </h3>
           </div>
@@ -162,7 +162,7 @@ function ParkingAreaCard({
       </div>
 
       {/* CTA Button */}
-      <div className="p-6 pt-0 mt-auto w-full relative z-10">
+      <div className="p-4 md:p-6 pt-0 mt-auto w-full relative z-10">
         <Button
           onClick={(e) => {
             e.stopPropagation()

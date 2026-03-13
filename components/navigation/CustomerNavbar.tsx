@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import Link from "next/link"
 import Image from "next/image"
 import { usePathname } from "next/navigation"
-import { motion } from "framer-motion"
+import { motion, AnimatePresence } from "framer-motion"
 import { Car, Menu, Search, Bell, User, X, MessageSquare } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -133,12 +133,46 @@ export default function CustomerNavbar() {
             variant="ghost"
             size="icon"
             className="md:hidden text-white"
-            onClick={() => setIsMobileMenuOpen(true)}
+            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
           >
-            <Menu className="h-6 w-6" />
+            {isMobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
           </Button>
         </div>
       </div>
+
+      <AnimatePresence>
+        {isMobileMenuOpen && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.3 }}
+            className="md:hidden bg-gray-950 border-t border-white/5 overflow-hidden"
+          >
+            <div className="px-6 py-8 space-y-6">
+              <div className="flex flex-col space-y-4">
+                {dashboardLinks.map((link) => (
+                  <Link
+                    key={link.name}
+                    href={link.href}
+                    onClick={() => setIsMobileMenuOpen(false)}
+                    className="text-lg font-bold text-gray-400 hover:text-white transition-colors"
+                  >
+                    {link.name}
+                  </Link>
+                ))}
+              </div>
+              <Button 
+                variant="outline" 
+                className="w-full h-14 border-red-500/20 text-red-500 rounded-2xl font-bold uppercase tracking-widest text-xs"
+                onClick={() => signOut({ callbackUrl: "/" })}
+              >
+                Terminate Session
+              </Button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </motion.nav>
   )
-}
+}

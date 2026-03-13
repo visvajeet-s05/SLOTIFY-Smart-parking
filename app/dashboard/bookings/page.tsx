@@ -315,23 +315,25 @@ export default function BookingsPage() {
                             {booking.status}
                           </Badge>
                         </div>
-                        <div className="flex items-center gap-4 text-sm text-slate-400">
-                          <span className="flex items-center gap-1.5">
+                        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-slate-400">
+                          <span className="flex items-center gap-1.5 whitespace-nowrap">
                             <Calendar className="w-3.5 h-3.5" />
-                            {new Date(booking.bookingDate).toLocaleDateString()}
+                            {new Date(booking.bookingDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
                           </span>
-                          <span className="flex items-center gap-1.5">
+                          <span className="flex items-center gap-1.5 whitespace-nowrap">
                             <Clock className="w-3.5 h-3.5" />
                             {booking.bookingTime}
                           </span>
-                          <span className="px-1.5 py-0.5 rounded bg-slate-800 text-white text-xs font-mono">
-                            Slot {booking.slotId}
-                          </span>
-                          {booking.txHash && (
-                            <span className="hidden sm:flex items-center gap-1 px-1.5 py-0.5 rounded bg-indigo-500/10 text-indigo-400 text-xs font-mono border border-indigo-500/20">
-                              Web3 Confirmed
+                          <div className="flex gap-2">
+                            <span className="px-1.5 py-0.5 rounded bg-slate-800 text-white text-xs font-mono">
+                              Slot {booking.slotId}
                             </span>
-                          )}
+                            {booking.txHash && (
+                              <span className="hidden sm:flex items-center gap-1 px-1.5 py-0.5 rounded bg-indigo-500/10 text-indigo-400 text-xs font-mono border border-indigo-500/20">
+                                Web3 Confirmed
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </div>
                     </div>

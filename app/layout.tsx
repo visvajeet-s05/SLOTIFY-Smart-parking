@@ -12,6 +12,7 @@ import AskLocation from "@/components/location/ask-location"
 import { AuthProvider } from "@/components/auth/auth-provider"
 import { SessionProvider } from "next-auth/react"
 import AuthRedirect from "@/components/auth/AuthRedirect"
+import SessionTimeoutGuard from "@/components/auth/SessionTimeoutGuard"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -48,6 +49,7 @@ export default function RootLayout({
         <SessionProvider>
           <AuthProvider>
             <AuthRedirect />
+            <SessionTimeoutGuard />
             {!hideGlobalNavbar && <Navbar />}
             {children}
             <Toaster />

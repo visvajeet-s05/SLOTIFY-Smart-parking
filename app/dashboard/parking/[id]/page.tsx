@@ -188,11 +188,11 @@ function CustomerParkingContent() {
                 <ArrowLeft size={20} />
               </Button>
 
-              <div>
-                <div className="flex items-center gap-3 mb-1">
-                  <h1 className="text-2xl font-black tracking-tight text-white flex items-center gap-2">
+              <div className="flex-1 min-w-0">
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-2 mb-1">
+                  <h1 className="text-xl md:text-2xl font-black tracking-tight text-white flex items-center gap-2 truncate max-w-[200px] sm:max-w-none">
                     {lot?.name || "Parking Lot"}
-                    <span className="px-2 py-0.5 rounded-full bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 text-[10px] font-bold uppercase tracking-wider">
+                    <span className="px-2 py-0.5 rounded-full bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 text-[10px] font-bold uppercase tracking-wider shrink-0">
                       Live
                     </span>
                   </h1>
@@ -201,11 +201,11 @@ function CustomerParkingContent() {
                   <div className="relative">
                     <button
                       onClick={() => setShowLotSelector(!showLotSelector)}
-                      className="flex items-center gap-2 bg-white/10 hover:bg-white/20 border border-white/10 text-white px-4 py-2 rounded-full text-sm font-semibold transition-all shadow-lg hover:shadow-cyan-500/20"
+                      className="flex items-center gap-2 bg-white/10 hover:bg-white/20 border border-white/10 text-white px-3 md:px-4 py-1.5 md:py-2 rounded-full text-xs md:text-sm font-semibold transition-all shadow-lg hover:shadow-cyan-500/20 whitespace-nowrap"
                     >
-                      <Building2 size={14} className="text-cyan-400" />
+                      <Building2 size={12} className="text-cyan-400" />
                       Switch Zone
-                      <ChevronDown size={14} className={`transition-transform duration-300 ${showLotSelector ? "rotate-180" : ""}`} />
+                      <ChevronDown size={12} className={`transition-transform duration-300 ${showLotSelector ? "rotate-180" : ""}`} />
                     </button>
 
                     <AnimatePresence>
@@ -240,12 +240,12 @@ function CustomerParkingContent() {
                   </div>
                 </div>
 
-                <div className="flex items-center gap-4 text-xs font-medium text-gray-500">
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs font-medium text-gray-500">
                   <div className="flex items-center gap-1.5">
                     <MapPin size={12} className="text-primary/70" />
                     <span>{lot?.address || "Loading location..."}</span>
                   </div>
-                  <div className="w-1 h-1 rounded-full bg-gray-700"></div>
+                  <div className="w-1 h-1 rounded-full bg-gray-700 hidden sm:block"></div>
                   <div className="flex items-center gap-1.5">
                     <ShieldCheck size={12} className="text-emerald-500/70" />
                     <span>Secure Zone</span>
@@ -255,19 +255,19 @@ function CustomerParkingContent() {
             </div>
 
             {/* Status Indicators */}
-            <div className="flex items-center gap-8">
-              <div className="text-right hidden md:block">
-                <div className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-1">Availability</div>
-                <div className="text-2xl font-black text-emerald-400 tabular-nums leading-none">
-                  {Math.round((availableCount / totalCount) * 100)}%
+            <div className="flex items-center gap-4 sm:gap-8 shrink-0">
+              <div className="text-right hidden sm:block">
+                <div className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1">Health</div>
+                <div className="text-xl font-black text-emerald-400 tabular-nums leading-none">
+                  {Math.round((availableCount / (totalCount || 1)) * 100)}%
                 </div>
               </div>
-              <div className="h-10 w-px bg-white/10 hidden md:block"></div>
+              <div className="h-10 w-px bg-white/10 hidden sm:block"></div>
               <div className="text-right">
-                <div className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-1">Free Spots</div>
-                <div className="text-2xl font-black text-white tabular-nums leading-none flex items-center justify-end gap-2">
+                <div className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1 leading-none">Free Spots</div>
+                <div className="text-xl md:text-2xl font-black text-white tabular-nums leading-none flex items-center justify-end gap-1.5 md:gap-2 mt-1">
                   <span className="text-emerald-400">{availableCount}</span>
-                  <span className="text-lg text-gray-600 font-medium">/ {totalCount}</span>
+                  <span className="text-sm md:text-lg text-gray-600 font-medium">/ {totalCount}</span>
                 </div>
               </div>
             </div>

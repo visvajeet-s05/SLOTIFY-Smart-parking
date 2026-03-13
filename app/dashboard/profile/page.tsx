@@ -181,7 +181,7 @@ export default function ProfilePage() {
           animate="visible"
         >
           <Tabs defaultValue="overview" className="space-y-6">
-            <TabsList className="bg-slate-900/50 border border-white/5 p-1 h-12 rounded-xl backdrop-blur-md">
+            <TabsList className="bg-slate-900/50 border border-white/5 p-1 h-12 rounded-xl backdrop-blur-md w-full justify-start overflow-x-auto overflow-y-hidden no-scrollbar">
               <TabsTrigger value="overview" className="data-[state=active]:bg-purple-600 data-[state=active]:text-white rounded-lg px-6">Overview</TabsTrigger>
               <TabsTrigger value="vehicles" className="data-[state=active]:bg-purple-600 data-[state=active]:text-white rounded-lg px-6">Vehicles & FASTag</TabsTrigger>
               <TabsTrigger value="payment" className="data-[state=active]:bg-purple-600 data-[state=active]:text-white rounded-lg px-6">Payment & Wallet</TabsTrigger>

@@ -4,6 +4,7 @@ import { useSession } from "next-auth/react"
 import { usePathname } from "next/navigation"
 
 import CustomerNavbar from "@/components/navigation/CustomerNavbar"
+import GlobalDashboardPulse from "@/components/dashboard/GlobalDashboardPulse"
 
 export default function DashboardLayout({
   children,
@@ -33,6 +34,7 @@ export default function DashboardLayout({
 
   return (
     <div className="min-h-screen bg-slate-950">
+      <GlobalDashboardPulse />
       {showCustomerNavbar && <CustomerNavbar />}
       <main className={showCustomerNavbar ? "pt-16" : ""}>
         {children}

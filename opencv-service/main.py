@@ -30,6 +30,8 @@ import mysql.connector
 from dotenv import load_dotenv
 import uuid
 from predict_demand import predict_occupancy, train_model
+from scanner import CameraScanner
+
 
 # ── Load .env ──────────────────────────────────────────────────────────────
 load_dotenv(dotenv_path=os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '.env.local'))

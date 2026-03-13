@@ -19,6 +19,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { useSession, signOut } from "next-auth/react"
 import { Role } from "@/lib/auth/roles"
+import Logo from "@/components/ui/Logo"
 
 export default function OwnerNavbar() {
   const pathname = usePathname()
@@ -47,14 +48,7 @@ export default function OwnerNavbar() {
         <div className="flex items-center gap-10">
           <Link href="/dashboard/owner" className="flex items-center group">
             <div className="relative">
-              <Image
-                src="/Logo.png"
-                alt="Slotify"
-                width={120}
-                height={35}
-                priority
-                className="max-h-9 object-contain brightness-110 group-hover:brightness-125 transition-all"
-              />
+              <Logo size="small" className="hover:scale-105 transition-transform duration-300" />
               <div className="absolute -inset-2 bg-purple-500/10 blur-xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity" />
             </div>
           </Link>

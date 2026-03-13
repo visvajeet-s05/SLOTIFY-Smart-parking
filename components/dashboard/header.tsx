@@ -13,6 +13,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { useSession, signOut } from "next-auth/react"
+import Logo from "@/components/ui/Logo"
 
 export default function Header() {
   const router = useRouter()
@@ -26,9 +27,7 @@ export default function Header() {
   return (
     <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-gray-800 bg-black/80 backdrop-blur-md px-4">
       <div className="flex items-center gap-2">
-        <h1 className="text-xl font-bold bg-gradient-to-r from-purple-400 to-purple-600 text-transparent bg-clip-text">
-          Slotify
-        </h1>
+        <Logo size="small" />
       </div>
 
       <div className="flex items-center gap-4">

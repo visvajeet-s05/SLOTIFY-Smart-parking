@@ -213,6 +213,13 @@ model parkinglot {
   status       parkinglot_status @default(DRAFT)
   cameraUrl    String?
   totalSlots   Int               @default(120)
+  
+  // Edge Node Architecture Support
+  edgeNodeId   String?           @unique
+  edgeToken    String?           @unique
+  lastHeartbeat DateTime?
+  ddnsDomain   String?
+  
   createdAt    DateTime          @default(now())
   updatedAt    DateTime
   booking      booking[]

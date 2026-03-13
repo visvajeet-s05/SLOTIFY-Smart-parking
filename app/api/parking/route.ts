@@ -40,15 +40,15 @@ export async function GET() {
     })
 
     // Transform data for customer dashboard
-    const transformedLots = parkingLots.map((lot) => {
+    const transformedLots = parkingLots.map((lot: any) => {
       const totalSlots = lot.slots.length
-      const availableSlots = lot.slots.filter((s) => s.status === "AVAILABLE").length
-      const occupiedSlots = lot.slots.filter((s) => s.status === "OCCUPIED").length
-      const reservedSlots = lot.slots.filter((s) => s.status === "RESERVED").length
+      const availableSlots = lot.slots.filter((s: any) => s.status === "AVAILABLE").length
+      const occupiedSlots = lot.slots.filter((s: any) => s.status === "OCCUPIED").length
+      const reservedSlots = lot.slots.filter((s: any) => s.status === "RESERVED").length
 
       // Calculate average price from slots
       const avgPrice = lot.slots.length > 0
-        ? Math.round(lot.slots.reduce((sum, s) => sum + (s.price || 0), 0) / lot.slots.length)
+        ? Math.round(lot.slots.reduce((sum: number, s: any) => sum + (s.price || 0), 0) / lot.slots.length)
         : 50
 
       // Determine status based on availability
@@ -76,7 +76,6 @@ export async function GET() {
         id: lot.id,
         name: parkingName,
         address: lot.address,
-
         lat: lot.lat,
         lng: lot.lng,
         totalSlots,
@@ -88,11 +87,14 @@ export async function GET() {
         ownerName: lot.ownerprofile?.user?.name || "Unknown Owner",
         ownerEmail: lot.ownerprofile?.user?.email || "",
         cameraUrl: lot.cameraUrl,
-        // Default features based on amenities (can be enhanced later)
+        edgeNodeId: lot.edgeNodeId,
+        lastHeartbeat: lot.lastHeartbeat,
+        ddnsDomain: lot.ddnsDomain,
+        // Calculate if online (heartbeat within last 2 minutes)
+        isOnline: lot.lastHeartbeat ? (new Date().getTime() - new Date(lot.lastHeartbeat).getTime() < 120000) : false,
         features: ["CCTV", "24/7", "Security"],
-        // Calculate distance from default Chennai coordinates (will be updated with user location)
         distance: 0,
-        rating: 4.5, // Default rating (can be enhanced with reviews later)
+        rating: 4.5,
         openingHours: "24/7",
         coordinates: [lot.lat, lot.lng] as [number, number]
       }

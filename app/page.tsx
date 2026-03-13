@@ -2,12 +2,13 @@
 
 import { useEffect, useState } from "react"
 import { motion, useScroll, useTransform } from "framer-motion"
-import { MapPin, Star, Clock, Shield, ArrowRight, Car, CheckCircle2, Zap, Globe, Menu, X, Smartphone } from "lucide-react"
+import { MapPin, Star, Clock, Shield, ArrowRight, Car, CheckCircle2, Zap, Globe, Menu, X, Smartphone, Apple, Play as GooglePlayIcon } from "lucide-react"
 import dynamic from "next/dynamic"
 import { Button } from "@/components/ui/button"
 import Image from "next/image"
 import { useRouter } from "next/navigation"
 import LoginModal from "@/components/auth/LoginModal"
+import Logo from "@/components/ui/Logo"
 
 const MapBackground = dynamic(() => import("@/components/map/background-map"), {
   ssr: false,
@@ -77,14 +78,7 @@ export default function LandingPage() {
       <nav className={`fixed top-0 w-full z-50 transition-all duration-500 ${isScrolled ? "py-4 bg-slate-950/60 backdrop-blur-md border-b border-white/10 shadow-lg" : "py-6 bg-transparent"}`}>
         <div className="max-w-7xl mx-auto px-6 flex items-center justify-between">
           <div className="flex items-center group cursor-pointer" onClick={() => router.push("/")}>
-            <Image
-              src="/Logo.png"
-              alt="Slotify"
-              width={160}
-              height={45}
-              priority
-              className="h-10 w-auto object-contain brightness-110 group-hover:brightness-125 transition-all invert mix-blend-screen"
-            />
+            <Logo size="default" className="hover:scale-105 transition-transform duration-300" />
           </div>
 
           {/* Desktop Nav */}
@@ -309,14 +303,14 @@ export default function LandingPage() {
                 </p>
                 <div className="flex flex-wrap gap-4">
                   <div className="flex items-center gap-4 px-6 py-3 rounded-2xl glass hover:bg-white/5 transition-all cursor-pointer">
-                    <Image src="/Logo.png" alt="Apple" width={24} height={24} className="brightness-200 invert mix-blend-screen" />
+                    <Apple size={24} className="text-white" />
                     <div className="text-left">
                       <div className="text-[10px] uppercase font-medium text-gray-500">Download on</div>
                       <div className="text-sm font-bold text-white">App Store</div>
                     </div>
                   </div>
                   <div className="flex items-center gap-4 px-6 py-3 rounded-2xl glass hover:bg-white/5 transition-all cursor-pointer">
-                    <Image src="/Logo.png" alt="Google" width={24} height={24} className="brightness-200 invert mix-blend-screen" />
+                    <GooglePlayIcon size={24} className="text-white fill-current" />
                     <div className="text-left">
                       <div className="text-[10px] uppercase font-medium text-gray-500">Get it on</div>
                       <div className="text-sm font-bold text-white">Google Play</div>
@@ -336,11 +330,11 @@ export default function LandingPage() {
                 >
                   <div className="absolute inset-0 bg-primary/20 blur-2xl rounded-[3rem] scale-95 group-hover:scale-100 transition-transform duration-700" />
                   <Image
-                    src="/Logo.png"
+                    src="https://images.unsplash.com/photo-1549466600-60b69729df7d?q=80&w=2070&auto=format&fit=crop"
                     alt="App Preview"
                     width={320}
                     height={640}
-                    className="relative z-10 rounded-[3rem] border-8 border-gray-950 shadow-2xl object-cover invert mix-blend-screen"
+                    className="relative z-10 rounded-[3rem] border-8 border-gray-950 shadow-2xl object-cover"
                   />
                   {/* Floating Notification */}
                   <motion.div
@@ -409,13 +403,7 @@ export default function LandingPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-16 mb-24">
             <div className="col-span-1 lg:col-span-1">
               <div className="flex items-center group cursor-pointer mb-6" onClick={() => router.push("/")}>
-                <Image
-                  src="/Logo.png"
-                  alt="Slotify"
-                  width={180}
-                  height={50}
-                  className="h-12 w-auto object-contain brightness-110 group-hover:brightness-125 transition-all invert mix-blend-screen"
-                />
+                <Logo size="large" className="hover:scale-105 transition-transform duration-300" />
               </div>
               <p className="text-gray-500 leading-relaxed mb-8 max-w-sm">
                 Next-generation parking infrastructure for smarter cities and stress-free urban mobility.

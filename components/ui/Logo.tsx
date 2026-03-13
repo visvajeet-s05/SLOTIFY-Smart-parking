@@ -1,33 +1,74 @@
 
-import { Car } from "lucide-react"
-
-export default function Logo({ className = "", size = "default" }: { className?: string, size?: "small" | "default" | "large" }) {
-    const isSmall = size === "small"
+export default function Logo({ className = "", size = "default", variant = "light" }: { className?: string, size?: "small" | "default" | "large", variant?: "light" | "dark" }) {
+    const scale = size === "small" ? 0.7 : size === "large" ? 1.5 : 1
+    const color = variant === "light" ? "white" : "black"
+    const stroke = variant === "light" ? "black" : "white"
 
     return (
-        <div className={`flex items-center gap-2 font-black tracking-tighter select-none ${className}`}>
-            <div className="relative">
-                {/* Car Icon with Speed Lines */}
-                <div className={`bg-gradient-to-tr from-cyan-400 to-blue-600 rounded-lg transform -skew-x-12 flex items-center justify-center shadow-lg shadow-cyan-500/20 ${isSmall ? 'w-8 h-8' : 'w-10 h-10'}`}>
-                    <Car className={`text-white transform skew-x-12 ${isSmall ? 'w-5 h-5' : 'w-6 h-6'}`} strokeWidth={2.5} />
-                </div>
-                {/* Speed motion effect */}
-                <div className="absolute -left-1 top-1/2 -translate-y-1/2 w-4 h-full overflow-hidden opacity-50">
-                    <div className="w-full h-[2px] bg-cyan-400 mb-1 animate-pulse" />
-                    <div className="w-2/3 h-[2px] bg-blue-500 animate-pulse delay-75" />
-                </div>
-            </div>
+        <div className={`flex items-center select-none ${className}`}>
+            <svg 
+                width={160 * scale} 
+                height={60 * scale} 
+                viewBox="0 0 160 60" 
+                fill="none" 
+                xmlns="http://www.w3.org/2000/svg"
+                className="drop-shadow-lg"
+            >
+                {/* Main Logo Group */}
+                <g filter="url(#dropShadow)">
+                    {/* Shadow/Sticker Border Effect */}
+                    <path 
+                        d="M15 45 Q 12 45 10 42 Q 7 38 8 32 Q 9 20 25 20 Q 30 20 35 22 Q 40 18 50 18 Q 70 18 80 22 Q 100 22 110 30 Q 120 20 135 20 Q 155 20 155 40 Q 155 55 130 55 Q 100 55 80 50 Q 60 55 40 55 Q 20 55 15 45" 
+                        fill="white" 
+                        stroke="rgba(0,0,0,0.1)" 
+                        strokeWidth="2"
+                    />
+                    
+                    {/* Text 'Slotify' - Hand-crafted paths for branding accuracy */}
+                    <text 
+                        x="15" 
+                        y="42" 
+                        fontFamily="system-ui, -apple-system, sans-serif" 
+                        fontWeight="900" 
+                        fontSize="32" 
+                        fill="black"
+                        letterSpacing="-1"
+                    >
+                        Slotify
+                    </text>
 
-            <div className={`flex flex-col justify-center leading-none ${isSmall ? 'hidden md:flex' : 'flex'}`}>
-                <span className={`text-transparent bg-clip-text bg-gradient-to-r from-white via-white to-slate-400 ${isSmall ? 'text-xl' : 'text-2xl'}`}>
-                    Slotify
-                </span>
-                {!isSmall && (
-                    <span className="text-[0.6rem] text-cyan-400 font-bold uppercase tracking-[0.3em] ml-0.5">
-                        Smart Parking
-                    </span>
-                )}
-            </div>
+                    {/* The signature Diamond 'P' marker */}
+                    <path 
+                        d="M135 15 L143 23 L135 31 L127 23 Z" 
+                        fill="black" 
+                    />
+                    <text 
+                        x="132" 
+                        y="26" 
+                        fontFamily="system-ui, -apple-system, sans-serif" 
+                        fontWeight="900" 
+                        fontSize="10" 
+                        fill="white"
+                    >
+                        P
+                    </text>
+
+                    {/* Bottom Swash */}
+                    <path 
+                        d="M70 48 Q 110 52 145 42" 
+                        stroke="black" 
+                        strokeWidth="5" 
+                        strokeLinecap="round"
+                        fill="none"
+                    />
+                </g>
+
+                <defs>
+                    <filter id="dropShadow" x="0" y="0" width="200" height="100">
+                        <feDropShadow dx="0" dy="2" stdDeviation="3" floodOpacity="0.2"/>
+                    </filter>
+                </defs>
+            </svg>
         </div>
     )
 }

@@ -2,6 +2,7 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
+import Logo from "@/components/ui/Logo"
 import {
   LayoutDashboard,
   BarChart3,
@@ -130,13 +131,11 @@ export default function OwnerSidebar({ onLogout }: OwnerSidebarProps) {
   return (
     <aside className="w-64 min-h-screen bg-gray-950 border-r border-gray-800 px-4 py-6 flex flex-col">
       {/* Header */}
-      <div className="mb-8">
-        <h2 className="text-lg font-semibold text-purple-400">
-          Owner Panel
-        </h2>
-        <p className="text-xs text-gray-500">
-          Parking Management
-        </p>
+      <div className="mb-8 px-2">
+        <Logo size="small" />
+        <div className="text-[10px] font-black text-emerald-400 uppercase tracking-[0.3em] mt-2 ml-1 opacity-70">
+          Owner Portal
+        </div>
       </div>
 
       {/* Navigation */}

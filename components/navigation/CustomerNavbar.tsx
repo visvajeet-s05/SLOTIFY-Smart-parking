@@ -19,6 +19,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { useSession, signOut } from "next-auth/react"
 import { Role } from "@/lib/auth/roles"
+import Logo from "@/components/ui/Logo"
 
 export default function CustomerNavbar() {
   const pathname = usePathname()
@@ -47,14 +48,7 @@ export default function CustomerNavbar() {
       <div className="max-w-[1600px] mx-auto px-6 h-16 flex items-center justify-between">
         {/* Logo */}
         <Link href="/dashboard" className="flex items-center gap-2 group">
-          <Image
-            src="/Logo.png"
-            alt="Slotify"
-            width={120}
-            height={36}
-            priority
-            className="h-9 w-auto object-contain brightness-110 group-hover:brightness-125 transition-all"
-          />
+          <Logo size="small" className="hover:scale-105 transition-transform duration-300" />
         </Link>
 
         {/* Desktop links */}

@@ -3,6 +3,7 @@
 import { motion } from "framer-motion"
 import { Users, Globe, Zap, Shield } from "lucide-react"
 import Image from "next/image"
+import Logo from "@/components/ui/Logo"
 
 export default function About() {
   const stats = [
@@ -108,16 +109,10 @@ export default function About() {
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.5, delay: 0.3 }}
-              className="relative"
+              className="relative flex items-center justify-center min-h-[400px]"
             >
-              <div className="absolute inset-0 bg-gradient-to-r from-purple-600 to-indigo-600 rounded-xl blur-xl opacity-30 transform scale-105"></div>
-              <Image
-                src="/Logo.png"
-                alt="Slotify Tamil Nadu Team"
-                width={600}
-                height={400}
-                className="relative z-10 rounded-xl border border-gray-800 shadow-xl w-full"
-              />
+              <div className="absolute inset-0 bg-gradient-to-r from-purple-600 to-indigo-600 rounded-xl blur-xl opacity-20 transform scale-105"></div>
+              <Logo size="large" className="relative z-10 scale-[2] md:scale-[2.5]" />
             </motion.div>
           </div>
         </div>

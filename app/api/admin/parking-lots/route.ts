@@ -28,7 +28,7 @@ export async function GET() {
             }
         })
 
-        const formattedLots = lots.map(lot => ({
+        const formattedLots = lots.map((lot: any) => ({
             id: lot.id,
             name: lot.name,
             address: lot.address,
@@ -39,7 +39,12 @@ export async function GET() {
             activeSlots: lot._count.slots,
             totalBookings: lot._count.booking,
             createdAt: lot.createdAt,
-            coordinates: { lat: lot.lat, lng: lot.lng }
+            coordinates: { lat: lot.lat, lng: lot.lng },
+            // Edge Node Data
+            edgeNodeId: lot.edgeNodeId,
+            lastHeartbeat: lot.lastHeartbeat,
+            ddnsDomain: lot.ddnsDomain,
+            isOnline: lot.lastHeartbeat ? (new Date().getTime() - new Date(lot.lastHeartbeat).getTime() < 120000) : false
         }))
 
         return NextResponse.json(formattedLots)

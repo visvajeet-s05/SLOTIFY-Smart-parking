@@ -9,6 +9,8 @@ import { useRouter } from "next/navigation"
 import toast from "react-hot-toast"
 import { Role } from "@/lib/auth/roles"
 
+import Logo from "@/components/ui/Logo"
+
 interface LoginModalProps {
   open: boolean
   onClose: () => void
@@ -142,8 +144,7 @@ export default function LoginModal({
                   </div>
 
                   <div className="relative z-10">
-                    {/* Fixed Logo: invert for white text, mix-blend-screen to remove white background if present after inversion logic, or just standard blending */}
-                    <Image src="/Logo.png" alt="Slotify" width={140} height={40} className="w-auto h-8 object-contain invert mix-blend-screen opacity-90" />
+                    <Logo size="default" className="opacity-90 grayscale brightness-200" />
                   </div>
 
                   <div className="relative z-10 mt-auto">

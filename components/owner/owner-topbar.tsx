@@ -17,6 +17,7 @@ import { useSession, signOut } from "next-auth/react"
 import { Search, Bell, Settings, User, LogOut } from "lucide-react"
 import Image from "next/image"
 import { OnlinePulse } from "@/components/ui/OnlinePulse"
+import Logo from "@/components/ui/Logo"
 
 export default function OwnerTopbar() {
   const { data: session } = useSession()
@@ -40,14 +41,7 @@ export default function OwnerTopbar() {
       {/* LEFT: Logo */}
       <div className="flex items-center">
         <Link href="/dashboard/owner" className="flex items-center group">
-          <Image
-            src="/Logo.png"
-            alt="Slotify"
-            width={120}
-            height={32}
-            priority
-            className="h-8 w-auto object-contain brightness-110 group-hover:brightness-125 transition-all"
-          />
+          <Logo size="small" />
         </Link>
       </div>
 

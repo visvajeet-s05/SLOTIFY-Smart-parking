@@ -18,7 +18,9 @@ import {
   Database,
   ArrowUpRight,
   ArrowDownRight,
-  Activity
+  Activity,
+  Zap,
+  History
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -81,6 +83,12 @@ export default function OwnerDashboardPage() {
     reserved: 0,
     disabled: 0,
   });
+  const [edgeNode, setEdgeNode] = useState<{
+    id: string | null;
+    isOnline: boolean;
+    lastHeartbeat: string | null;
+  }>({ id: null, isOnline: false, lastHeartbeat: null });
+  const [activityLog, setActivityLog] = useState<{ id: string; msg: string; time: string; type: 'entry' | 'exit' }[]>([]);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [msPulse, setMsPulse] = useState(0);
   const { isConnected: wsConnected, lastMessage } = useOwnerWS();
@@ -128,6 +136,20 @@ export default function OwnerDashboardPage() {
           reserved: slots.filter((s) => s.status === "RESERVED").length,
           disabled: slots.filter((s) => s.status === "DISABLED").length,
         });
+
+        // Fetch parking lot details for edge node info
+        fetch(`/api/parking`)
+          .then(res => res.json())
+          .then(lotData => {
+            const currentLot = lotData.parkingAreas?.find((l: any) => l.id === parkingLotId);
+            if (currentLot) {
+              setEdgeNode({
+                id: currentLot.edgeNodeId,
+                isOnline: currentLot.isOnline,
+                lastHeartbeat: currentLot.lastHeartbeat
+              });
+            }
+          });
       })
       .catch((err) => console.error("Failed to fetch stats:", err));
   }, [parkingLotId]);
@@ -140,6 +162,15 @@ export default function OwnerDashboardPage() {
 
   useEffect(() => {
     if (!lastMessage || lastMessage.type !== "SLOT_UPDATE") return;
+
+    // Update Logs
+    const newLog = {
+      id: Math.random().toString(36).substr(2, 9),
+      msg: `Slot ${lastMessage.slotNumber || lastMessage.slotId} ${lastMessage.status === 'OCCUPIED' ? 'Occupied' : 'Cleared'}`,
+      time: new Date().toLocaleTimeString(),
+      type: lastMessage.status === 'OCCUPIED' ? 'entry' as const : 'exit' as const
+    };
+    setActivityLog(prev => [newLog, ...prev].slice(0, 10));
 
     setStats((prev) => {
       const newStats = { ...prev };
@@ -325,16 +356,52 @@ export default function OwnerDashboardPage() {
               </div>
             </div>
 
-            <div className="bg-white/5 border border-white/10 rounded-3xl p-6">
+              <div className="bg-white/5 border border-white/10 rounded-3xl p-6">
+                <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
+                  <History className="text-blue-400" size={20} />
+                  Live Activity
+                </h3>
+                <div className="space-y-4 max-h-[220px] overflow-y-auto pr-2 custom-scrollbar">
+                  <AnimatePresence mode="popLayout">
+                    {activityLog.length === 0 ? (
+                      <p className="text-xs text-center text-gray-500 py-8">Waiting for AI events...</p>
+                    ) : (
+                      activityLog.map((log) => (
+                        <motion.div
+                          key={log.id}
+                          initial={{ opacity: 0, x: -10 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          exit={{ opacity: 0, scale: 0.9 }}
+                          className="flex items-start gap-3 p-2 rounded-xl bg-white/5 border border-white/5"
+                        >
+                          <div className={`mt-1 p-1 rounded-md ${log.type === 'entry' ? 'bg-red-500/20 text-red-400' : 'bg-green-500/20 text-green-400'}`}>
+                            <Zap size={10} />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-medium text-gray-200 truncate">{log.msg}</p>
+                            <p className="text-[10px] text-gray-500">{log.time}</p>
+                          </div>
+                        </motion.div>
+                      ))
+                    )}
+                  </AnimatePresence>
+                </div>
+              </div>
+
+              <div className="bg-white/5 border border-white/10 rounded-3xl p-6">
               <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
                 <Signal className="text-green-400" size={20} />
                 System Status
               </h3>
               <div className="space-y-4">
-                <StatusRow label="AI Detection" status="active" />
-                <StatusRow label="Camera Processing" status="active" />
+                <StatusRow label="AI Edge Node" status={edgeNode.isOnline ? "active" : "error"} />
+                <StatusRow label="Camera Processing" status={edgeNode.isOnline ? "active" : "warning"} />
                 <StatusRow label="WebSocket Gateway" status={wsConnected ? "active" : "warning"} />
                 <StatusRow label="Database Sync" status="active" />
+                <div className="flex items-center justify-between group">
+                  <span className="text-sm text-gray-400">Node ID</span>
+                  <span className="text-[10px] font-mono text-purple-400">{edgeNode.id || "N/A"}</span>
+                </div>
                 <div className="flex items-center justify-between group">
                   <span className="text-sm text-gray-400">Sync Frequency</span>
                   <div className="flex items-center gap-2">

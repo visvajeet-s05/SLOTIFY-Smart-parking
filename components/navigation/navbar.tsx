@@ -22,6 +22,7 @@ import LoginModal from "@/components/auth/LoginModal"
 import { useAuth } from "@/components/auth/auth-provider"
 import { isSessionValid } from "@/lib/checkSession"
 import { Role } from "@/lib/auth/roles"
+import Logo from "@/components/ui/Logo"
 
 export default function Navbar() {
   const pathname = usePathname()
@@ -90,14 +91,7 @@ border-b border-white/10 backdrop-blur-md shadow-lg"
         <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
           {/* Logo */}
           <Link href="/" className="flex items-center group">
-            <Image
-              src="/Logo.png"
-              alt="Slotify"
-              width={140}
-              height={40}
-              priority
-              className="max-h-10 object-contain brightness-110 group-hover:brightness-125 transition-all"
-            />
+            <Logo size="small" className="hover:scale-105 transition-transform duration-300" />
           </Link>
 
           {/* Desktop links */}

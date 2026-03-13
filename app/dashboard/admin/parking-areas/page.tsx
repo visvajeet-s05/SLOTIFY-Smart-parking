@@ -17,6 +17,8 @@ interface ParkingLot {
   activeSlots: number
   createdAt: string
   coordinates: { lat: number; lng: number }
+  edgeNodeId?: string
+  isOnline?: boolean
 }
 
 export default function AdminParkingLotsPage() {
@@ -153,14 +155,25 @@ export default function AdminParkingLotsPage() {
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-3 pt-2">
-                    <div className="w-8 h-8 rounded-full bg-gray-800 flex items-center justify-center text-xs font-bold text-gray-400">
-                      {lot.ownerName.charAt(0).toUpperCase()}
+                  <div className="flex items-center justify-between pt-2 border-t border-gray-800">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-full bg-gray-800 flex items-center justify-center text-xs font-bold text-gray-400">
+                        {lot.ownerName.charAt(0).toUpperCase()}
+                      </div>
+                      <div className="flex-1 overflow-hidden">
+                        <p className="text-sm text-gray-300 truncate">{lot.ownerName}</p>
+                        <p className="text-xs text-gray-500 truncate">{lot.ownerEmail}</p>
+                      </div>
                     </div>
-                    <div className="flex-1 overflow-hidden">
-                      <p className="text-sm text-gray-300 truncate">{lot.ownerName}</p>
-                      <p className="text-xs text-gray-500 truncate">{lot.ownerEmail}</p>
-                    </div>
+                    {lot.edgeNodeId && (
+                      <div className="flex flex-col items-end">
+                        <div className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-tighter flex items-center gap-1.5 ${lot.isOnline ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-400'}`}>
+                          <span className={`w-1 h-1 rounded-full ${lot.isOnline ? 'bg-green-500' : 'bg-red-500'}`} />
+                          {lot.isOnline ? "AI Online" : "AI Offline"}
+                        </div>
+                        <span className="text-[9px] text-gray-600 font-mono mt-0.5">{lot.edgeNodeId}</span>
+                      </div>
+                    )}
                   </div>
                 </div>
               </motion.div>

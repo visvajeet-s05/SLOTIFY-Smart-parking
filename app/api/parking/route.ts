@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 
+export const dynamic = "force-dynamic"
+
 // GET /api/parking - Fetch all active parking lots with slot counts
 export async function GET() {
   try {

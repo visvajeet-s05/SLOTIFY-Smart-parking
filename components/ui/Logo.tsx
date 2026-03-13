@@ -1,9 +1,9 @@
 export default function Logo({ className = "", size = "default" }: { className?: string, size?: "small" | "default" | "large" }) {
     const dimensions = size === "small" ? 
-        { width: 140, height: 40 } : 
+        { width: 105, height: 60 } : 
         size === "large" ? 
-        { width: 280, height: 80 } : 
-        { width: 180, height: 50 };
+        { width: 245, height: 140 } : 
+        { width: 140, height: 80 };
 
     return (
         <div className={`flex items-center justify-center overflow-hidden rounded-lg bg-transparent ${className}`}>

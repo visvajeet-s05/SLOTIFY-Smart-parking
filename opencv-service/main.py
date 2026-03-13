@@ -28,6 +28,7 @@ import queue
 import requests
 import mysql.connector
 from dotenv import load_dotenv
+import uuid
 from predict_demand import predict_occupancy, train_model
 
 # ── Load .env ──────────────────────────────────────────────────────────────
@@ -97,22 +98,22 @@ class EdgeNodePulse:
 ddns_updater = DDNSUpdater()
 node_pulse = EdgeNodePulse()
 
-# ── Detection Constants ─────────────────────────────────────────────────────
+# ── Detection Constants (Aligned with IEEE Research Paper) ───────────────────
 #   SSD MobileNet V3 COCO  →  class IDs are 1-indexed in the output tensor
-#   Class 3 = "car"  (COCO 1-indexed).  This is the ONLY class we care about.
+#   Class 3 = "car"  (COCO 1-indexed). This is the ONLY class we care about.
 #   All global car types fall under class 3: sedans, SUVs, hatchbacks, etc.
 CAR_CLASS_ID         = 3       # COCO 1-indexed class 3 = car
-CONFIDENCE_THRESHOLD = 0.35    # Minimum detection confidence (0–1)
-NMS_THRESHOLD        = 0.40    # NMS IoU threshold to suppress duplicate boxes
+CONFIDENCE_THRESHOLD = 0.25    # Aligned with Research Paper (optimizing recall)
+NMS_THRESHOLD        = 0.45    # NMS IoU threshold to suppress duplicate boxes
 INPUT_SIZE           = (300, 300)  # SSD MobileNet V3 input resolution
 SCALE_FACTOR         = 1.0 / 127.5
 MEAN_SUBTRACTION     = (127.5, 127.5, 127.5)
 
 # ── Slot-Matching Constants ─────────────────────────────────────────────────
 REF_W, REF_H         = 1920, 1080  # Reference resolution of slot coordinates
-SLOT_OVERLAP_MIN     = 0.20        # Min % of slot area a car must cover  (primary)
-CENTER_OVERLAP_MIN   = 0.10        # Min % when car centre is inside slot  (secondary)
-BIG_CAR_FRACTION     = 0.65        # Ignore boxes > 65% of frame (false positives)
+SLOT_OVERLAP_MIN     = 0.15        # Aligned with Research Paper (15% coverage)
+CENTER_OVERLAP_MIN   = 0.10        # Min % when car centre is inside slot
+BIG_CAR_FRACTION     = 0.70        # Ignore boxes > 70% of frame (sanity check)
 
 # ── Debounce Constants ──────────────────────────────────────────────────────
 #   Prevents rapid OCCUPIED / AVAILABLE flicker in real-time video.
@@ -200,6 +201,9 @@ class DatabaseWriter:
                 now = time.strftime("%Y-%m-%d %H:%M:%S")
 
                 for su in slot_updates:
+                    if not su.get("slot_id"):
+                        continue
+
                     # 1. Update Slot table
                     cursor.execute(
                         """UPDATE Slot
@@ -211,7 +215,6 @@ class DatabaseWriter:
                         (su["new_status"], now, su["slot_id"])
                     )
                     # 2. Insert audit log
-                    import uuid
                     cursor.execute(
                         """INSERT INTO SlotStatusLog
                                 (id, slotId, oldStatus, newStatus,

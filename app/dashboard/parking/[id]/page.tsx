@@ -40,16 +40,7 @@ type ParkingLot = {
   status: string
 }
 
-const PARKING_LOTS = [
-  { id: "CHENNAI_CENTRAL", name: "Chennai Central Premium Parking", price: 80 },
-  { id: "ANNA_NAGAR", name: "Anna Nagar Parking Complex", price: 60 },
-  { id: "T_NAGAR", name: "T Nagar Shopping District Parking", price: 100 },
-  { id: "VELACHERY", name: "Velachery IT Corridor Parking", price: 50 },
-  { id: "OMR", name: "OMR Tech Park Parking", price: 45 },
-  { id: "ADYAR", name: "Adyar Residential Parking", price: 70 },
-  { id: "GUINDY", name: "Guindy Industrial Parking", price: 40 },
-  { id: "PORUR", name: "Porur Junction Parking", price: 35 }
-]
+// Local types
 
 function CustomerParkingContent() {
   const params = useParams()
@@ -63,6 +54,7 @@ function CustomerParkingContent() {
   const [selectedSlot, setSelectedSlot] = useState<Slot | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [showLotSelector, setShowLotSelector] = useState(false)
+  const [availableLots, setAvailableLots] = useState<any[]>([])
   const [duration, setDuration] = useState(2)
   const [showPaymentModal, setShowPaymentModal] = useState(false)
 
@@ -113,6 +105,15 @@ function CustomerParkingContent() {
       .catch(err => {
         console.error("Failed to fetch slots:", err)
         setIsLoading(false)
+      })
+
+    // Fetch all lots for the selector
+    fetch(`/api/parking`)
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          setAvailableLots(data.parkingAreas || [])
+        }
       })
   }, [lotId])
 
@@ -225,16 +226,22 @@ function CustomerParkingContent() {
                           className="absolute top-full left-0 mt-3 w-80 bg-gray-900/95 border border-white/10 rounded-2xl shadow-2xl z-50 overflow-hidden backdrop-blur-xl ring-1 ring-white/10"
                         >
                           <div className="p-2 space-y-1 max-h-[60vh] overflow-y-auto custom-scrollbar">
-                            {PARKING_LOTS.map((parkingLot) => (
+                            {availableLots.map((parkingLot) => (
                               <button
                                 key={parkingLot.id}
                                 onClick={() => handleLotChange(parkingLot.id)}
                                 className={`w-full text-left px-4 py-3 rounded-xl transition-all flex items-center justify-between group ${parkingLot.id === lotId ? "bg-cyan-500/20 border border-cyan-500/30" : "hover:bg-white/5 border border-transparent"
                                   }`}
                               >
-                                <div>
-                                  <div className={`font-bold text-sm ${parkingLot.id === lotId ? "text-cyan-400" : "text-white"}`}>{parkingLot.name}</div>
-                                  <div className="text-xs text-gray-400 mt-0.5 group-hover:text-gray-300">₹{parkingLot.price}/hr • High Demand</div>
+                                <div className="flex-1 min-w-0 pr-4">
+                                  <div className={`font-bold text-sm truncate ${parkingLot.id === lotId ? "text-cyan-400" : "text-white"}`}>{parkingLot.name}</div>
+                                  <div className="text-[10px] text-gray-500 mt-0.5 group-hover:text-gray-400 truncate flex items-center gap-2">
+                                     <span>₹{parkingLot.price}/hr</span>
+                                     <span className="w-1 h-1 rounded-full bg-gray-800" />
+                                     <span className={parkingLot.availableSlots > 0 ? "text-emerald-500" : "text-red-500"}>
+                                       {parkingLot.availableSlots} available
+                                     </span>
+                                  </div>
                                 </div>
                                 {parkingLot.id === lotId && (
                                   <CheckCircle2 size={16} className="text-cyan-400" />

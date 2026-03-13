@@ -82,6 +82,7 @@ class EdgeNodePulse:
             try:
                 # Minimum heartbeat payload
                 data = {
+                    "lotId": os.getenv("PARKING_LOT_ID"),
                     "edgeNodeId": self.node_id,
                     "edgeToken": self.token,
                     "timestamp": time.time(),

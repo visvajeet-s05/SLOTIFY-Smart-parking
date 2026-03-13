@@ -25,22 +25,44 @@ export default function AdminParkingLotsPage() {
   const [lots, setLots] = useState<ParkingLot[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState("")
+  const [msPulse, setMsPulse] = useState(0)
+  const [currentTime, setCurrentTime] = useState(new Date())
+
+  const fetchLots = async () => {
+    try {
+      const res = await fetch("/api/admin/parking-lots")
+      if (res.ok) {
+        const data = await res.json()
+        setLots(data)
+      }
+    } catch (error) {
+      console.error("Failed to fetch parking lots", error)
+    } finally {
+      setLoading(false)
+    }
+  }
 
   useEffect(() => {
-    async function fetchLots() {
-      try {
-        const res = await fetch("/api/admin/parking-lots")
-        if (res.ok) {
-          const data = await res.json()
-          setLots(data)
-        }
-      } catch (error) {
-        console.error("Failed to fetch parking lots", error)
-      } finally {
-        setLoading(false)
-      }
-    }
     fetchLots()
+
+    // High-frequency UI tick (every 10ms)
+    const msTimer = setInterval(() => {
+      setMsPulse(Date.now() % 1000)
+    }, 10)
+
+    // Standard clock
+    const timer = setInterval(() => setCurrentTime(new Date()), 1000)
+
+    // Auto-refresh data every 10s
+    const refreshTimer = setInterval(() => {
+      fetchLots()
+    }, 10000)
+
+    return () => {
+      clearInterval(msTimer)
+      clearInterval(timer)
+      clearInterval(refreshTimer)
+    }
   }, [])
 
   const filteredLots = lots.filter(l =>
@@ -71,8 +93,8 @@ export default function AdminParkingLotsPage() {
               <MapPin className="text-red-400" />
               Parking Lots Network
             </h1>
-            <p className="text-gray-400 mt-1">
-              Oversee all registered parking locations and their status.
+            <p className="text-gray-400 mt-1 uppercase text-[10px] tracking-[0.2em] font-bold">
+              Global Node Sync • Live {currentTime.toLocaleTimeString()}.<span className="text-red-500">{String(msPulse).padStart(3, '0')}</span>
             </p>
           </div>
           <div className="relative">

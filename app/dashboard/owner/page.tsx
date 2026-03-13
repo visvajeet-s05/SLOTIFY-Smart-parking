@@ -87,7 +87,8 @@ export default function OwnerDashboardPage() {
     id: string | null;
     isOnline: boolean;
     lastHeartbeat: string | null;
-  }>({ id: null, isOnline: false, lastHeartbeat: null });
+    ddnsDomain: string | null;
+  }>({ id: null, isOnline: false, lastHeartbeat: null, ddnsDomain: null });
   const [activityLog, setActivityLog] = useState<{ id: string; msg: string; time: string; type: 'entry' | 'exit' }[]>([]);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [msPulse, setMsPulse] = useState(0);
@@ -146,7 +147,8 @@ export default function OwnerDashboardPage() {
               setEdgeNode({
                 id: currentLot.edgeNodeId,
                 isOnline: currentLot.isOnline,
-                lastHeartbeat: currentLot.lastHeartbeat
+                lastHeartbeat: currentLot.lastHeartbeat,
+                ddnsDomain: currentLot.ddnsDomain
               });
             }
           });
@@ -402,6 +404,12 @@ export default function OwnerDashboardPage() {
                   <span className="text-sm text-gray-400">Node ID</span>
                   <span className="text-[10px] font-mono text-purple-400">{edgeNode.id || "N/A"}</span>
                 </div>
+                {edgeNode.ddnsDomain && (
+                  <div className="flex items-center justify-between group">
+                    <span className="text-sm text-gray-400">Node Domain</span>
+                    <span className="text-[10px] font-mono text-cyan-400">{edgeNode.ddnsDomain}</span>
+                  </div>
+                )}
                 <div className="flex items-center justify-between group">
                   <span className="text-sm text-gray-400">Sync Frequency</span>
                   <div className="flex items-center gap-2">

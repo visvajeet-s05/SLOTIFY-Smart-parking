@@ -23,21 +23,19 @@ const ParkingMap = dynamic(() => import("@/components/map/parking-map"), {
   ),
 })
 
-// 🚗 Parking Data (Tamil Nadu, 12 locations)
-const parkingAreas = [
-  { id: "1", name: "Chennai Central Parking Complex", address: "Near Chennai Central Railway Station, Chennai", totalSlots: 120, availableSlots: 45, price: 30, rating: 4.5, distance: 0.8, coordinates: [13.0827, 80.2707], status: "available" },
-  { id: "2", name: "Coimbatore Gandhipuram Parking", address: "100 Feet Road, Gandhipuram, Coimbatore", totalSlots: 200, availableSlots: 12, price: 40, rating: 4.2, distance: 1.2, coordinates: [11.0168, 76.9558], status: "limited" },
-  { id: "3", name: "Madurai Meenakshi Temple Parking", address: "Near Meenakshi Amman Temple, Madurai", totalSlots: 80, availableSlots: 0, price: 25, rating: 3.8, distance: 1.5, coordinates: [9.9252, 78.1198], status: "full" },
-  { id: "4", name: "Marina Beach Parking", address: "Marina Beach Road, Chennai", totalSlots: 300, availableSlots: 150, price: 20, rating: 4.7, distance: 2.1, coordinates: [13.05, 80.2824], status: "available" },
-  { id: "5", name: "Anna Nagar Tower Park Parking", address: "Anna Nagar, Chennai", totalSlots: 100, availableSlots: 60, price: 35, rating: 4.3, distance: 3.0, coordinates: [13.0878, 80.2131], status: "available" },
-  { id: "6", name: "T Nagar Pondy Bazaar Parking", address: "T Nagar, Chennai", totalSlots: 150, availableSlots: 20, price: 50, rating: 4.1, distance: 2.5, coordinates: [13.0413, 80.2337], status: "limited" },
-  { id: "7", name: "Erode Central Parking", address: "Near Erode Central, Erode", totalSlots: 90, availableSlots: 30, price: 25, rating: 4.0, distance: 1.0, coordinates: [11.3410, 77.7172], status: "available" },
-  { id: "8", name: "Vellore Katpadi Parking", address: "Near Vellore Katpadi Railway Station", totalSlots: 70, availableSlots: 15, price: 20, rating: 3.9, distance: 1.3, coordinates: [12.9941, 79.1553], status: "limited" },
-  { id: "9", name: "Trichy Rockfort Parking", address: "Near Rockfort Temple, Trichy", totalSlots: 120, availableSlots: 50, price: 30, rating: 4.2, distance: 1.6, coordinates: [10.7905, 78.7047], status: "available" },
-  { id: "10", name: "Ooty Botanical Garden Parking", address: "Near Botanical Garden, Ooty", totalSlots: 80, availableSlots: 40, price: 35, rating: 4.5, distance: 2.8, coordinates: [11.4064, 76.6950], status: "available" },
-  { id: "11", name: "Salem Town Parking", address: "Near Salem Railway Station, Salem", totalSlots: 90, availableSlots: 30, price: 25, rating: 4.1, distance: 1.4, coordinates: [11.6643, 78.1460], status: "available" },
-  { id: "12", name: "Kanyakumari Beach Parking", address: "Near Kanyakumari Beach, Kanyakumari", totalSlots: 50, availableSlots: 20, price: 20, rating: 4.0, distance: 3.5, coordinates: [8.0883, 77.5385], status: "available" },
-]
+// Real database-connected parking area type
+interface ParkingArea {
+  id: string
+  name: string
+  address: string
+  totalSlots: number
+  availableSlots: number
+  price: number
+  rating: number
+  distance: number
+  coordinates: [number, number]
+  status: "available" | "limited" | "full"
+}
 
 interface ParkingArea {
   id: string
@@ -59,8 +57,9 @@ export default function FindParkingPage() {
   const [selectedParkingArea, setSelectedParkingArea] = useState<string | null>(null)
   const [sortBy, setSortBy] = useState<"distance" | "price" | "rating">("distance")
   const [showFilters, setShowFilters] = useState(false)
-  const [isLoading, setIsLoading] = useState(false)
-  const [filteredAreas, setFilteredAreas] = useState<ParkingArea[]>(parkingAreas as ParkingArea[])
+  const [isLoading, setIsLoading] = useState(true)
+  const [allAreas, setAllAreas] = useState<ParkingArea[]>([])
+  const [filteredAreas, setFilteredAreas] = useState<ParkingArea[]>([])
 
   // Real-time parking updates
   useParkingSocket({
@@ -88,43 +87,59 @@ export default function FindParkingPage() {
     }
   })
 
-  // Filter and sort effect
+  // Initial fetch from DB
   useEffect(() => {
-    setIsLoading(true)
-    
-    // Simulate API call delay
-    const timer = setTimeout(() => {
-      let results = parkingAreas.filter(
-        (area) =>
-          area.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          area.address.toLowerCase().includes(searchQuery.toLowerCase())
-      )
+    async function initFetch() {
+      setIsLoading(true)
+      try {
+        const res = await fetch("/api/parking")
+        const data = await res.json()
+        if (data.success) {
+          setAllAreas(data.parkingAreas || [])
+          setFilteredAreas(data.parkingAreas || [])
+        }
+      } catch (err) {
+        console.error("Failed to fetch parking data:", err)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+    initFetch()
+  }, [])
 
-      // Apply price filter
-      results = results.filter(
-        (area) => area.price >= priceRange[0] && area.price <= priceRange[1]
-      )
+  // Filter and sort effect based on fetched data
+  useEffect(() => {
+    if (allAreas.length === 0) return
 
-      // Apply sorting
-      results = [...results].sort((a, b) => {
-        if (sortBy === "distance") return a.distance - b.distance
-        if (sortBy === "price") return a.price - b.price
-        if (sortBy === "rating") return b.rating - a.rating
-        return 0
-      })
+    let results = allAreas.filter(
+      (area) =>
+        area.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        area.address.toLowerCase().includes(searchQuery.toLowerCase())
+    )
 
-      setFilteredAreas(results as ParkingArea[])
-      setIsLoading(false)
-    }, 300)
+    // Apply price filter
+    results = results.filter(
+      (area) => area.price >= priceRange[0] && area.price <= priceRange[1]
+    )
 
-    return () => clearTimeout(timer)
-  }, [searchQuery, priceRange, sortBy])
+    // Apply sorting
+    results = [...results].sort((a, b) => {
+      if (sortBy === "distance") return a.distance - b.distance
+      if (sortBy === "price") return a.price - b.price
+      if (sortBy === "rating") return b.rating - a.rating
+      return 0
+    })
+
+    setFilteredAreas(results)
+  }, [searchQuery, priceRange, sortBy, allAreas])
 
   const stats = {
-    total: parkingAreas.length,
-    available: parkingAreas.filter(a => a.status === "available").length,
-    totalSpots: parkingAreas.reduce((sum, a) => sum + a.availableSlots, 0),
-    avgRating: (parkingAreas.reduce((sum, a) => sum + a.rating, 0) / parkingAreas.length).toFixed(1),
+    total: allAreas.length,
+    available: allAreas.filter(a => a.status === "available").length,
+    totalSpots: allAreas.reduce((sum, a) => sum + a.availableSlots, 0),
+    avgRating: allAreas.length > 0 
+      ? (allAreas.reduce((sum, a) => sum + a.rating, 0) / allAreas.length).toFixed(1)
+      : "0.0",
   }
 
   const handleParkingSelect = (parkingId: string) => {
@@ -330,7 +345,7 @@ export default function FindParkingPage() {
                     <div className="flex items-start gap-2">
                       <AlertCircle className="w-4 h-4 text-yellow-400 mt-0.5 flex-shrink-0" />
                       <p className="text-xs text-gray-400">
-                        {filteredAreas.length} of {parkingAreas.length} results match your filters
+                        {filteredAreas.length} of {allAreas.length} results match your filters
                       </p>
                     </div>
                   </div>
@@ -373,7 +388,7 @@ export default function FindParkingPage() {
           {/* Results Info */}
           <div className="text-sm text-gray-400">
             Showing <span className="font-semibold text-white">{filteredAreas.length}</span> of{" "}
-            <span className="font-semibold text-white">{parkingAreas.length}</span> parking locations
+            <span className="font-semibold text-white">{allAreas.length}</span> parking locations
           </div>
         </motion.div>
 

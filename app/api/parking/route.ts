@@ -11,7 +11,19 @@ export async function GET() {
       where: {
         status: "ACTIVE"
       },
-      include: {
+      select: {
+        id: true,
+        name: true,
+        address: true,
+        lat: true,
+        lng: true,
+        status: true,
+        cameraUrl: true,
+        createdAt: true,
+        // Include new fields but handle gracefully later
+        // edgeNodeId: true, 
+        // lastHeartbeat: true,
+        // ddnsDomain: true,
         ownerprofile: {
           include: {
             user: {
@@ -29,11 +41,6 @@ export async function GET() {
             price: true,
             slotType: true
           }
-        },
-        _count: {
-          select: {
-            slots: true
-          }
         }
       },
       orderBy: {
@@ -43,14 +50,14 @@ export async function GET() {
 
     // Transform data for customer dashboard
     const transformedLots = parkingLots.map((lot: any) => {
-      const totalSlots = lot.slots.length
-      const availableSlots = lot.slots.filter((s: any) => s.status === "AVAILABLE").length
-      const occupiedSlots = lot.slots.filter((s: any) => s.status === "OCCUPIED").length
-      const reservedSlots = lot.slots.filter((s: any) => s.status === "RESERVED").length
+      const totalSlots = lot.slots?.length || 0
+      const availableSlots = (lot.slots || []).filter((s: any) => s.status === "AVAILABLE").length
+      const occupiedSlots = (lot.slots || []).filter((s: any) => s.status === "OCCUPIED").length
+      const reservedSlots = (lot.slots || []).filter((s: any) => s.status === "RESERVED").length
 
       // Calculate average price from slots
-      const avgPrice = lot.slots.length > 0
-        ? Math.round(lot.slots.reduce((sum: number, s: any) => sum + (s.price || 0), 0) / lot.slots.length)
+      const avgPrice = totalSlots > 0
+        ? Math.round(lot.slots.reduce((sum: number, s: any) => sum + (s.price || 0), 0) / totalSlots)
         : 50
 
       // Determine status based on availability
@@ -58,20 +65,13 @@ export async function GET() {
       const status = availabilityRatio > 0.5 ? "available" :
         availabilityRatio > 0.2 ? "limited" : "full"
 
-      // Use parking lot name if available, otherwise fallback to owner's name
       const ownerName = lot.ownerprofile?.user?.name || "Unknown Owner"
 
       let parkingName = lot.name
       if (!parkingName) {
-        // Smart suffixing: Only add " Parking" if not already present
         parkingName = ownerName.match(/parking$/i)
           ? ownerName
           : `${ownerName} Parking`
-      }
-
-      // Safety cleanup: Remove double "Parking" if it somehow exists
-      if (parkingName) {
-        parkingName = parkingName.replace(/ parking parking$/i, " Parking");
       }
 
       return {
@@ -86,14 +86,14 @@ export async function GET() {
         reservedSlots,
         price: avgPrice,
         status,
-        ownerName: lot.ownerprofile?.user?.name || "Unknown Owner",
+        ownerName,
         ownerEmail: lot.ownerprofile?.user?.email || "",
         cameraUrl: lot.cameraUrl,
-        edgeNodeId: lot.edgeNodeId,
-        lastHeartbeat: lot.lastHeartbeat,
-        ddnsDomain: lot.ddnsDomain,
-        // Calculate if online (heartbeat within last 2 minutes)
-        isOnline: lot.lastHeartbeat ? (new Date().getTime() - new Date(lot.lastHeartbeat).getTime() < 120000) : false,
+        // Safe access to new fields (might be missing in DB)
+        edgeNodeId: (lot as any).edgeNodeId || null,
+        lastHeartbeat: (lot as any).lastHeartbeat || null,
+        ddnsDomain: (lot as any).ddnsDomain || null,
+        isOnline: (lot as any).lastHeartbeat ? (new Date().getTime() - new Date(lot.lastHeartbeat).getTime() < 120000) : false,
         features: ["CCTV", "24/7", "Security"],
         distance: 0,
         rating: 4.5,

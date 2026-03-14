@@ -8,8 +8,22 @@ export async function GET(
   try {
     const { id } = await params
 
-    const lot = await prisma.parkinglot.findUnique({
-      where: { id }
+    const lot = await (prisma.parkinglot as any).findUnique({
+      where: { id },
+      select: {
+        id: true,
+        name: true,
+        address: true,
+        lat: true,
+        lng: true,
+        status: true,
+        cameraUrl: true,
+        totalSlots: true,
+        // Safe access to edge node fields
+        edgeNodeId: true,
+        lastHeartbeat: true,
+        ddnsDomain: true
+      }
     })
 
     if (!lot) {

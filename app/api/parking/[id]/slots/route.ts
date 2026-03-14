@@ -87,7 +87,11 @@ export async function GET(
       const slotIndexInCamera = globalIndex % 30;
 
       // Generate default grid layout if coordinates represent "unconfigured" state
-      if (!activeSlot.x && !activeSlot.y) {
+      // Robust check: check for null, undefined, or explicitly 0 if y is also 0
+      const isMissingCoords = (activeSlot.x === null || activeSlot.x === undefined || activeSlot.x === 0) && 
+                              (activeSlot.y === null || activeSlot.y === undefined || activeSlot.y === 0);
+
+      if (isMissingCoords) {
         const GRID_COLS = 6;
         const SLOT_WIDTH = 240;
         const SLOT_HEIGHT = 140;

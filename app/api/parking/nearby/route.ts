@@ -31,6 +31,15 @@ export async function GET(req: Request) {
   const parkings = await prisma.parkinglot.findMany({
     where: {
       status: "ACTIVE"
+    },
+    select: {
+      id: true,
+      name: true,
+      address: true,
+      lat: true,
+      lng: true,
+      status: true,
+      cameraUrl: true
     }
   })
 

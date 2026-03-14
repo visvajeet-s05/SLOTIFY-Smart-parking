@@ -434,7 +434,17 @@ class SmartMonitor:
 
     def _detect_and_update(self, frame: np.ndarray) -> tuple[np.ndarray, list[dict]]:
         (h, w) = frame.shape[:2]
-        blob = cv2.dnn.blobFromImage(frame, scalefactor=SCALE_FACTOR, size=INPUT_SIZE,
+        
+        # --- Global Standard Preprocessing (CLAHE) ---
+        # Enhance contrast to handle harsh sunlight and shadows
+        lab = cv2.cvtColor(frame, cv2.COLOR_BGR2LAB)
+        l, a, b = cv2.split(lab)
+        clahe = cv2.createCLAHE(clipLimit=3.0, tileGridSize=(8,8))
+        cl = clahe.apply(l)
+        limg = cv2.merge((cl,a,b))
+        enhanced_frame = cv2.cvtColor(limg, cv2.COLOR_LAB2BGR)
+        
+        blob = cv2.dnn.blobFromImage(enhanced_frame, scalefactor=SCALE_FACTOR, size=INPUT_SIZE,
                                     mean=MEAN_SUBTRACTION, swapRB=True, crop=False)
         self.net.setInput(blob)
         raw = self.net.forward()
@@ -453,6 +463,21 @@ class SmartMonitor:
             if len(indices) > 0:
                 for idx in indices.flatten():
                     x, y, bw, bh = raw_boxes[idx]
+                    
+                    # Car Size Sanity Check (Global Standard)
+                    # Ignore detection if it's too big (>70% of frame) or too small (noise)
+                    if (bw / w > BIG_CAR_FRACTION or bh / h > BIG_CAR_FRACTION):
+                        continue
+                    if (bw < 30 or bh < 30): # Ignore tiny noise
+                        continue
+                        
+                    # Aspect Ratio Filtering (Global Standard)
+                    # A car seen from above/side is typically wider than it is tall
+                    # Range 1.2 to 3.2 covers most global car types at varied angles
+                    aspect_ratio = bw / float(bh)
+                    if not (1.1 <= aspect_ratio <= 3.5):
+                        continue
+                        
                     cars.append({"x": x, "y": y, "w": bw, "h": bh, "conf": raw_confs[idx]})
 
         changed_slots = []

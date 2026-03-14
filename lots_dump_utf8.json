@@ -1,0 +1,66 @@
+[
+  {
+    "id": "ADYAR",
+    "name": "Adyar Beachside Parking",
+    "edgeNodeId": "edge-adyar-01",
+    "edgeToken": "token-adyar-secret",
+    "lastHeartbeat": "2026-03-14T11:05:41",
+    "status": "ACTIVE"
+  },
+  {
+    "id": "ANNA_NAGAR",
+    "name": "Anna Nagar Metro Parking",
+    "edgeNodeId": "edge-anna-nagar-01",
+    "edgeToken": "token-anna-nagar-secret",
+    "lastHeartbeat": "2026-03-14T11:05:41",
+    "status": "ACTIVE"
+  },
+  {
+    "id": "CHENNAI_CENTRAL",
+    "name": "Chennai Central Premium Parking",
+    "edgeNodeId": "edge-chennai-central-01",
+    "edgeToken": "token-chennai-central-secret",
+    "lastHeartbeat": "2026-03-14T13:03:31.248000",
+    "status": "ACTIVE"
+  },
+  {
+    "id": "GUINDY",
+    "name": "Guindy Industrial Parking",
+    "edgeNodeId": "edge-guindy-01",
+    "edgeToken": "token-guindy-secret",
+    "lastHeartbeat": "2026-03-14T11:05:42",
+    "status": "ACTIVE"
+  },
+  {
+    "id": "OMR",
+    "name": "OMR Tech Park Parking",
+    "edgeNodeId": "edge-omr-01",
+    "edgeToken": "token-omr-secret",
+    "lastHeartbeat": "2026-03-14T11:05:42",
+    "status": "ACTIVE"
+  },
+  {
+    "id": "PORUR",
+    "name": "Porur Residential Parking",
+    "edgeNodeId": "edge-porur-01",
+    "edgeToken": "token-porur-secret",
+    "lastHeartbeat": "2026-03-14T11:05:42",
+    "status": "ACTIVE"
+  },
+  {
+    "id": "T_NAGAR",
+    "name": "T Nagar Shopping District Parking",
+    "edgeNodeId": "edge-t-nagar-01",
+    "edgeToken": "token-t-nagar-secret",
+    "lastHeartbeat": "2026-03-14T11:05:41",
+    "status": "ACTIVE"
+  },
+  {
+    "id": "VELACHERY",
+    "name": "Velachery IT Corridor Parking",
+    "edgeNodeId": "edge-velachery-01",
+    "edgeToken": "token-velachery-secret",
+    "lastHeartbeat": "2026-03-14T11:05:41",
+    "status": "ACTIVE"
+  }
+]

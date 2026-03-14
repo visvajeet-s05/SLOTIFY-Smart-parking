@@ -79,19 +79,19 @@ export function useParkingSocket({
 
     const connect = () => {
       try {
-        let wsUrl = process.env.NEXT_PUBLIC_WEBSOCKET_URL || '';
+        // Support multiple environment variable names for compatibility
+        let wsUrl = process.env.NEXT_PUBLIC_WEBSOCKET_URL || process.env.NEXT_PUBLIC_WS_URL || '';
         
-        // Auto-detect production environment if URL is missing or set to localhost
+        // Auto-detect production environment if URL is missing or points to localhost
         if (typeof window !== 'undefined') {
           if (!wsUrl || wsUrl.includes('localhost')) {
             const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
             const host = window.location.hostname;
             
-            // If on production (Railway), try to connect to the same host on port 4000 
-            // OR use a standard subpath if using a reverse proxy.
-            // For Railway projects, it's often better to use the main URL.
+            // On production (e.g. Railway), if no specific WS_URL is provided, 
+            // attempt to connect to the same host. Most Railway setups map 
+            // both to the same domain or use a proxy.
             if (!host.includes('localhost')) {
-                // If the app and WS are on the same domain (e.g., Railway), use the domain
                 wsUrl = `${protocol}//${host}`;
             } else {
                 wsUrl = 'ws://localhost:4000';
@@ -101,12 +101,15 @@ export function useParkingSocket({
           wsUrl = 'ws://localhost:4000';
         }
 
-        console.log(`📡 Attempting WebSocket connection to: ${wsUrl}`);
+        // Clean up the URL (remove trailing slashes)
+        wsUrl = wsUrl.replace(/\/$/, '');
+        
+        console.log(`📡 WebSocket connecting to: ${wsUrl}`);
         const ws = new WebSocket(wsUrl)
         wsRef.current = ws
 
         ws.onopen = () => {
-          console.log('✅ Customer portal connected to WebSocket')
+          console.log('✅ WebSocket connected')
           setIsConnected(true)
           onConnectRef.current?.()
 

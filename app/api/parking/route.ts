@@ -21,9 +21,9 @@ export async function GET() {
         cameraUrl: true,
         createdAt: true,
         // Include new fields but handle gracefully later
-        // edgeNodeId: true, 
-        // lastHeartbeat: true,
-        // ddnsDomain: true,
+        edgeNodeId: true, 
+        lastHeartbeat: true,
+        ddnsDomain: true,
         ownerprofile: {
           include: {
             user: {

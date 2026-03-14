@@ -83,7 +83,28 @@ export function OwnerWebSocketProvider({
     isConnectingRef.current = true;
     clearTimers();
 
-    const wsUrl = process.env.NEXT_PUBLIC_WEBSOCKET_URL || "ws://localhost:4000";
+    // Support multiple environment variable names for compatibility
+    let wsUrl = process.env.NEXT_PUBLIC_WEBSOCKET_URL || process.env.NEXT_PUBLIC_WS_URL || "";
+    
+    // Auto-detect production environment
+    if (typeof window !== 'undefined') {
+      if (!wsUrl || wsUrl.includes('localhost')) {
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const host = window.location.hostname;
+        
+        if (!host.includes('localhost')) {
+          wsUrl = `${protocol}//${host}`;
+        } else {
+          wsUrl = "ws://localhost:4000";
+        }
+      }
+    } else if (!wsUrl) {
+      wsUrl = "ws://localhost:4000";
+    }
+
+    // Standardize URL
+    wsUrl = wsUrl.replace(/\/$/, '');
+    
     console.log(`🟢 Creating WebSocket connection for owner to ${wsUrl}...`);
 
     try {

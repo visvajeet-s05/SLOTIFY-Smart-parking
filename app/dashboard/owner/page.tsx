@@ -142,7 +142,11 @@ export default function OwnerDashboardPage() {
         fetch(`/api/parking`)
           .then(res => res.json())
           .then(lotData => {
-            const currentLot = lotData.parkingAreas?.find((l: any) => l.id === parkingLotId);
+            // Case-insensitive ID matching to handle database inconsistencies
+            const currentLot = lotData.parkingAreas?.find((l: any) => 
+               l.id.toString().toUpperCase() === (parkingLotId || "").toString().toUpperCase()
+            );
+            
             if (currentLot) {
               setEdgeNode({
                 id: currentLot.edgeNodeId,
@@ -150,6 +154,8 @@ export default function OwnerDashboardPage() {
                 lastHeartbeat: currentLot.lastHeartbeat,
                 ddnsDomain: currentLot.ddnsDomain
               });
+            } else {
+              console.warn(`⚠️ Lot ${parkingLotId} not found in global parking list`);
             }
           });
       })

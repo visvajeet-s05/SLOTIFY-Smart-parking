@@ -83,18 +83,29 @@ class EdgeNodePulse:
         print(f"💓 Edge Pulse: Started for {self.node_id}", flush=True)
         while True:
             try:
-                # Minimum heartbeat payload
+                # Use current config from environment
+                lot_id = os.getenv("PARKING_LOT_ID", "CHENNAI_CENTRAL")
+                node_id = os.getenv("EDGE_NODE_ID", self.node_id)
+                token = os.getenv("EDGE_TOKEN", self.token)
+                
                 data = {
-                    "lotId": os.getenv("PARKING_LOT_ID"),
-                    "edgeNodeId": self.node_id,
-                    "edgeToken": self.token,
+                    "lotId": lot_id,
+                    "edgeNodeId": node_id,
+                    "edgeToken": token,
                     "timestamp": time.time(),
-                    "slots": [] # No changes, just a heartbeat
+                    "slots": [] # Just a heartbeat
                 }
-                requests.post(self.api_url, json=data, timeout=5)
+                
+                resp = requests.post(self.api_url, json=data, timeout=5)
+                if resp.status_code == 200:
+                    print(f"📡 Heartbeat Success: {lot_id} is ONLINE", flush=True)
+                else:
+                    print(f"⚠️ Heartbeat Rejected: {resp.status_code} - {resp.text}", flush=True)
+                    
             except Exception as e:
-                print(f"⚠️ Edge Pulse: Failed: {e}", flush=True)
-            time.sleep(30) # 30s pulse rate
+                print(f"❌ Heartbeat Connection Error: {e}", flush=True)
+            
+            time.sleep(30) # Pulse every 30 seconds
 
 # Initialize sidecars
 ddns_updater = DDNSUpdater()

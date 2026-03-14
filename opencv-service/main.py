@@ -340,11 +340,13 @@ class SmartMonitor:
                 data = res.json()
                 self.slots = data.get("slots", [])
                 self.slot_db_map = {
-                    s["slotNumber"]: s
+                    s.get("slotNumber"): s
                     for s in self.slots
                     if s.get("slotNumber") is not None
                 }
-                print(f"✅ Loaded {len(self.slots)} slots", flush=True)
+                print(f"✅ Loaded {len(self.slots)} slots for lot {self.lot_id}", flush=True)
+                if self.slots:
+                    print(f"   Coords Check: Slot 1 X={self.slots[0].get('x')} Y={self.slots[0].get('y')}", flush=True)
             else:
                 print(f"⚠️ Slot config HTTP {res.status_code}", flush=True)
         except Exception as e:
@@ -444,11 +446,32 @@ class SmartMonitor:
 
         changed_slots = []
         scale_x, scale_y = w / REF_W, h / REF_H
-        for slot in self.slots:
+        for idx, slot in enumerate(self.slots):
             sid = slot.get("id")
             if not sid: continue
-            sx, sy = int(float(slot["x"] or 0) * scale_x), int(float(slot["y"] or 0) * scale_y)
-            sw, sh = int(float(slot["width"] or 100) * scale_x), int(float(slot["height"] or 100) * scale_y)
+            
+            # --- Coordinate Robustness ---
+            raw_x = slot.get("x")
+            raw_y = slot.get("y")
+            
+            # If coordinates are missing (None) or both are zero, fallback to a default grid layout
+            if (raw_x is None or raw_x == 0) and (raw_y is None or raw_y == 0):
+                # Default grid (6 columns) in 1920x1080 space
+                cols = 6
+                row = idx // cols
+                col = idx % cols
+                sx_ref = 150 + (col * 280)    # (240 width + 40 padding)
+                sy_ref = 150 + (row * 180)    # (140 height + 40 padding)
+                sw_ref, sh_ref = 240, 140
+            else:
+                sx_ref = float(raw_x or 0)
+                sy_ref = float(raw_y or 0)
+                sw_ref = float(slot.get("width") or 240)
+                sh_ref = float(slot.get("height") or 140)
+
+            # Scale to actual frame resolution
+            sx, sy = int(sx_ref * scale_x), int(sy_ref * scale_y)
+            sw, sh = int(sw_ref * scale_x), int(sh_ref * scale_y)
             
             is_occupied = False
             for car in cars:

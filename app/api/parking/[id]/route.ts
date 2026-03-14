@@ -8,7 +8,8 @@ export async function GET(
   try {
     const { id } = await params
 
-    const lot = await (prisma.parkinglot as any).findUnique({
+    // Case-insensitive ID lookup fallback
+    let lot = await (prisma.parkinglot as any).findUnique({
       where: { id },
       select: {
         id: true,
@@ -19,12 +20,28 @@ export async function GET(
         status: true,
         cameraUrl: true,
         totalSlots: true,
-        // Safe access to edge node fields
         edgeNodeId: true,
         lastHeartbeat: true,
         ddnsDomain: true
       }
     })
+
+    // If not found, try lowercase search (common in production environments)
+    if (!lot) {
+      lot = await (prisma.parkinglot as any).findFirst({
+        where: { id: { equals: id, mode: 'insensitive' } as any },
+        select: {
+          id: true,
+          name: true,
+          address: true,
+          lat: true,
+          lng: true,
+          status: true,
+          cameraUrl: true,
+          totalSlots: true
+        }
+      })
+    }
 
     if (!lot) {
       return NextResponse.json(

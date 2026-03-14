@@ -79,7 +79,29 @@ export function useParkingSocket({
 
     const connect = () => {
       try {
-        const wsUrl = process.env.NEXT_PUBLIC_WEBSOCKET_URL || 'ws://localhost:4000'
+        let wsUrl = process.env.NEXT_PUBLIC_WEBSOCKET_URL || '';
+        
+        // Auto-detect production environment if URL is missing or set to localhost
+        if (typeof window !== 'undefined') {
+          if (!wsUrl || wsUrl.includes('localhost')) {
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const host = window.location.hostname;
+            
+            // If on production (Railway), try to connect to the same host on port 4000 
+            // OR use a standard subpath if using a reverse proxy.
+            // For Railway projects, it's often better to use the main URL.
+            if (!host.includes('localhost')) {
+                // If the app and WS are on the same domain (e.g., Railway), use the domain
+                wsUrl = `${protocol}//${host}`;
+            } else {
+                wsUrl = 'ws://localhost:4000';
+            }
+          }
+        } else if (!wsUrl) {
+          wsUrl = 'ws://localhost:4000';
+        }
+
+        console.log(`📡 Attempting WebSocket connection to: ${wsUrl}`);
         const ws = new WebSocket(wsUrl)
         wsRef.current = ws
 

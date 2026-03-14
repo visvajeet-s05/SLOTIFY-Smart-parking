@@ -7,46 +7,56 @@ export const dynamic = "force-dynamic"
 export async function GET() {
   try {
     // Fetch all active parking lots with their slots and owner info
-    const parkingLots = await prisma.parkinglot.findMany({
-      where: {
-        status: "ACTIVE"
-      },
-      select: {
-        id: true,
-        name: true,
-        address: true,
-        lat: true,
-        lng: true,
-        status: true,
-        cameraUrl: true,
-        createdAt: true,
-        // Include new fields but handle gracefully later
-        edgeNodeId: true, 
-        lastHeartbeat: true,
-        ddnsDomain: true,
-        ownerprofile: {
-          include: {
-            user: {
-              select: {
-                name: true,
-                email: true
-              }
-            }
+    let parkingLots: any[] = [];
+    try {
+      parkingLots = await prisma.parkinglot.findMany({
+        where: { status: "ACTIVE" },
+        select: {
+          id: true,
+          name: true,
+          address: true,
+          lat: true,
+          lng: true,
+          status: true,
+          cameraUrl: true,
+          createdAt: true,
+          edgeNodeId: true, 
+          lastHeartbeat: true,
+          ddnsDomain: true,
+          ownerprofile: {
+            include: { user: { select: { name: true, email: true } } }
+          },
+          slots: {
+            select: { id: true, status: true, price: true, slotType: true }
           }
         },
-        slots: {
-          select: {
-            id: true,
-            status: true,
-            price: true,
-            slotType: true
+        orderBy: { createdAt: "desc" }
+      })
+    } catch (e) {
+      console.warn("⚠️ Complex selection failed, falling back to minimal selection...", e);
+      // Minimal selection that is guaranteed to work even with legacy schema
+      parkingLots = await prisma.parkinglot.findMany({
+        where: { status: "ACTIVE" },
+        select: {
+          id: true,
+          name: true,
+          address: true,
+          lat: true,
+          lng: true,
+          status: true,
+          cameraUrl: true,
+          createdAt: true,
+          // Omitting edgeNodeId, lastHeartbeat, ddnsDomain in fallback
+          ownerprofile: {
+            include: { user: { select: { name: true, email: true } } }
+          },
+          slots: {
+            select: { id: true, status: true, price: true, slotType: true }
           }
-        }
-      },
-      orderBy: {
-        createdAt: "desc"
-      }
-    })
+        },
+        orderBy: { createdAt: "desc" }
+      });
+    }
 
     // Transform data for customer dashboard
     const transformedLots = parkingLots.map((lot: any) => {
@@ -89,11 +99,11 @@ export async function GET() {
         ownerName,
         ownerEmail: lot.ownerprofile?.user?.email || "",
         cameraUrl: lot.cameraUrl,
-        // Safe access to new fields (might be missing in DB)
-        edgeNodeId: (lot as any).edgeNodeId || null,
-        lastHeartbeat: (lot as any).lastHeartbeat || null,
-        ddnsDomain: (lot as any).ddnsDomain || null,
-        isOnline: (lot as any).lastHeartbeat ? (new Date().getTime() - new Date(lot.lastHeartbeat).getTime() < 120000) : false,
+        // Safe access to new fields (might be missing in DB or fallback)
+        edgeNodeId: lot.edgeNodeId || null,
+        lastHeartbeat: lot.lastHeartbeat || null,
+        ddnsDomain: lot.ddnsDomain || null,
+        isOnline: lot.lastHeartbeat ? (new Date().getTime() - new Date(lot.lastHeartbeat).getTime() < 120000) : false,
         features: ["CCTV", "24/7", "Security"],
         distance: 0,
         rating: 4.5,

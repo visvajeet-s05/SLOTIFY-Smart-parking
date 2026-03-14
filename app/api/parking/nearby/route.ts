@@ -28,22 +28,44 @@ export async function GET(req: Request) {
     return new Response("Missing location", { status: 400 })
   }
 
-  const parkings = await prisma.parkinglot.findMany({
-    where: {
-      status: "ACTIVE"
-    },
-    select: {
-      id: true,
-      name: true,
-      address: true,
-      lat: true,
-      lng: true,
-      status: true,
-      cameraUrl: true
-    }
-  })
+  // Fetch nearby parking lots
+  let parkingLots: any[] = []
+  try {
+    parkingLots = await prisma.parkinglot.findMany({
+      where: { status: "ACTIVE" },
+      select: {
+        id: true,
+        name: true,
+        address: true,
+        lat: true,
+        lng: true,
+        cameraUrl: true,
+        edgeNodeId: true,
+        lastHeartbeat: true,
+        slots: {
+          select: { id: true, status: true, price: true }
+        }
+      }
+    })
+  } catch (e) {
+    console.warn("⚠️ Nearby complex search failed, falling back...", e);
+    parkingLots = await prisma.parkinglot.findMany({
+      where: { status: "ACTIVE" },
+      select: {
+        id: true,
+        name: true,
+        address: true,
+        lat: true,
+        lng: true,
+        cameraUrl: true,
+        slots: {
+          select: { id: true, status: true, price: true }
+        }
+      }
+    })
+  }
 
-  const nearby = parkings.filter((p) => {
+  const nearby = parkingLots.filter((p) => {
     const distance = getDistanceKm(lat, lng, p.lat, p.lng)
     return distance <= 25
   })

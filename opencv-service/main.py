@@ -66,9 +66,9 @@ class DDNSUpdater:
                 # DuckDNS example
                 url = f"https://www.duckdns.org/update?domains={self.domain}&token={self.token}&ip="
                 requests.get(url, timeout=10)
-                print(f"🌐 DDNS: Updated {self.domain}", flush=True)
+                print(f"[DDNS] Updated {self.domain}", flush=True)
             except Exception as e:
-                print(f"⚠️ DDNS: Update failed: {e}", flush=True)
+                print(f"[DDNS] Update failed: {e}", flush=True)
             time.sleep(300) # Update every 5 minutes
 
 class EdgeNodePulse:
@@ -80,7 +80,7 @@ class EdgeNodePulse:
         threading.Thread(target=self._pulse_loop, daemon=True).start()
 
     def _pulse_loop(self):
-        print(f"💓 Edge Pulse: Started for {self.node_id}", flush=True)
+        print(f"[Pulse] Started for {self.node_id}", flush=True)
         while True:
             try:
                 # Use current config from environment
@@ -98,12 +98,12 @@ class EdgeNodePulse:
                 
                 resp = requests.post(self.api_url, json=data, timeout=5)
                 if resp.status_code == 200:
-                    print(f"📡 Heartbeat Success: {lot_id} is ONLINE", flush=True)
+                    print(f"[Heartbeat] Success: {lot_id} is ONLINE", flush=True)
                 else:
-                    print(f"⚠️ Heartbeat Rejected: {resp.status_code} - {resp.text}", flush=True)
+                    print(f"[Heartbeat] Rejected: {resp.status_code} - {resp.text}", flush=True)
                     
             except Exception as e:
-                print(f"❌ Heartbeat Connection Error: {e}", flush=True)
+                print(f"[Heartbeat] Connection Error: {e}", flush=True)
             
             time.sleep(30) # Pulse every 30 seconds
 
@@ -160,7 +160,7 @@ def _parse_db_url(url: str) -> dict | None:
         return dict(host=host, port=int(port), user=user,
                     password=password, database=dbname)
     except Exception as e:
-        print(f"❌ DB URL parse error: {e}", flush=True)
+        print(f"[ERROR] DB URL parse error: {e}", flush=True)
         return None
 
 
@@ -179,7 +179,7 @@ class DatabaseWriter:
 
     def _connect(self):
         if not self._params:
-            print("⚠️ DB: No valid DATABASE_URL — using HTTP fallback only.", flush=True)
+            print("[WARN] DB: No valid DATABASE_URL — using HTTP fallback only.", flush=True)
             return
         try:
             self._conn = mysql.connector.connect(
@@ -187,9 +187,9 @@ class DatabaseWriter:
                 connection_timeout=5,
                 autocommit=False,
             )
-            print("✅ DB: Direct MySQL connection established.", flush=True)
+            print("[OK] DB: Direct MySQL connection established.", flush=True)
         except Exception as e:
-            print(f"⚠️ DB connect failed (will retry): {e}", flush=True)
+            print(f"[WARN] DB connect failed (will retry): {e}", flush=True)
             self._conn = None
 
     def _ensure_connection(self) -> bool:
@@ -316,10 +316,10 @@ class SmartMonitor:
             pbtxt  = os.path.join(base, "models", "ssd_mobilenet_v3_large_coco_2020_01_14.pbtxt")
 
             if not os.path.exists(pb):
-                print(f"⚠️ Model file not found: {pb}", flush=True)
+                print(f"[WARN] Model file not found: {pb}", flush=True)
                 return
 
-            print("🧠 Loading SSD MobileNet V3 COCO (TensorFlow)...", flush=True)
+            print("[INFO] Loading SSD MobileNet V3 COCO (TensorFlow)...", flush=True)
             self.net = cv2.dnn.readNetFromTensorflow(pb, pbtxt)
             self.net.setPreferableBackend(cv2.dnn.DNN_BACKEND_OPENCV)
             self.net.setPreferableTarget(cv2.dnn.DNN_TARGET_CPU)
@@ -333,10 +333,10 @@ class SmartMonitor:
             self.net.forward()
 
             self.model_loaded = True
-            print("✅ AI Model ready — Edge AI Mode Active", flush=True)
+            print("[OK] AI Model ready — Edge AI Mode Active", flush=True)
 
         except Exception as e:
-            print(f"❌ Model load failed: {e}", flush=True)
+            print(f"[ERROR] Model load failed: {e}", flush=True)
             self.model_loaded = False
 
     # ── Config Loading ─────────────────────────────────────────────────────
@@ -345,7 +345,7 @@ class SmartMonitor:
         """Fetch slot coordinates from Central API."""
         try:
             url = f"{CENTRAL_API_URL}/api/parking/{self.lot_id}/slots"
-            print(f"⬇️  Fetching slot config: {url}", flush=True)
+            print(f"[INFO] Fetching slot config: {url}", flush=True)
             res = requests.get(url, timeout=5)
             if res.status_code == 200:
                 data = res.json()
@@ -355,13 +355,13 @@ class SmartMonitor:
                     for s in self.slots
                     if s.get("slotNumber") is not None
                 }
-                print(f"✅ Loaded {len(self.slots)} slots for lot {self.lot_id}", flush=True)
+                print(f"[OK] Loaded {len(self.slots)} slots for lot {self.lot_id}", flush=True)
                 if self.slots:
                     print(f"   Coords Check: Slot 1 X={self.slots[0].get('x')} Y={self.slots[0].get('y')}", flush=True)
             else:
-                print(f"⚠️ Slot config HTTP {res.status_code}", flush=True)
+                print(f"[WARN] Slot config HTTP {res.status_code}", flush=True)
         except Exception as e:
-            print(f"❌ Config load error: {e}", flush=True)
+            print(f"[ERROR] Config load error: {e}", flush=True)
 
     # ── Lifecycle ──────────────────────────────────────────────────────────
 
@@ -379,14 +379,14 @@ class SmartMonitor:
         self.running = True
         threading.Thread(target=self._camera_loop, daemon=True, name=f"cam-{self.lot_id}").start()
         threading.Thread(target=self._detect_loop, daemon=True, name=f"det-{self.lot_id}").start()
-        print(f"▶️  Monitor started: lot={self.lot_id}", flush=True)
+        print(f"[START] Monitor started: lot={self.lot_id}", flush=True)
 
     def stop(self):
         self.running = False
-        print(f"⏹️  Monitor stopped: lot={self.lot_id}", flush=True)
+        print(f"[STOP] Monitor stopped: lot={self.lot_id}", flush=True)
 
     def _camera_loop(self):
-        print(f"📹 Camera thread: connecting to {self.camera_url}", flush=True)
+        print(f"[CAM] Camera thread: connecting to {self.camera_url}", flush=True)
         cap = None
         consecutive_failures = 0
         while self.running:
@@ -395,7 +395,7 @@ class SmartMonitor:
                 if not cap.isOpened():
                     time.sleep(3)
                     continue
-                print(f"✅ Camera connected", flush=True)
+                print(f"[OK] Camera connected", flush=True)
 
             ret, frame = cap.read()
             if not ret:
@@ -547,10 +547,10 @@ class SmartMonitor:
             }
             res = requests.post(f"{CENTRAL_API_URL}/api/edge/update", json=payload, timeout=5)
             if res.status_code != 200:
-                print(f"⚠️ Edge API Error {res.status_code}", flush=True)
+                print(f"[WARN] Edge API Error {res.status_code}", flush=True)
                 _db_writer.update_slots(self.lot_id, changed_slots)
         except Exception as e:
-            print(f"❌ Edge Sync failed: {e}", flush=True)
+            print(f"[ERROR] Edge Sync failed: {e}", flush=True)
             _db_writer.update_slots(self.lot_id, changed_slots)
 
         _broadcast(self.lot_id, [

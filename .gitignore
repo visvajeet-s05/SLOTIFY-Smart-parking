@@ -33,3 +33,16 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# logs
+*.log
+pulse.txt
+final_pulse.txt
+status.txt
+build.log
+build_v2.log
+
+# dev scripts
+quick_pulse_check.py
+verify_full_stack.py
+test_camera_service.py

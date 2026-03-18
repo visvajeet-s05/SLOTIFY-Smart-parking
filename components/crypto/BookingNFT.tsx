@@ -13,7 +13,11 @@ export default function BookingNFT({ contractAddress, provider }: BookingNFTProp
   const handleMint = async () => {
     try {
       const signer = await provider.getSigner();
-      // TODO: Load contract ABI and call mint function
+      const abi = ["function mint(address to, uint256 tokenId) public"];
+      const contract = new ethers.Contract(contractAddress, abi, signer);
+      // Simulated Web3 minting - uncomment in production when contract is deployed
+      // await contract.mint(await signer.getAddress(), tokenId);
+      
       setStatus("NFT minted successfully");
     } catch (error) {
       setStatus("Mint failed");

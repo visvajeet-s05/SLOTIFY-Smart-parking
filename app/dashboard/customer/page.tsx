@@ -32,9 +32,8 @@ export default function CustomerDashboard() {
     }
   }
 
-  const handleBookSlot = (slotId: number) => {
-    // TODO: Implement booking logic
-    alert(`Booking slot ${slotId} - Feature coming soon!`)
+  const handleBookSlot = () => {
+    window.location.href = '/find'
   }
 
   if (loading) {
@@ -45,12 +44,6 @@ export default function CustomerDashboard() {
     )
   }
 
-  // Generate slot grid for customer view (simplified)
-  const slots = Array.from({ length: slotState?.total || 9 }, (_, i) => ({
-    id: i + 1,
-    available: Math.random() > 0.5 // Simplified - in real app this would come from API
-  }))
-
   return (
     <div className="min-h-screen bg-[#0B0F1A] text-white p-6">
       <div className="max-w-4xl mx-auto">
@@ -60,7 +53,7 @@ export default function CustomerDashboard() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
           <Card className="bg-[#141A2A] border-gray-700">
             <CardHeader>
-              <CardTitle className="text-white">Total Spaces</CardTitle>
+              <CardTitle className="text-white">Total Spaces Network Wide</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-[#7C3AED]">{slotState?.total || 0}</div>
@@ -69,7 +62,7 @@ export default function CustomerDashboard() {
 
           <Card className="bg-[#141A2A] border-gray-700">
             <CardHeader>
-              <CardTitle className="text-white">Available Now</CardTitle>
+              <CardTitle className="text-white">Available Now Network Wide</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-green-500">{slotState?.available || 0}</div>
@@ -77,42 +70,18 @@ export default function CustomerDashboard() {
           </Card>
         </div>
 
-        {/* Parking Slots Grid */}
-        <Card className="bg-[#141A2A] border-gray-700 mb-6">
-          <CardHeader>
-            <CardTitle className="text-white">Available Parking Spaces</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-3 gap-4">
-              {slots.map((slot) => (
-                <div
-                  key={slot.id}
-                  className={`aspect-square rounded-lg border-2 flex flex-col items-center justify-center font-bold text-lg transition-all duration-300 ${
-                    slot.available
-                      ? 'bg-green-500/20 border-green-500/50 shadow-green-500/25 hover:bg-green-500/30'
-                      : 'bg-gray-500/20 border-gray-500/50 opacity-60'
-                  } shadow-lg`}
-                >
-                  <div className="text-center">
-                    <div className={`text-xl ${slot.available ? 'text-white' : 'text-gray-400'}`}>
-                      {slot.id}
-                    </div>
-                    <div className={`text-xs ${slot.available ? 'text-green-300' : 'text-gray-500'}`}>
-                      {slot.available ? 'Available' : 'Occupied'}
-                    </div>
-                    {slot.available && (
-                      <Button
-                        size="sm"
-                        className="mt-2 bg-[#7C3AED] hover:bg-[#6D28D9] text-white text-xs"
-                        onClick={() => handleBookSlot(slot.id)}
-                      >
-                        Book
-                      </Button>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
+        {/* Discover and Book */}
+        <Card className="bg-[#141A2A] border-gray-700 mb-6 py-8">
+          <CardContent className="flex flex-col items-center justify-center text-center">
+            <h2 className="text-2xl font-semibold mb-4 text-white">Find Your Perfect Spot</h2>
+            <p className="text-gray-400 mb-6 max-w-md">Search across multiple parking locations, check live availability, and reserve your spot instantly.</p>
+            <Button
+              size="lg"
+              className="bg-[#7C3AED] hover:bg-[#6D28D9] text-white px-8"
+              onClick={handleBookSlot}
+            >
+              Find Parking Near Me
+            </Button>
           </CardContent>
         </Card>
 

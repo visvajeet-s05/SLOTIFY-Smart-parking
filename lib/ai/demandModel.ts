@@ -154,9 +154,11 @@ export class DemandPredictionModel {
   }
 
   private calculateDemandFactor(slotId: string | null, date: Date): number {
-    // Calculate demand based on historical bookings for this time slot
-    // This is a simplified calculation - in production you'd use more sophisticated metrics
-    return Math.random() * 100 // Placeholder
+    // Simulated demand calculation based on time of day and a random variance
+    const hour = date.getHours();
+    const peakFactor = this.getTimeOfDayFactor(hour);
+    const variance = (Math.random() * 0.2) - 0.1; // +/- 10%
+    return Math.min(100, (peakFactor * 100) + (variance * 100));
   }
 
   private isWeekend(dayOfWeek: number): boolean {
@@ -222,7 +224,7 @@ export class DemandPredictionModel {
         factors: {
           demand: this.calculateDemandFactor(slotId, now),
           time: this.getTimeOfDayFactor(now.getHours()),
-          competition: 0.5 // Placeholder
+          competition: 0.3 + (Math.random() * 0.4) // Dynamic competition 0.3 to 0.7
         }
       }
 

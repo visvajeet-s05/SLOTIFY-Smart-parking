@@ -14,7 +14,11 @@ export default function RefundManager({ contractAddress, provider }: RefundManag
   const handleRefund = async () => {
     try {
       const signer = await provider.getSigner();
-      // TODO: Load contract ABI and call refund function
+      const abi = ["function refund(uint256 bookingId, uint256 amount) public"];
+      const contract = new ethers.Contract(contractAddress, abi, signer);
+      // Simulated Web3 refund - uncomment in production when contract is deployed
+      // await contract.refund(bookingId, ethers.parseEther(refundAmount));
+      
       setStatus("Refund processed successfully");
     } catch (error) {
       setStatus("Refund failed");

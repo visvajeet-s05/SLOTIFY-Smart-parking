@@ -198,8 +198,8 @@ export class DemandPredictor {
         availableSlots: totalSlots - recentBookings, // approximate
         totalSlots,
         bookingsLastHour: recentBookings,
-        weather: 0, // TODO: integrate weather API
-        cityDensity: 0 // TODO: calculate city density
+        weather: Math.floor(Math.random() * 5), // Mocked weather conditions (0 to 4)
+        cityDensity: 20 + Math.floor(Math.random() * 60) // Mocked density percentage (20% to 80%)
       }
 
       const score = await this.predictDemand(input)

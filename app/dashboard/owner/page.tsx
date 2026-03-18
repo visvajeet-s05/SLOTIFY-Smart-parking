@@ -140,26 +140,61 @@ export default function OwnerDashboardPage() {
 
         // Fetch parking lot details for edge node info
         fetch(`/api/parking`)
-          .then(res => res.json())
-          .then(lotData => {
-            // Case-insensitive ID matching to handle database inconsistencies
-            const currentLot = lotData.parkingAreas?.find((l: any) => 
-               l.id.toString().toUpperCase() === (parkingLotId || "").toString().toUpperCase()
-            );
-            
-            if (currentLot) {
-              setEdgeNode({
-                id: currentLot.edgeNodeId,
-                isOnline: currentLot.isOnline,
-                lastHeartbeat: currentLot.lastHeartbeat,
-                ddnsDomain: currentLot.ddnsDomain
-              });
-            } else {
-              console.warn(`⚠️ Lot ${parkingLotId} not found in global parking list`);
-            }
-          });
+      .then((res) => {
+        if (!res.ok) {
+          if (res.status === 401 || res.status === 403) {
+            throw new Error("Authentication failed or unauthorized access.");
+          } else if (res.status === 404) {
+            throw new Error("Parking API endpoint not found.");
+          }
+          throw new Error(`HTTP ${res.status}`);
+        }
+        const contentType = res.headers.get("content-type");
+        if (!contentType || !contentType.includes("application/json")) {
+           throw new Error("API returned non-JSON response");
+        }
+        return res.json();
       })
-      .catch((err) => console.error("Failed to fetch stats:", err));
+      .then((lotData) => {
+        if (!lotData.parkingAreas) {
+           console.warn("⚠️ No parking areas returned from API");
+           return;
+        }
+        
+        // Case-insensitive ID matching with trimming to handle database inconsistencies
+        const pid = (parkingLotId || "").toString().trim().toUpperCase();
+        
+        const currentLot = lotData.parkingAreas?.find((l: any) => 
+           l.id?.toString().trim().toUpperCase() === pid
+        );
+        
+        if (currentLot) {
+          console.log(`✅ Found lot: ${currentLot.name} (Online: ${currentLot.isOnline})`);
+          setEdgeNode({
+            id: currentLot.edgeNodeId,
+            isOnline: currentLot.isOnline || false,
+            lastHeartbeat: currentLot.lastHeartbeat,
+            ddnsDomain: currentLot.ddnsDomain
+          });
+        } else {
+          console.warn(`⚠️ Lot ${pid} not found in ${lotData.parkingAreas.length} results`);
+          // Try a partial match or first lot if only one exists for this owner
+          if (lotData.parkingAreas.length === 1) {
+             const onlyLot = lotData.parkingAreas[0];
+             setEdgeNode({
+               id: onlyLot.edgeNodeId,
+               isOnline: onlyLot.isOnline || false,
+               lastHeartbeat: onlyLot.lastHeartbeat,
+               ddnsDomain: onlyLot.ddnsDomain
+             });
+          }
+        }
+      })
+      .catch((err) => {
+        console.error("❌ Failed to fetch detailed status:", err);
+      });
+    })
+    .catch((err) => console.error("Failed to fetch slots stats:", err));
   }, [parkingLotId]);
 
   useEffect(() => {

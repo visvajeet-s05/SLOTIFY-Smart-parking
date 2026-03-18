@@ -86,16 +86,21 @@ export function OwnerWebSocketProvider({
     // Support multiple environment variable names for compatibility
     let wsUrl = process.env.NEXT_PUBLIC_WEBSOCKET_URL || process.env.NEXT_PUBLIC_WS_URL || "";
     
-    // Auto-detect production environment
+    // Auto-detect production vs local environment
     if (typeof window !== 'undefined') {
-      if (!wsUrl || wsUrl.includes('localhost')) {
+      if (!wsUrl || wsUrl.includes('localhost') || wsUrl.includes('127.0.0.1')) {
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        const host = window.location.hostname;
+        const hostname = window.location.hostname;
+        const port = window.location.port || '4000'; // Fallback to 4000
         
-        if (!host.includes('localhost')) {
-          wsUrl = `${protocol}//${host}`;
-        } else {
-          wsUrl = "ws://localhost:4000";
+        if (hostname.includes('localhost') || hostname.includes('127.0.0.1') || 
+            hostname.startsWith('192.168.') || hostname.startsWith('10.')) {
+          // If we are on local network or localhost, and no URL was provided, 
+          // default to the standard port 4000
+          wsUrl = `${protocol}//${hostname}:4000`;
+        } else if (!wsUrl) {
+          // If on a different host and no URL was provided, assume same host
+          wsUrl = `${protocol}//${hostname}${window.location.port ? ':' + window.location.port : ''}`;
         }
       }
     } else if (!wsUrl) {

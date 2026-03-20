@@ -45,7 +45,8 @@ CENTRAL_API_URL      = os.getenv("CENTRAL_API_URL", "http://localhost:3000")
 EDGE_NODE_ID         = os.getenv("EDGE_NODE_ID", "default-edge-node")
 EDGE_TOKEN           = os.getenv("EDGE_TOKEN", "default-token")
 PYTHON_SERVICE_PORT  = int(os.getenv("PYTHON_SERVICE_PORT", 5000))
-CAMERA_IP            = os.getenv("CAMERA_IP", "10.191.140.172:8080")
+# Default fallback if no Camera URL is found in DB or .env
+CAMERA_IP            = os.getenv("CAMERA_IP", "10.145.252.94:8080") 
 CAMERA_STREAM_URL    = f"http://{CAMERA_IP}/video"
 DATABASE_URL         = os.getenv("DATABASE_URL", "")
 WS_SERVER_URL        = os.getenv("WS_SERVER_URL", f"http://localhost:{os.getenv('WS_PORT', '4000')}")
@@ -96,6 +97,7 @@ class EdgeNodePulse:
                     "slots": [] # Just a heartbeat
                 }
                 
+                print(f"[Heartbeat] Sending to {self.api_url}: {data}", flush=True)
                 resp = requests.post(self.api_url, json=data, timeout=5)
                 if resp.status_code == 200:
                     print(f"[Heartbeat] Success: {lot_id} is ONLINE", flush=True)
@@ -284,7 +286,8 @@ class SmartMonitor:
 
     def __init__(self, lot_id: str):
         self.lot_id       = lot_id
-        self.camera_url   = CAMERA_STREAM_URL
+        # Will be updated in start() or load_config()
+        self.camera_url   = CAMERA_STREAM_URL 
         self.running      = False
         self.lock         = threading.Lock()
 
@@ -350,6 +353,17 @@ class SmartMonitor:
             if res.status_code == 200:
                 data = res.json()
                 self.slots = data.get("slots", [])
+                
+                # Fetch dynamically from lot data if available
+                lot_data = data.get("lot", {})
+                db_camera_url = lot_data.get("cameraUrl")
+                if db_camera_url:
+                    print(f"[OK] Using Camera URL from DB: {db_camera_url}", flush=True)
+                    self.camera_url = db_camera_url
+                else:
+                    # Fallback to general environment config
+                    self.camera_url = CAMERA_STREAM_URL
+
                 self.slot_db_map = {
                     s.get("slotNumber"): s
                     for s in self.slots
@@ -631,6 +645,7 @@ def health():
         "model":      "SSD MobileNet V3 COCO (car-only)",
         "db_connected": _db_writer._conn is not None and
                         (_db_writer._conn.is_connected() if _db_writer._conn else False),
+        "active_monitors": list(monitors.keys()),
         "monitors":   status,
     })
 

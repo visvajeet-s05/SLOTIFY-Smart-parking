@@ -3,9 +3,16 @@ Comprehensive Camera Stream Diagnostic
 Tests the entire camera pipeline from hardware to frontend
 """
 
-import requests
+import os
+from dotenv import load_dotenv
 import cv2
+import requests
 import time
+
+load_dotenv()
+
+CAMERA_IP = os.getenv("CAMERA_IP", "10.151.236.96:8080")
+STREAM_URL = f"http://{CAMERA_IP}/video"
 
 print("\n" + "="*80)
 print(" COMPREHENSIVE CAMERA STREAM DIAGNOSTIC")
@@ -13,11 +20,11 @@ print("="*80)
 
 # Test 1: Camera Hardware
 print("\n[1/6] Testing Camera Hardware...")
-print("   Camera IP: 10.151.236.96:8080")
-print("   Stream URL: http://10.151.236.96:8080/video")
+print(f"   Camera IP: {CAMERA_IP}")
+print(f"   Stream URL: {STREAM_URL}")
 
 try:
-    cap = cv2.VideoCapture("http://10.151.236.96:8080/video")
+    cap = cv2.VideoCapture(STREAM_URL)
     if cap.isOpened():
         ret, frame = cap.read()
         if ret and frame is not None:

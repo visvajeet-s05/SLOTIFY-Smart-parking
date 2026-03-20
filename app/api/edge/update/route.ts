@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { SlotStatus, UpdatedBy } from '@prisma/client';
+import fs from 'fs';
+import path from 'path';
 
 /**
  * Secure Edge Data Ingestion API
@@ -132,9 +134,11 @@ export async function POST(req: NextRequest) {
       lastHeartbeat: new Date().toISOString()
     });
 
-  } catch (error) {
+  } catch (error: any) {
+    const errorLog = `[${new Date().toISOString()}] Edge Update Error: ${error.message}\n${error.stack}\n`;
+    fs.appendFileSync(path.join(process.cwd(), 'api_errors.log'), errorLog);
     console.error('Edge Update Error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return NextResponse.json({ error: 'Internal server error', details: error.message }, { status: 500 });
   }
 }
 

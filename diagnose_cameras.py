@@ -1,10 +1,11 @@
+import os
+from dotenv import load_dotenv
 
-import cv2
-import requests
-import time
+load_dotenv()
 
+CAMERA_IP = os.getenv("CAMERA_IP", "10.151.236.96:8080")
 URLS = {
-    "Camera 1 (Main)": "http://10.151.236.96:8080/video"
+    "Camera 1 (Main)": f"http://{CAMERA_IP}/video"
 }
 
 print("Starting Camera Diagnostics...")

@@ -354,9 +354,9 @@ class SmartMonitor:
                 data = res.json()
                 self.slots = data.get("slots", [])
                 
-                # Fetch dynamically from lot data if available
+                # Fetch dynamically from lot data if available (Handle both structures)
                 lot_data = data.get("lot", {})
-                db_camera_url = lot_data.get("cameraUrl")
+                db_camera_url = data.get("cameraUrl") or lot_data.get("cameraUrl")
                 if db_camera_url:
                     print(f"[OK] Using Camera URL from DB: {db_camera_url}", flush=True)
                     self.camera_url = db_camera_url

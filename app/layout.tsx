@@ -28,7 +28,7 @@ export default function RootLayout({
   const hideGlobalNavbar = isLandingPage || pathname.startsWith("/dashboard")
 
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <head>
         {/* Preload critical routes */}
         <link rel="preload" href="/login" as="document" />

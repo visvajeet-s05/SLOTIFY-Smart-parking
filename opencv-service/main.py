@@ -1,19 +1,23 @@
 """
 ╔══════════════════════════════════════════════════════════════════════════╗
-║        SMART PARKING AI SERVICE  v3.0  — GLOBAL STANDARD EDITION        ║
-║  Pure OpenCV DNN · SSD MobileNet V3 COCO · Real-Time Car Detection      ║
-║  Dual-Thread Pipeline · Direct MySQL · Sub-100ms DB Writes               ║
+║        SMART PARKING AI SERVICE  v4.0  — PRODUCTION EDITION             ║
+║  SSD MobileNet V3 COCO · Edge AI · Dynamic IP · DDNS · Tunnel Support   ║
+║  Dual-Thread Pipeline · Direct MySQL · Auto Camera Discovery             ║
 ╚══════════════════════════════════════════════════════════════════════════╝
 
-DETECTION ACCURACY:
-  • Model  : SSD MobileNet V3 Large COCO (TensorFlow)
-  • Target : COCO Class 3 = "car"  (covers ALL global car types)
-              Sedans · Hatchbacks · SUVs · Crossovers · Wagons · Coupes
-              Indian (Maruti, Tata, Hyundai, Mahindra, etc.)
-              Global (Toyota, Honda, BMW, Audi, Ford, VW, etc.)
-  • NMS    : cv2.dnn.NMSBoxes (eliminates duplicate boxes)
-  • Speed  : Frame decoded @ cam-thread, detected @ detect-thread (no lag)
-  • DB     : Direct MySQL writes bypass HTTP round-trips (< 5ms per update)
+ARCHITECTURE:
+  [Camera Thread]     — reads frames, auto-reconnects on fail
+  [Detect Thread]     — runs SSD MobileNet V3, slot matching, debounce
+  [Heartbeat Thread]  — sends pulse to central API every 30s
+  [Config Sync Thread] — re-fetches camera URL + slot config every 5 min
+  [DDNS Thread]       — updates DuckDNS/Cloudflare with current IP
+  [Flask Thread]      — serves MJPEG stream + REST API
+
+DETECTION:
+  Model     : SSD MobileNet V3 Large COCO (TensorFlow)
+  Target    : COCO Class 3 = "car" (all global car types)
+  NMS       : cv2.dnn.NMSBoxes
+  Confidence: 0.25 (optimized for recall per IEEE paper)
 """
 
 from flask import Flask, Response, jsonify, request
@@ -29,13 +33,27 @@ import requests
 import mysql.connector
 from dotenv import load_dotenv
 import uuid
-from predict_demand import predict_occupancy, train_model
-from scanner import CameraScanner
+
+# Optional imports — degrade gracefully if not installed
+try:
+    from predict_demand import predict_occupancy, train_model
+    HAS_ML = True
+except ImportError:
+    HAS_ML = False
+    print("[WARN] predict_demand not available — ML features disabled", flush=True)
+
+try:
+    from scanner import CameraScanner
+    HAS_SCANNER = True
+except ImportError:
+    HAS_SCANNER = False
+    print("[WARN] scanner not available — auto-discovery disabled", flush=True)
 
 
 # ── Load .env ──────────────────────────────────────────────────────────────
-load_dotenv(dotenv_path=os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '.env.local'))
-load_dotenv(dotenv_path=os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '.env'))
+_base_dir = os.path.dirname(os.path.abspath(__file__))
+load_dotenv(dotenv_path=os.path.join(_base_dir, '..', '.env.local'))
+load_dotenv(dotenv_path=os.path.join(_base_dir, '..', '.env'))
 
 app = Flask(__name__)
 CORS(app)
@@ -45,120 +63,64 @@ CENTRAL_API_URL      = os.getenv("CENTRAL_API_URL", "http://localhost:3000")
 EDGE_NODE_ID         = os.getenv("EDGE_NODE_ID", "default-edge-node")
 EDGE_TOKEN           = os.getenv("EDGE_TOKEN", "default-token")
 PYTHON_SERVICE_PORT  = int(os.getenv("PYTHON_SERVICE_PORT", 5000))
-# Default fallback if no Camera URL is found in DB or .env
-CAMERA_IP            = os.getenv("CAMERA_IP", "10.145.252.94:8080") 
-CAMERA_STREAM_URL    = f"http://{CAMERA_IP}/video"
+PARKING_LOT_ID       = os.getenv("PARKING_LOT_ID", "CHENNAI_CENTRAL")
 DATABASE_URL         = os.getenv("DATABASE_URL", "")
-WS_SERVER_URL        = os.getenv("WS_SERVER_URL", f"http://localhost:{os.getenv('WS_PORT', '4000')}")
+WS_SERVER_URL        = os.getenv("WS_SERVER_URL",
+                          f"http://localhost:{os.getenv('WS_PORT', '4000')}")
 
-# ── Dynamic DNS (DDNS) ─────────────────────────────────────────────────────
-class DDNSUpdater:
-    """Updates DuckDNS or Cloudflare with the current public IP."""
-    def __init__(self):
-        self.domain = os.getenv("DDNS_DOMAIN")
-        self.token = os.getenv("DDNS_TOKEN")
-        self.enabled = bool(self.domain and self.token)
-        if self.enabled:
-            threading.Thread(target=self._update_loop, daemon=True).start()
+# Camera fallback (used only if DB has no camera URL)
+CAMERA_IP            = os.getenv("CAMERA_IP", "")
+CAMERA_STREAM_URL    = f"http://{CAMERA_IP}/video" if CAMERA_IP else ""
 
-    def _update_loop(self):
-        while True:
-            try:
-                # DuckDNS example
-                url = f"https://www.duckdns.org/update?domains={self.domain}&token={self.token}&ip="
-                requests.get(url, timeout=10)
-                print(f"[DDNS] Updated {self.domain}", flush=True)
-            except Exception as e:
-                print(f"[DDNS] Update failed: {e}", flush=True)
-            time.sleep(300) # Update every 5 minutes
+# DDNS settings
+DDNS_DOMAIN          = os.getenv("DDNS_DOMAIN", "")
+DDNS_TOKEN           = os.getenv("DDNS_TOKEN", "")
 
-class EdgeNodePulse:
-    """Sends periodic heartbeats to the central server to signal node health."""
-    def __init__(self):
-        self.node_id = EDGE_NODE_ID
-        self.token = EDGE_TOKEN
-        self.api_url = f"{CENTRAL_API_URL}/api/edge/update"
-        threading.Thread(target=self._pulse_loop, daemon=True).start()
+CONFIG_REFRESH_INTERVAL = int(os.getenv("CONFIG_REFRESH_INTERVAL", 300))  # 5 min
 
-    def _pulse_loop(self):
-        print(f"[Pulse] Started for {self.node_id}", flush=True)
-        while True:
-            try:
-                # Use current config from environment
-                lot_id = os.getenv("PARKING_LOT_ID", "CHENNAI_CENTRAL")
-                node_id = os.getenv("EDGE_NODE_ID", self.node_id)
-                token = os.getenv("EDGE_TOKEN", self.token)
-                
-                data = {
-                    "lotId": lot_id,
-                    "edgeNodeId": node_id,
-                    "edgeToken": token,
-                    "timestamp": time.time(),
-                    "slots": [] # Just a heartbeat
-                }
-                
-                print(f"[Heartbeat] Sending to {self.api_url}: {data}", flush=True)
-                resp = requests.post(self.api_url, json=data, timeout=5)
-                if resp.status_code == 200:
-                    print(f"[Heartbeat] Success: {lot_id} is ONLINE", flush=True)
-                else:
-                    print(f"[Heartbeat] Rejected: {resp.status_code} - {resp.text}", flush=True)
-                    
-            except Exception as e:
-                print(f"[Heartbeat] Connection Error: {e}", flush=True)
-            
-            time.sleep(30) # Pulse every 30 seconds
 
-# Initialize sidecars
-ddns_updater = DDNSUpdater()
-node_pulse = EdgeNodePulse()
-
-# ── Detection Constants (Aligned with IEEE Research Paper) ───────────────────
-#   SSD MobileNet V3 COCO  →  class IDs are 1-indexed in the output tensor
-#   Class 3 = "car"  (COCO 1-indexed). This is the ONLY class we care about.
-#   All global car types fall under class 3: sedans, SUVs, hatchbacks, etc.
+# ══════════════════════════════════════════════════════════════════════════
+#   DETECTION CONSTANTS  (IEEE Research Paper aligned)
+# ══════════════════════════════════════════════════════════════════════════
 CAR_CLASS_ID         = 3       # COCO 1-indexed class 3 = car
-CONFIDENCE_THRESHOLD = 0.25    # Aligned with Research Paper (optimizing recall)
-NMS_THRESHOLD        = 0.45    # NMS IoU threshold to suppress duplicate boxes
-INPUT_SIZE           = (300, 300)  # SSD MobileNet V3 input resolution
+CONFIDENCE_THRESHOLD = 0.25    # Recall-optimized threshold
+NMS_THRESHOLD        = 0.45    # IoU threshold for NMS
+INPUT_SIZE           = (300, 300)
 SCALE_FACTOR         = 1.0 / 127.5
 MEAN_SUBTRACTION     = (127.5, 127.5, 127.5)
 
-# ── Slot-Matching Constants ─────────────────────────────────────────────────
-REF_W, REF_H         = 1920, 1080  # Reference resolution of slot coordinates
-SLOT_OVERLAP_MIN     = 0.15        # Aligned with Research Paper (15% coverage)
-CENTER_OVERLAP_MIN   = 0.10        # Min % when car centre is inside slot
-BIG_CAR_FRACTION     = 0.70        # Ignore boxes > 70% of frame (sanity check)
+# Slot-Matching
+REF_W, REF_H         = 1920, 1080
+SLOT_OVERLAP_MIN     = 0.15    # 15% area coverage → occupied
+CENTER_OVERLAP_MIN   = 0.10    # 10% when centroid inside slot
+BIG_CAR_FRACTION     = 0.70    # Reject boxes > 70% frame
 
-# ── Debounce Constants ──────────────────────────────────────────────────────
-#   Prevents rapid OCCUPIED / AVAILABLE flicker in real-time video.
-OCCUPY_THRESHOLD     = 5   # Buffer score to call slot OCCUPIED  (≥)
-CLEAR_THRESHOLD      = 2   # Buffer score to call slot AVAILABLE (≤)
-BUFFER_INCREMENT     = 3   # Points added per frame when car detected
-BUFFER_DECREMENT     = 1   # Points removed per frame when no car
+# Debounce (prevents flicker)
+OCCUPY_THRESHOLD     = 5
+CLEAR_THRESHOLD      = 2
+BUFFER_INCREMENT     = 3
+BUFFER_DECREMENT     = 1
 
-# ── Global State ───────────────────────────────────────────────────────────
+# Global state
 monitors: dict = {}
 
 
 # ══════════════════════════════════════════════════════════════════════════
-#   DATABASE LAYER  — Direct MySQL (< 5 ms writes, no HTTP round-trip)
+#   DATABASE LAYER — Direct MySQL (< 5ms writes)
 # ══════════════════════════════════════════════════════════════════════════
 
 def _parse_db_url(url: str) -> dict | None:
     """Parse mysql://user:pass@host:port/dbname → dict of kwargs."""
     try:
-        url = url.strip()
-        if url.startswith('"') or url.startswith("'"):
-            url = url[1:-1]
+        url = url.strip().strip('"').strip("'")
+        if not url.startswith("mysql://"):
+            return None
         rest = url.replace("mysql://", "")
         auth, host_db = rest.split("@", 1)
         user, password = auth.split(":", 1)
         host_port, dbname = host_db.split("/", 1)
-        if ":" in host_port:
-            host, port = host_port.split(":", 1)
-        else:
-            host, port = host_port, "3306"
+        host, port = (host_port.split(":", 1) if ":" in host_port
+                      else (host_port, "3306"))
         return dict(host=host, port=int(port), user=user,
                     password=password, database=dbname)
     except Exception as e:
@@ -167,11 +129,7 @@ def _parse_db_url(url: str) -> dict | None:
 
 
 class DatabaseWriter:
-    """
-    Thread-safe, connection-pooled MySQL writer.
-    Writes slot status changes directly to the DB — no HTTP overhead.
-    Also logs every AI change to SlotStatusLog for full audit trail.
-    """
+    """Thread-safe, connection-pooled MySQL writer."""
 
     def __init__(self):
         self._lock   = threading.Lock()
@@ -181,7 +139,7 @@ class DatabaseWriter:
 
     def _connect(self):
         if not self._params:
-            print("[WARN] DB: No valid DATABASE_URL — using HTTP fallback only.", flush=True)
+            print("[WARN] DB: No DATABASE_URL — HTTP fallback only.", flush=True)
             return
         try:
             self._conn = mysql.connector.connect(
@@ -189,9 +147,9 @@ class DatabaseWriter:
                 connection_timeout=5,
                 autocommit=False,
             )
-            print("[OK] DB: Direct MySQL connection established.", flush=True)
+            print("[OK] DB: Direct MySQL connected.", flush=True)
         except Exception as e:
-            print(f"[WARN] DB connect failed (will retry): {e}", flush=True)
+            print(f"[WARN] DB connect failed: {e}", flush=True)
             self._conn = None
 
     def _ensure_connection(self) -> bool:
@@ -201,11 +159,6 @@ class DatabaseWriter:
         return self._conn is not None and self._conn.is_connected()
 
     def update_slots(self, lot_id: str, slot_updates: list[dict]) -> bool:
-        """
-        slot_updates: [{"slot_id": str, "slot_number": int,
-                        "old_status": str, "new_status": str}]
-        Returns True if direct DB write succeeded.
-        """
         if not slot_updates:
             return True
         with self._lock:
@@ -214,54 +167,124 @@ class DatabaseWriter:
             try:
                 cursor = self._conn.cursor()
                 now = time.strftime("%Y-%m-%d %H:%M:%S")
-
                 for su in slot_updates:
                     if not su.get("slot_id"):
                         continue
-
-                    # 1. Update Slot table
                     cursor.execute(
-                        """UPDATE Slot
-                              SET status      = %s,
-                                  updatedBy   = 'AI',
-                                  aiConfidence = 95.0,
-                                  updatedAt   = %s
-                            WHERE id = %s""",
+                        """UPDATE Slot SET status=%s, updatedBy='AI',
+                           aiConfidence=95.0, updatedAt=%s WHERE id=%s""",
                         (su["new_status"], now, su["slot_id"])
                     )
-                    # 2. Insert audit log
                     cursor.execute(
                         """INSERT INTO SlotStatusLog
-                                (id, slotId, oldStatus, newStatus,
-                                 updatedBy, aiConfidence, createdAt)
-                           VALUES (%s, %s, %s, %s, 'AI', 95.0, %s)""",
+                           (id, slotId, oldStatus, newStatus, updatedBy, aiConfidence, createdAt)
+                           VALUES (%s,%s,%s,%s,'AI',95.0,%s)""",
                         (str(uuid.uuid4()), su["slot_id"],
                          su["old_status"], su["new_status"], now)
                     )
-
                 self._conn.commit()
                 cursor.close()
                 return True
             except Exception as e:
-                print(f"⚠️ DB write error: {e}", flush=True)
+                print(f"[WARN] DB write error: {e}", flush=True)
                 try:
                     self._conn.rollback()
                 except Exception:
                     pass
-                self._conn = None   # Force reconnect next time
+                self._conn = None
                 return False
 
 
-# Singleton DB writer shared across all monitors
 _db_writer = DatabaseWriter()
 
 
-# ── WebSocket Broadcast (fire-and-forget) ──────────────────────────────────
+# ══════════════════════════════════════════════════════════════════════════
+#   DDNS UPDATER
+# ══════════════════════════════════════════════════════════════════════════
+
+class DDNSUpdater:
+    """Keeps DuckDNS updated with the current public IP every 5 minutes."""
+
+    def __init__(self):
+        self.domain  = DDNS_DOMAIN
+        self.token   = DDNS_TOKEN
+        self.enabled = bool(self.domain and self.token)
+        if self.enabled:
+            print(f"[DDNS] Enabled for domain: {self.domain}", flush=True)
+            threading.Thread(target=self._loop, daemon=True, name="ddns").start()
+        else:
+            print("[DDNS] Disabled (set DDNS_DOMAIN + DDNS_TOKEN to enable)", flush=True)
+
+    def _loop(self):
+        while True:
+            try:
+                url = (f"https://www.duckdns.org/update"
+                       f"?domains={self.domain}&token={self.token}&ip=")
+                resp = requests.get(url, timeout=10)
+                if "OK" in resp.text:
+                    print(f"[DDNS] ✓ Updated {self.domain}", flush=True)
+                else:
+                    print(f"[DDNS] ✗ DuckDNS response: {resp.text}", flush=True)
+            except Exception as e:
+                print(f"[DDNS] Update failed: {e}", flush=True)
+            time.sleep(300)
+
+
+# ══════════════════════════════════════════════════════════════════════════
+#   EDGE NODE HEARTBEAT
+# ══════════════════════════════════════════════════════════════════════════
+
+class EdgeNodePulse:
+    """Sends heartbeats to Central API every 30s.  Includes camera URL + tunnel URL."""
+
+    def __init__(self):
+        self.node_id = EDGE_NODE_ID
+        self.token   = EDGE_TOKEN
+        self.lot_id  = PARKING_LOT_ID
+        self.api_url = f"{CENTRAL_API_URL}/api/edge/update"
+        threading.Thread(target=self._loop, daemon=True, name="heartbeat").start()
+
+    def _get_local_ip(self) -> str:
+        """Returns the local network IP of this machine."""
+        try:
+            s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            s.connect(('8.8.8.8', 80))
+            ip = s.getsockname()[0]
+            s.close()
+            return ip
+        except Exception:
+            return "127.0.0.1"
+
+    def _loop(self):
+        print(f"[Heartbeat] Started for {self.lot_id}", flush=True)
+        while True:
+            try:
+                local_ip = self._get_local_ip()
+                payload = {
+                    "lotId":      self.lot_id,
+                    "edgeNodeId": self.node_id,
+                    "edgeToken":  self.token,
+                    "slots":      [],
+                    "tunnelUrl":  os.getenv("PUBLIC_TUNNEL_URL", "")
+                }
+                resp = requests.post(self.api_url, json=payload, timeout=5)
+                if resp.status_code == 200:
+                    print(f"[Heartbeat] ✓ {self.lot_id} ONLINE (IP: {local_ip})", flush=True)
+                else:
+                    print(f"[Heartbeat] ✗ {resp.status_code}: {resp.text[:120]}", flush=True)
+            except requests.exceptions.ConnectionError:
+                print(f"[Heartbeat] Central API unreachable — will retry in 30s", flush=True)
+            except Exception as e:
+                print(f"[Heartbeat] Error: {e}", flush=True)
+            time.sleep(30)
+
+
+# ══════════════════════════════════════════════════════════════════════════
+#   WEBSOCKET BROADCAST
+# ══════════════════════════════════════════════════════════════════════════
+
 def _broadcast(lot_id: str, updates: list[dict]):
-    """Push SLOT_UPDATE events to the WS server (non-blocking).
-    In production, WS_SERVER_URL points to Railway WS service.
-    In local dev, falls back to localhost:4000.
-    """
+    """Fire-and-forget WS broadcast (non-blocking)."""
     try:
         requests.post(
             f"{WS_SERVER_URL}/broadcast",
@@ -269,38 +292,35 @@ def _broadcast(lot_id: str, updates: list[dict]):
             timeout=0.5,
         )
     except Exception:
-        pass  # WS server may not be running — gracefully ignore
+        pass
 
 
 # ══════════════════════════════════════════════════════════════════════════
-#   SMART MONITOR  — One instance per parking lot
+#   SMART MONITOR — One instance per parking lot
 # ══════════════════════════════════════════════════════════════════════════
 
 class SmartMonitor:
     """
-    Architecture:
-      [Camera Thread]  — reads frames from camera, enqueues for detection
-      [Detect Thread]  — dequeues frame, runs SSD MobileNet, checks slots
-      [Flask Thread]   — serves MJPEG stream from annotated last_frame (Relayed via Tunnel)
+    Manages one parking lot:
+      - Camera capture thread
+      - AI detection thread
+      - Periodic config sync (camera URL + slot coordinates)
     """
 
     def __init__(self, lot_id: str):
-        self.lot_id       = lot_id
-        # Will be updated in start() or load_config()
-        self.camera_url   = CAMERA_STREAM_URL 
-        self.running      = False
-        self.lock         = threading.Lock()
+        self.lot_id      = lot_id
+        self.camera_url  = CAMERA_STREAM_URL
+        self.running     = False
+        self.lock        = threading.Lock()
 
-        # Queues (maxsize=1 → always process latest frame, drop old ones)
-        self.frame_queue  = queue.Queue(maxsize=1)
+        self.frame_queue = queue.Queue(maxsize=1)
+        self.last_frame  = None
 
-        # State
-        self.last_frame          = None      # Latest annotated frame for MJPEG
-        self.slots: list         = []        # Slot configs from API
-        self.slot_db_map: dict   = {}        # slotNumber → {id, status, ...}
-        self.slot_status: dict   = {}        # slot_id → "OCCUPIED"|"AVAILABLE"
-        self.slot_buffer: dict   = {}        # slot_id → int score (debounce)
-        self.vehicle_centroids   = []        # For stats/debug
+        self.slots:        list = []
+        self.slot_db_map:  dict = {}
+        self.slot_status:  dict = {}
+        self.slot_buffer:  dict = {}
+        self.vehicle_centroids = []
 
         # AI Model
         self.net          = None
@@ -310,19 +330,18 @@ class SmartMonitor:
     # ── Model Loading ──────────────────────────────────────────────────────
 
     def _load_model(self):
-        """
-        Load TensorFlow SSD MobileNet V3 Large COCO via cv2.dnn.
-        """
         try:
-            base   = os.path.dirname(os.path.abspath(__file__))
-            pb     = os.path.join(base, "models", "frozen_inference_graph.pb")
-            pbtxt  = os.path.join(base, "models", "ssd_mobilenet_v3_large_coco_2020_01_14.pbtxt")
+            base  = os.path.dirname(os.path.abspath(__file__))
+            pb    = os.path.join(base, "models", "frozen_inference_graph.pb")
+            pbtxt = os.path.join(base, "models",
+                                 "ssd_mobilenet_v3_large_coco_2020_01_14.pbtxt")
 
             if not os.path.exists(pb):
-                print(f"[WARN] Model file not found: {pb}", flush=True)
+                print(f"[WARN] Model not found: {pb}", flush=True)
+                print("[WARN] Run: python opencv-service/download_models.py", flush=True)
                 return
 
-            print("[INFO] Loading SSD MobileNet V3 COCO (TensorFlow)...", flush=True)
+            print("[AI] Loading SSD MobileNet V3 COCO...", flush=True)
             self.net = cv2.dnn.readNetFromTensorflow(pb, pbtxt)
             self.net.setPreferableBackend(cv2.dnn.DNN_BACKEND_OPENCV)
             self.net.setPreferableTarget(cv2.dnn.DNN_TARGET_CPU)
@@ -336,46 +355,50 @@ class SmartMonitor:
             self.net.forward()
 
             self.model_loaded = True
-            print("[OK] AI Model ready — Edge AI Mode Active", flush=True)
-
+            print("[AI] ✓ Model loaded — Edge AI Active", flush=True)
         except Exception as e:
             print(f"[ERROR] Model load failed: {e}", flush=True)
             self.model_loaded = False
 
-    # ── Config Loading ─────────────────────────────────────────────────────
+    # ── Config Loading (from Central API) ─────────────────────────────────
 
     def load_config(self):
-        """Fetch slot coordinates from Central API."""
+        """Fetch slot coords + camera URL from central API."""
         try:
             url = f"{CENTRAL_API_URL}/api/parking/{self.lot_id}/slots"
-            print(f"[INFO] Fetching slot config: {url}", flush=True)
-            res = requests.get(url, timeout=5)
-            if res.status_code == 200:
-                data = res.json()
-                self.slots = data.get("slots", [])
-                
-                # Fetch dynamically from lot data if available (Handle both structures)
-                lot_data = data.get("lot", {})
-                db_camera_url = data.get("cameraUrl") or lot_data.get("cameraUrl")
-                if db_camera_url:
-                    print(f"[OK] Using Camera URL from DB: {db_camera_url}", flush=True)
-                    self.camera_url = db_camera_url
-                else:
-                    # Fallback to general environment config
-                    self.camera_url = CAMERA_STREAM_URL
+            print(f"[Config] Fetching: {url}", flush=True)
+            res = requests.get(url, timeout=8)
+            if res.status_code != 200:
+                print(f"[Config] HTTP {res.status_code}", flush=True)
+                return
 
-                self.slot_db_map = {
-                    s.get("slotNumber"): s
-                    for s in self.slots
-                    if s.get("slotNumber") is not None
-                }
-                print(f"[OK] Loaded {len(self.slots)} slots for lot {self.lot_id}", flush=True)
-                if self.slots:
-                    print(f"   Coords Check: Slot 1 X={self.slots[0].get('x')} Y={self.slots[0].get('y')}", flush=True)
+            data = res.json()
+            self.slots = data.get("slots", [])
+
+            # Dynamic camera URL from DB
+            lot_data     = data.get("lot", {})
+            db_camera_url = data.get("cameraUrl") or lot_data.get("cameraUrl")
+            if db_camera_url:
+                if db_camera_url != self.camera_url:
+                    print(f"[Config] Camera URL updated: {db_camera_url}", flush=True)
+                self.camera_url = db_camera_url
+            elif CAMERA_STREAM_URL:
+                self.camera_url = CAMERA_STREAM_URL
             else:
-                print(f"[WARN] Slot config HTTP {res.status_code}", flush=True)
+                print("[Config] No camera URL in DB or .env", flush=True)
+
+            self.slot_db_map = {
+                s["slotNumber"]: s
+                for s in self.slots
+                if s.get("slotNumber") is not None
+            }
+            print(f"[Config] ✓ {len(self.slots)} slots loaded for {self.lot_id}", flush=True)
+            if self.slots:
+                s0 = self.slots[0]
+                print(f"[Config]   Slot 1: x={s0.get('x')} y={s0.get('y')}", flush=True)
+
         except Exception as e:
-            print(f"[ERROR] Config load error: {e}", flush=True)
+            print(f"[Config] Error: {e}", flush=True)
 
     # ── Lifecycle ──────────────────────────────────────────────────────────
 
@@ -391,50 +414,121 @@ class SmartMonitor:
                 self.slot_buffer[sid] = 0
 
         self.running = True
-        threading.Thread(target=self._camera_loop, daemon=True, name=f"cam-{self.lot_id}").start()
-        threading.Thread(target=self._detect_loop, daemon=True, name=f"det-{self.lot_id}").start()
-        print(f"[START] Monitor started: lot={self.lot_id}", flush=True)
+        threading.Thread(target=self._camera_loop,
+                         daemon=True, name=f"cam-{self.lot_id}").start()
+        threading.Thread(target=self._detect_loop,
+                         daemon=True, name=f"det-{self.lot_id}").start()
+        threading.Thread(target=self._config_sync_loop,
+                         daemon=True, name=f"sync-{self.lot_id}").start()
+        print(f"[Monitor] ✓ Started: {self.lot_id}", flush=True)
 
     def stop(self):
         self.running = False
-        print(f"[STOP] Monitor stopped: lot={self.lot_id}", flush=True)
+        print(f"[Monitor] Stopped: {self.lot_id}", flush=True)
+
+    # ── Config Sync Loop ───────────────────────────────────────────────────
+
+    def _config_sync_loop(self):
+        """Re-fetches camera URL + slot config periodically (handles dynamic IP)."""
+        time.sleep(CONFIG_REFRESH_INTERVAL)  # First sync after N minutes
+        while self.running:
+            try:
+                print(f"[Sync] Refreshing config for {self.lot_id}...", flush=True)
+                self.load_config()
+                # Initialize new slots from sync
+                for s in self.slots:
+                    sid = s.get("id")
+                    if sid and sid not in self.slot_status:
+                        self.slot_status[sid] = "AVAILABLE"
+                        self.slot_buffer[sid] = 0
+            except Exception as e:
+                print(f"[Sync] Error: {e}", flush=True)
+            time.sleep(CONFIG_REFRESH_INTERVAL)
+
+    # ── Camera Thread ──────────────────────────────────────────────────────
 
     def _camera_loop(self):
-        print(f"[CAM] Camera thread: connecting to {self.camera_url}", flush=True)
+        print(f"[Camera] Connecting to: {self.camera_url}", flush=True)
         cap = None
         consecutive_failures = 0
+        last_url = self.camera_url
+
         while self.running:
+            # Check if camera URL changed (dynamic IP)
+            current_url = self.camera_url
+            if current_url != last_url:
+                print(f"[Camera] URL changed → {current_url}", flush=True)
+                if cap:
+                    cap.release()
+                    cap = None
+                last_url = current_url
+
             if cap is None or not cap.isOpened():
-                cap = cv2.VideoCapture(self.camera_url)
+                # Before connecting, test reachability
+                host_part = current_url.split("//")[-1].split("/")[0]
+                host, port_str = (host_part.split(":") if ":" in host_part
+                                  else (host_part, "80"))
+                try:
+                    port = int(port_str)
+                    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                    s.settimeout(2)
+                    result = s.connect_ex((host, port))
+                    s.close()
+                    if result != 0:
+                        print(f"[Camera] ✗ Unreachable {host}:{port} — retry in 5s", flush=True)
+                        time.sleep(5)
+                        continue
+                except Exception:
+                    pass
+
+                cap = cv2.VideoCapture(current_url)
+                cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
                 if not cap.isOpened():
+                    print(f"[Camera] ✗ OpenCV connect failed — retry in 3s", flush=True)
                     time.sleep(3)
                     continue
-                print(f"[OK] Camera connected", flush=True)
+                print(f"[Camera] ✓ Connected: {current_url}", flush=True)
+                consecutive_failures = 0
 
             ret, frame = cap.read()
             if not ret:
                 consecutive_failures += 1
                 if consecutive_failures >= 30:
-                    cap.release(); cap = None; time.sleep(1)
+                    print(f"[Camera] Too many failures — reconnecting...", flush=True)
+                    cap.release()
+                    cap = None
+                    consecutive_failures = 0
+                    time.sleep(2)
                 continue
-            
+
             consecutive_failures = 0
+            # Drop old frames — always process latest
             if self.frame_queue.full():
-                try: self.frame_queue.get_nowait()
-                except: pass
+                try:
+                    self.frame_queue.get_nowait()
+                except Exception:
+                    pass
             self.frame_queue.put_nowait(frame)
+
+    # ── Detection Thread ───────────────────────────────────────────────────
 
     def _detect_loop(self):
         last_sync = 0.0
         while self.running:
             try:
                 frame = self.frame_queue.get(timeout=0.5)
-            except:
+            except Exception:
+                continue
+
+            if not self.model_loaded or self.net is None:
+                # No model — just keep last frame alive
+                with self.lock:
+                    self.last_frame = frame
                 continue
 
             t0 = time.perf_counter()
             annotated, changed_slots = self._detect_and_update(frame)
-            
+
             with self.lock:
                 self.last_frame = annotated
 
@@ -444,74 +538,79 @@ class SmartMonitor:
                 last_sync = now
 
             elapsed = time.perf_counter() - t0
-            time.sleep(max(0.0, 0.067 - elapsed))
+            time.sleep(max(0.0, 0.067 - elapsed))  # cap at ~15 fps processing
+
+    # ── AI Detection ───────────────────────────────────────────────────────
 
     def _detect_and_update(self, frame: np.ndarray) -> tuple[np.ndarray, list[dict]]:
-        (h, w) = frame.shape[:2]
-        
-        # --- Global Standard Preprocessing (CLAHE) ---
-        # Enhance contrast to handle harsh sunlight and shadows
+        h, w = frame.shape[:2]
+
+        # CLAHE contrast enhancement (handles harsh lighting)
         lab = cv2.cvtColor(frame, cv2.COLOR_BGR2LAB)
         l, a, b = cv2.split(lab)
-        clahe = cv2.createCLAHE(clipLimit=3.0, tileGridSize=(8,8))
-        cl = clahe.apply(l)
-        limg = cv2.merge((cl,a,b))
-        enhanced_frame = cv2.cvtColor(limg, cv2.COLOR_LAB2BGR)
-        
-        blob = cv2.dnn.blobFromImage(enhanced_frame, scalefactor=SCALE_FACTOR, size=INPUT_SIZE,
-                                    mean=MEAN_SUBTRACTION, swapRB=True, crop=False)
+        clahe = cv2.createCLAHE(clipLimit=3.0, tileGridSize=(8, 8))
+        limg = cv2.merge((clahe.apply(l), a, b))
+        enhanced = cv2.cvtColor(limg, cv2.COLOR_LAB2BGR)
+
+        # Inference
+        blob = cv2.dnn.blobFromImage(
+            enhanced, scalefactor=SCALE_FACTOR, size=INPUT_SIZE,
+            mean=MEAN_SUBTRACTION, swapRB=True, crop=False)
         self.net.setInput(blob)
         raw = self.net.forward()
 
-        raw_boxes = []; raw_confs = []
+        # Extract car detections
+        raw_boxes, raw_confs = [], []
         for i in range(raw.shape[2]):
             conf = float(raw[0, 0, i, 2])
             if conf >= CONFIDENCE_THRESHOLD and int(raw[0, 0, i, 1]) == CAR_CLASS_ID:
-                x1 = int(raw[0, 0, i, 3] * w); y1 = int(raw[0, 0, i, 4] * h)
-                x2 = int(raw[0, 0, i, 5] * w); y2 = int(raw[0, 0, i, 6] * h)
-                raw_boxes.append([x1, y1, x2-x1, y2-y1]); raw_confs.append(conf)
+                x1 = int(raw[0, 0, i, 3] * w)
+                y1 = int(raw[0, 0, i, 4] * h)
+                x2 = int(raw[0, 0, i, 5] * w)
+                y2 = int(raw[0, 0, i, 6] * h)
+                raw_boxes.append([x1, y1, x2 - x1, y2 - y1])
+                raw_confs.append(conf)
 
+        # NMS
         cars = []
         if raw_boxes:
-            indices = cv2.dnn.NMSBoxes(raw_boxes, raw_confs, CONFIDENCE_THRESHOLD, NMS_THRESHOLD)
+            indices = cv2.dnn.NMSBoxes(raw_boxes, raw_confs,
+                                        CONFIDENCE_THRESHOLD, NMS_THRESHOLD)
             if len(indices) > 0:
                 for idx in indices.flatten():
                     x, y, bw, bh = raw_boxes[idx]
-                    
-                    # Car Size Sanity Check (Global Standard)
-                    # Ignore detection if it's too big (>70% of frame) or too small (noise)
-                    if (bw / w > BIG_CAR_FRACTION or bh / h > BIG_CAR_FRACTION):
+                    # Size sanity
+                    if bw / w > BIG_CAR_FRACTION or bh / h > BIG_CAR_FRACTION:
                         continue
-                    if (bw < 30 or bh < 30): # Ignore tiny noise
+                    if bw < 30 or bh < 30:
                         continue
-                        
-                    # Aspect Ratio Filtering (Global Standard)
-                    # A car seen from above/side is typically wider than it is tall
-                    # Range 1.2 to 3.2 covers most global car types at varied angles
-                    aspect_ratio = bw / float(bh)
-                    if not (1.1 <= aspect_ratio <= 3.5):
+                    # Aspect ratio (1.1–3.5 covers all car orientations)
+                    ar = bw / float(bh)
+                    if not (1.1 <= ar <= 3.5):
                         continue
-                        
                     cars.append({"x": x, "y": y, "w": bw, "h": bh, "conf": raw_confs[idx]})
+                    # Draw detection
+                    cv2.rectangle(frame, (x, y), (x + bw, y + bh), (255, 165, 0), 1)
 
+        # Match cars to slots
         changed_slots = []
         scale_x, scale_y = w / REF_W, h / REF_H
+
         for idx, slot in enumerate(self.slots):
             sid = slot.get("id")
-            if not sid: continue
-            
-            # --- Coordinate Robustness ---
+            if not sid:
+                continue
+
             raw_x = slot.get("x")
             raw_y = slot.get("y")
-            
-            # If coordinates are missing (None) or both are zero, fallback to a default grid layout
+
             if (raw_x is None or raw_x == 0) and (raw_y is None or raw_y == 0):
-                # Default grid (6 columns) in 1920x1080 space
+                # Grid fallback
                 cols = 6
-                row = idx // cols
-                col = idx % cols
-                sx_ref = 150 + (col * 280)    # (240 width + 40 padding)
-                sy_ref = 150 + (row * 180)    # (140 height + 40 padding)
+                row  = idx // cols
+                col  = idx % cols
+                sx_ref = 150 + col * 280
+                sy_ref = 150 + row * 180
                 sw_ref, sh_ref = 240, 140
             else:
                 sx_ref = float(raw_x or 0)
@@ -519,66 +618,107 @@ class SmartMonitor:
                 sw_ref = float(slot.get("width") or 240)
                 sh_ref = float(slot.get("height") or 140)
 
-            # Scale to actual frame resolution
-            sx, sy = int(sx_ref * scale_x), int(sy_ref * scale_y)
-            sw, sh = int(sw_ref * scale_x), int(sh_ref * scale_y)
-            
+            sx = int(sx_ref * scale_x)
+            sy = int(sy_ref * scale_y)
+            sw = int(sw_ref * scale_x)
+            sh = int(sh_ref * scale_y)
+
             is_occupied = False
             for car in cars:
-                xA, yA = max(sx, car["x"]), max(sy, car["y"])
-                xB, yB = min(sx + sw, car["x"] + car["w"]), min(sy + sh, car["y"] + car["h"])
+                xA = max(sx, car["x"])
+                yA = max(sy, car["y"])
+                xB = min(sx + sw, car["x"] + car["w"])
+                yB = min(sy + sh, car["y"] + car["h"])
                 inter = max(0, xB - xA) * max(0, yB - yA)
                 if inter > 0:
-                    coverage = inter / (sw * sh)
-                    ccx, ccy = car["x"] + car["w"]/2, car["y"] + car["h"]/2
+                    coverage = inter / max(1, sw * sh)
+                    ccx = car["x"] + car["w"] / 2
+                    ccy = car["y"] + car["h"] / 2
                     inside = (sx < ccx < sx + sw) and (sy < ccy < sy + sh)
                     if (inside and coverage >= CENTER_OVERLAP_MIN) or coverage >= SLOT_OVERLAP_MIN:
-                        is_occupied = True; break
+                        is_occupied = True
+                        break
 
-            self.slot_buffer[sid] = min(self.slot_buffer[sid] + BUFFER_INCREMENT, 10) if is_occupied else max(self.slot_buffer[sid] - BUFFER_DECREMENT, 0)
-            prev = self.slot_status.get(sid, "AVAILABLE")
-            final = "OCCUPIED" if self.slot_buffer[sid] >= OCCUPY_THRESHOLD else "AVAILABLE" if self.slot_buffer[sid] <= CLEAR_THRESHOLD else prev
-            
+            # Debounce buffer
+            buf = self.slot_buffer.get(sid, 0)
+            buf = min(buf + BUFFER_INCREMENT, 10) if is_occupied else max(buf - BUFFER_DECREMENT, 0)
+            self.slot_buffer[sid] = buf
+
+            prev  = self.slot_status.get(sid, "AVAILABLE")
+            if buf >= OCCUPY_THRESHOLD:
+                final = "OCCUPIED"
+            elif buf <= CLEAR_THRESHOLD:
+                final = "AVAILABLE"
+            else:
+                final = prev
+
             if final != prev:
                 self.slot_status[sid] = final
-                changed_slots.append({"slot_id": sid, "slot_number": slot["slotNumber"], "old_status": prev, "new_status": final})
+                changed_slots.append({
+                    "slot_id":    sid,
+                    "slot_number": slot["slotNumber"],
+                    "old_status": prev,
+                    "new_status": final,
+                })
 
-            # Overlay
-            color = (0,0,220) if final == "OCCUPIED" else (0,210,0)
-            cv2.rectangle(frame, (sx, sy), (sx+sw, sy+sh), color, 2)
-            cv2.putText(frame, f"S{slot['slotNumber']} {final}", (sx, sy-5), cv2.FONT_HERSHEY_SIMPLEX, 0.4, color, 1)
+            # Overlay on frame
+            color = (0, 0, 220) if final == "OCCUPIED" else (0, 210, 0)
+            cv2.rectangle(frame, (sx, sy), (sx + sw, sy + sh), color, 2)
+            cv2.putText(frame, f"S{slot['slotNumber']} {final[:1]}",
+                        (sx + 2, sy + 14),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.38, color, 1)
+
+        # HUD overlay
+        occ_count = sum(1 for v in self.slot_status.values() if v == "OCCUPIED")
+        total = len(self.slots)
+        cv2.putText(frame, f"SLOTIFY AI | Occ:{occ_count}/{total} | Cars:{len(cars)}",
+                    (10, 25), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 255), 2)
 
         return frame, changed_slots
 
+    # ── Persist Changes ────────────────────────────────────────────────────
+
     def _persist_changes(self, changed_slots: list[dict]):
-        """Secure Edge API Reporting."""
+        """Send changes to Central API → fallback to direct DB → WS broadcast."""
         try:
             payload = {
-                "lotId": self.lot_id,
+                "lotId":      self.lot_id,
                 "edgeNodeId": EDGE_NODE_ID,
-                "edgeToken": EDGE_TOKEN,
-                "slots": [{"number": s["slot_number"], "status": s["new_status"]} for s in changed_slots]
+                "edgeToken":  EDGE_TOKEN,
+                "slots": [
+                    {"number": s["slot_number"], "status": s["new_status"]}
+                    for s in changed_slots
+                ]
             }
-            res = requests.post(f"{CENTRAL_API_URL}/api/edge/update", json=payload, timeout=5)
+            res = requests.post(
+                f"{CENTRAL_API_URL}/api/edge/update",
+                json=payload, timeout=5
+            )
             if res.status_code != 200:
-                print(f"[WARN] Edge API Error {res.status_code}", flush=True)
+                print(f"[Sync] API Error {res.status_code} — using direct DB", flush=True)
                 _db_writer.update_slots(self.lot_id, changed_slots)
         except Exception as e:
-            print(f"[ERROR] Edge Sync failed: {e}", flush=True)
+            print(f"[Sync] API unreachable: {e} — using direct DB", flush=True)
             _db_writer.update_slots(self.lot_id, changed_slots)
 
+        # WS broadcast
         _broadcast(self.lot_id, [
-            {"type":"SLOT_UPDATE", "lotId":self.lot_id, "slotNumber":s["slot_number"], "status":s["new_status"]}
+            {
+                "type": "SLOT_UPDATE",
+                "lotId": self.lot_id,
+                "slotNumber": s["slot_number"],
+                "status": s["new_status"],
+            }
             for s in changed_slots
         ])
 
 
 # ══════════════════════════════════════════════════════════════════════════
-#   FLASK ROUTES
+#   FLASK API ROUTES
 # ══════════════════════════════════════════════════════════════════════════
 
 @app.route("/start/<lot_id>", methods=["POST"])
-def start(lot_id):
+def start(lot_id: str):
     if lot_id not in monitors:
         monitors[lot_id] = SmartMonitor(lot_id)
     monitors[lot_id].start()
@@ -586,7 +726,7 @@ def start(lot_id):
 
 
 @app.route("/stop/<lot_id>", methods=["POST"])
-def stop(lot_id):
+def stop(lot_id: str):
     if lot_id in monitors:
         monitors[lot_id].stop()
         del monitors[lot_id]
@@ -595,12 +735,12 @@ def stop(lot_id):
 
 @app.route("/camera/<lot_id>")
 @app.route("/camera/<lot_id>/<camera_id>")
-def stream(lot_id, camera_id=None):
+def stream(lot_id: str, camera_id=None):
     """MJPEG stream endpoint — auto-starts monitor if not running."""
     if lot_id not in monitors:
         monitors[lot_id] = SmartMonitor(lot_id)
         monitors[lot_id].start()
-        time.sleep(1.5)   # Give camera thread time to connect
+        time.sleep(1.5)
 
     def generate():
         mon = monitors[lot_id]
@@ -610,10 +750,8 @@ def stream(lot_id, camera_id=None):
             if frame is None:
                 time.sleep(0.05)
                 continue
-            ret, buf = cv2.imencode(
-                ".jpg", frame,
-                [cv2.IMWRITE_JPEG_QUALITY, 75]
-            )
+            ret, buf = cv2.imencode(".jpg", frame,
+                                    [cv2.IMWRITE_JPEG_QUALITY, 75])
             if ret:
                 yield (
                     b"--frame\r\n"
@@ -621,7 +759,7 @@ def stream(lot_id, camera_id=None):
                     + buf.tobytes()
                     + b"\r\n"
                 )
-            time.sleep(0.04)   # ~25 fps stream
+            time.sleep(0.04)  # ~25 fps
 
     return Response(generate(),
                     mimetype="multipart/x-mixed-replace; boundary=frame")
@@ -630,88 +768,105 @@ def stream(lot_id, camera_id=None):
 @app.route("/health")
 def health():
     status = {}
-    for lot_id, mon in monitors.items():
-        status[lot_id] = {
+    for lid, mon in monitors.items():
+        status[lid] = {
             "running":      mon.running,
             "model_loaded": mon.model_loaded,
+            "camera_url":   mon.camera_url,
             "slots":        len(mon.slots),
-            "cars":         len(mon.vehicle_centroids),
             "occupied":     sum(1 for v in mon.slot_status.values() if v == "OCCUPIED"),
             "available":    sum(1 for v in mon.slot_status.values() if v == "AVAILABLE"),
         }
     return jsonify({
-        "status":     "healthy",
-        "version":    "3.0",
-        "model":      "SSD MobileNet V3 COCO (car-only)",
-        "db_connected": _db_writer._conn is not None and
-                        (_db_writer._conn.is_connected() if _db_writer._conn else False),
-        "active_monitors": list(monitors.keys()),
-        "monitors":   status,
+        "status":           "healthy",
+        "version":          "4.0",
+        "model":            "SSD MobileNet V3 COCO",
+        "db_connected":     (_db_writer._conn is not None and
+                             _db_writer._conn.is_connected()),
+        "active_monitors":  list(monitors.keys()),
+        "monitors":         status,
     })
 
 
 @app.route("/reload/<lot_id>", methods=["POST"])
-def reload_config(lot_id):
-    """Hot-reload slot configuration without restarting the monitor."""
-    if lot_id in monitors:
-        monitors[lot_id].load_config()
-        return jsonify({"status": "reloaded", "slots": len(monitors[lot_id].slots)})
-    return jsonify({"error": "Monitor not running"}), 404
+def reload_config(lot_id: str):
+    """Hot-reload slot config + camera URL without restart."""
+    if lot_id not in monitors:
+        return jsonify({"error": "Monitor not running"}), 404
+    monitors[lot_id].load_config()
+    return jsonify({
+        "status":    "reloaded",
+        "lot":       lot_id,
+        "slots":     len(monitors[lot_id].slots),
+        "cameraUrl": monitors[lot_id].camera_url,
+    })
+
+
+@app.route("/camera-url/<lot_id>", methods=["POST"])
+def update_camera_url(lot_id: str):
+    """Directly update the camera URL for a running monitor (used by admin/scripts)."""
+    data = request.json or {}
+    new_url = data.get("url")
+    if not new_url:
+        return jsonify({"error": "Missing url"}), 400
+
+    if lot_id not in monitors:
+        return jsonify({"error": "Monitor not running"}), 404
+
+    monitors[lot_id].camera_url = new_url
+    print(f"[API] Camera URL updated for {lot_id}: {new_url}", flush=True)
+    return jsonify({"status": "updated", "lot": lot_id, "url": new_url})
+
+
+@app.route("/status/<lot_id>")
+def slot_status(lot_id: str):
+    if lot_id not in monitors:
+        return jsonify({"error": "Monitor not found"}), 404
+    mon = monitors[lot_id]
+    return jsonify({
+        "lotId":     lot_id,
+        "cameraUrl": mon.camera_url,
+        "slots":     mon.slot_status,
+        "buffers":   mon.slot_buffer,
+        "occupied":  sum(1 for v in mon.slot_status.values() if v == "OCCUPIED"),
+        "available": sum(1 for v in mon.slot_status.values() if v == "AVAILABLE"),
+    })
 
 
 @app.route("/discover")
 def discover_cameras():
-    """Triggers an auto-discovery scan on the local subnet."""
+    """Scan local subnet for RTSP/HTTP cameras."""
+    if not HAS_SCANNER:
+        return jsonify({"error": "scanner module not available"}), 503
     try:
-        # Get local IP and determine subnet
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         s.connect(('10.255.255.255', 1))
         local_ip = s.getsockname()[0]
         s.close()
         subnet = ".".join(local_ip.split(".")[:-1])
-        
         scanner = CameraScanner(subnet=subnet)
         found = scanner.run_scan()
-        return jsonify({
-            "status": "success",
-            "subnet": subnet,
-            "found": found
-        })
+        return jsonify({"status": "success", "subnet": subnet, "found": found})
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
 
 
 @app.route("/predict", methods=["POST"])
 def predict():
+    if not HAS_ML:
+        return jsonify({"error": "ML module not available"}), 503
     data = request.json or {}
-    lot_id          = data.get("lotId")
+    lot_id = data.get("lotId")
     target_time_iso = data.get("targetTime")
-
     if not lot_id or not target_time_iso:
         return jsonify({"error": "lotId and targetTime are required"}), 400
-
     occupancy_rate = predict_occupancy(lot_id, target_time_iso)
     if occupancy_rate is None:
-        return jsonify({"error": "Not enough historical data or model failed"}), 500
-
+        return jsonify({"error": "Not enough data or model failed"}), 500
     return jsonify({
         "lotId":         lot_id,
         "targetTime":    target_time_iso,
         "occupancyRate": occupancy_rate,
-    })
-
-
-@app.route("/status/<lot_id>")
-def slot_status(lot_id):
-    """Return raw slot status map for debugging."""
-    if lot_id not in monitors:
-        return jsonify({"error": "Monitor not found"}), 404
-    mon = monitors[lot_id]
-    return jsonify({
-        "lotId":      lot_id,
-        "slots":      mon.slot_status,
-        "cars":       len(mon.vehicle_centroids),
-        "buffers":    mon.slot_buffer,
     })
 
 
@@ -721,13 +876,25 @@ def slot_status(lot_id):
 
 if __name__ == "__main__":
     print("=" * 72, flush=True)
-    print("  SMART PARKING AI SERVICE v3.0  —  Global Standard Edition", flush=True)
-    print("  Model  : SSD MobileNet V3 COCO  (OpenCV DNN / TensorFlow)", flush=True)
-    print("  Target : Car only  (COCO class 3 — all global & Indian types)", flush=True)
-    print("  DB     : Direct MySQL  +  HTTP fallback  +  WebSocket broadcast", flush=True)
+    print("  SLOTIFY SMART PARKING AI SERVICE v4.0 — Production Edition", flush=True)
+    print(f"  Lot     : {PARKING_LOT_ID}", flush=True)
+    print(f"  Edge ID : {EDGE_NODE_ID}", flush=True)
+    print(f"  Central : {CENTRAL_API_URL}", flush=True)
+    print(f"  Camera  : {CAMERA_STREAM_URL or '(from DB)'}", flush=True)
+    print(f"  DDNS    : {DDNS_DOMAIN or 'Disabled'}", flush=True)
     print("=" * 72, flush=True)
 
-    # Train demand-prediction model in background (non-blocking)
-    threading.Thread(target=train_model, daemon=True, name="ml-train").start()
+    # Start sidecars
+    ddns_updater = DDNSUpdater()
+    node_pulse   = EdgeNodePulse()
+
+    # Train ML demand model in background
+    if HAS_ML:
+        threading.Thread(target=train_model, daemon=True, name="ml-train").start()
+
+    # Auto-start the primary lot monitor
+    primary_lot = PARKING_LOT_ID
+    monitors[primary_lot] = SmartMonitor(primary_lot)
+    monitors[primary_lot].start()
 
     app.run(host="0.0.0.0", port=PYTHON_SERVICE_PORT, threaded=True, debug=False)

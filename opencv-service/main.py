@@ -70,7 +70,10 @@ WS_SERVER_URL        = os.getenv("WS_SERVER_URL",
 
 # Camera fallback (used only if DB has no camera URL)
 CAMERA_IP            = os.getenv("CAMERA_IP", "")
-CAMERA_STREAM_URL    = f"http://{CAMERA_IP}/video" if CAMERA_IP else ""
+if CAMERA_IP and not CAMERA_IP.startswith("http"):
+    CAMERA_STREAM_URL = f"http://{CAMERA_IP}/video"
+else:
+    CAMERA_STREAM_URL = CAMERA_IP
 
 # DDNS settings
 DDNS_DOMAIN          = os.getenv("DDNS_DOMAIN", "")
@@ -265,6 +268,7 @@ class EdgeNodePulse:
                     "edgeNodeId": self.node_id,
                     "edgeToken":  self.token,
                     "slots":      [],
+                    "cameraUrl":  CAMERA_STREAM_URL,
                     "tunnelUrl":  os.getenv("PUBLIC_TUNNEL_URL", "")
                 }
                 resp = requests.post(self.api_url, json=payload, timeout=5)
@@ -896,5 +900,5 @@ if __name__ == "__main__":
     primary_lot = PARKING_LOT_ID
     monitors[primary_lot] = SmartMonitor(primary_lot)
     monitors[primary_lot].start()
-
+2
     app.run(host="0.0.0.0", port=PYTHON_SERVICE_PORT, threaded=True, debug=False)

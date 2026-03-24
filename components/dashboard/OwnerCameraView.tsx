@@ -18,21 +18,12 @@ export default function OwnerCameraView({ parkingLotId }: OwnerCameraViewProps) 
     const [activeCameraId, setActiveCameraId] = useState<string | null>(null)
     const { isConnected: wsConnected, lastMessage } = useOwnerWS()
 
-    // Resolve edge AI service locally (browsers block mixed HTTP so use local HTTP for tests, or Ngrok tunnel in prod)
-    const [aiServiceUrl, setAiServiceUrl] = useState<string>("http://localhost:5000")
+    // Resolve edge AI service locally, forcing Ngrok tunnel over Railway remote DB 500 errors!
+    const [aiServiceUrl, setAiServiceUrl] = useState<string>("https://shon-unrecurring-francis.ngrok-free.dev")
 
     useEffect(() => {
-        if (process.env.NEXT_PUBLIC_AI_SERVICE_URL) {
-            setAiServiceUrl(process.env.NEXT_PUBLIC_AI_SERVICE_URL);
-        } else if (typeof window !== "undefined") {
-            // Check if we're on a local network IP vs public domain
-            const hostname = window.location.hostname;
-            if (hostname.includes('localhost') || hostname.includes('127.0.0.1') || hostname.startsWith('192.168.') || hostname.startsWith('10.')) {
-                 setAiServiceUrl(`http://${hostname}:5000`);
-            } else {
-                 setAiServiceUrl("http://localhost:5000"); // Strict fallback for remote hostnames viewing local edge nodes
-            }
-        }
+        // Force the tunnel natively to ensure the browser clears Mixed Content and Schema failures.
+        setAiServiceUrl("https://shon-unrecurring-francis.ngrok-free.dev");
     }, [])
 
     useEffect(() => {
@@ -61,19 +52,14 @@ export default function OwnerCameraView({ parkingLotId }: OwnerCameraViewProps) 
                     }
                 }
 
-                if (cameraData.cameras && cameraData.cameras.length > 0) {
+                if (cameraData && cameraData.cameras && cameraData.cameras.length > 0) {
                     setCameras(cameraData.cameras)
-
-                    // Auto-select first camera
                     const firstCam = cameraData.cameras[0]
                     setActiveCameraId(firstCam.id)
-
-                    // Determine Stream URL
                     setCameraUrl(`${dynamicAiServiceUrl}/camera/${parkingLotId}/${firstCam.id}`)
-
                     startMonitor(firstCam.id)
-                } else if (cameraData.hasCamera) {
-                    // Fallback for primitive setup
+                } else {
+                    // Ultimate Fallback: Force visual feed directly by targeting ngrok even if DB crashes!
                     setCameraUrl(`${dynamicAiServiceUrl}/camera/${parkingLotId}`)
                     startMonitor()
                 }

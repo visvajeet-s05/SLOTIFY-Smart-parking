@@ -385,15 +385,16 @@ class SmartMonitor:
             data = res.json()
             self.slots = data.get("slots", [])
 
-            # Dynamic camera URL from DB
+            # Dynamic camera URL: Favor the physical local `.env` definition strongly.
             lot_data     = data.get("lot", {})
             db_camera_url = data.get("cameraUrl") or lot_data.get("cameraUrl")
-            if db_camera_url:
-                if db_camera_url != self.camera_url:
-                    print(f"[Config] Camera URL updated: {db_camera_url}", flush=True)
-                self.camera_url = db_camera_url
-            elif CAMERA_STREAM_URL:
+            
+            if CAMERA_STREAM_URL:
                 self.camera_url = CAMERA_STREAM_URL
+            elif db_camera_url:
+                if db_camera_url != self.camera_url:
+                    print(f"[Config] Camera URL updated from DB: {db_camera_url}", flush=True)
+                self.camera_url = db_camera_url
             else:
                 print("[Config] No camera URL in DB or .env", flush=True)
 

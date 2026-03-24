@@ -454,8 +454,8 @@ export default function OwnerDashboardPage() {
                 <div className="flex items-center justify-between group">
                   <span className="text-sm text-gray-400">Sync Frequency</span>
                   <div className="flex items-center gap-2">
-                    <span className="text-[10px] font-mono text-purple-400">1ms Refresh Enabled</span>
-                    <div className="w-1.5 h-1.5 rounded-full bg-purple-500 animate-ping" />
+                    <span className="text-[10px] font-mono text-green-400">Event-Based (1s)</span>
+                    <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
                   </div>
                 </div>
               </div>

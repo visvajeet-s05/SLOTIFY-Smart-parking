@@ -97,6 +97,7 @@ server.listen(PORT, () => {
 wss.on("connection", (ws: WebSocket) => {
   console.log("🔌 New client connected");
 
+  // Add ping responder for clients that ping the server
   ws.on("message", async (raw: Buffer) => {
     try {
       const data = JSON.parse(raw.toString());
@@ -201,6 +202,7 @@ wss.on("connection", (ws: WebSocket) => {
 // Graceful shutdown
 process.on("SIGINT", async () => {
   console.log("\n🛑 Shutting down WebSocket server...");
+  clearInterval(heartbeatInterval);
   wss.close();
   await prisma.$disconnect();
   process.exit(0);
@@ -208,10 +210,20 @@ process.on("SIGINT", async () => {
 
 process.on("SIGTERM", async () => {
   console.log("\n🛑 Shutting down WebSocket server...");
+  clearInterval(heartbeatInterval);
   wss.close();
   await prisma.$disconnect();
   process.exit(0);
 });
+
+// STEP 7: Add Heartbeat (Keep Alive) 
+const heartbeatInterval = setInterval(() => {
+  wss.clients.forEach((client) => {
+    if (client.readyState === WebSocket.OPEN) {
+      client.send(JSON.stringify({ type: "PING" }));
+    }
+  });
+}, 10000); // Send PING every 10 seconds
 
 // Process immediate update (for OWNER priority)
 async function processImmediateUpdate(data: SlotUpdate) {

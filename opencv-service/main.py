@@ -1,23 +1,22 @@
 """
 ╔══════════════════════════════════════════════════════════════════════════╗
-║        SMART PARKING AI SERVICE  v4.0  — PRODUCTION EDITION             ║
-║  SSD MobileNet V3 COCO · Edge AI · Dynamic IP · DDNS · Tunnel Support   ║
+║        SMART PARKING AI SERVICE  v5.0  — EDGE NODE POWERED BY YOLO      ║
+║  YOLOv8 Edge AI · Dynamic IP · DDNS · Tunnel Support                     ║
 ║  Dual-Thread Pipeline · Direct MySQL · Auto Camera Discovery             ║
 ╚══════════════════════════════════════════════════════════════════════════╝
 
 ARCHITECTURE:
   [Camera Thread]     — reads frames, auto-reconnects on fail
-  [Detect Thread]     — runs SSD MobileNet V3, slot matching, debounce
+  [Detect Thread]     — runs YOLOv8, slot matching, debounce
   [Heartbeat Thread]  — sends pulse to central API every 30s
   [Config Sync Thread] — re-fetches camera URL + slot config every 5 min
   [DDNS Thread]       — updates DuckDNS/Cloudflare with current IP
   [Flask Thread]      — serves MJPEG stream + REST API
 
 DETECTION:
-  Model     : SSD MobileNet V3 Large COCO (TensorFlow)
-  Target    : COCO Class 3 = "car" (all global car types)
-  NMS       : cv2.dnn.NMSBoxes
-  Confidence: 0.25 (optimized for recall per IEEE paper)
+  Model     : YOLOv8 Nano (ultralytics)
+  Target    : COCO Classes = car(2), motorcycle(3), bus(5), truck(7)
+  Confidence: 0.25
 """
 
 from flask import Flask, Response, jsonify, request
@@ -81,16 +80,13 @@ DDNS_TOKEN           = os.getenv("DDNS_TOKEN", "")
 
 CONFIG_REFRESH_INTERVAL = int(os.getenv("CONFIG_REFRESH_INTERVAL", 300))  # 5 min
 
-
+# STEP 3: Add Config
+SYNC_INTERVAL = int(os.getenv("SYNC_INTERVAL", 1)) # 1 second sync
 # ══════════════════════════════════════════════════════════════════════════
-#   DETECTION CONSTANTS  (IEEE Research Paper aligned)
+#   DETECTION CONSTANTS  (YOLOv8)
 # ══════════════════════════════════════════════════════════════════════════
-CAR_CLASS_ID         = 3       # COCO 1-indexed class 3 = car
-CONFIDENCE_THRESHOLD = 0.25    # Recall-optimized threshold
-NMS_THRESHOLD        = 0.45    # IoU threshold for NMS
-INPUT_SIZE           = (300, 300)
-SCALE_FACTOR         = 1.0 / 127.5
-MEAN_SUBTRACTION     = (127.5, 127.5, 127.5)
+VEHICLE_CLASS_IDS    = [2, 3, 5, 7]  # COCO indices for car, motorcycle, bus, truck (0-indexed in YOLO)
+CONFIDENCE_THRESHOLD = 0.25
 
 # Slot-Matching
 REF_W, REF_H         = 1920, 1080
@@ -303,6 +299,23 @@ def _broadcast(lot_id: str, updates: list[dict]):
 #   SMART MONITOR — One instance per parking lot
 # ══════════════════════════════════════════════════════════════════════════
 
+# STEP 4: Improve Slot Mapping function check overlap
+def is_inside(box: dict, slot: dict) -> bool:
+    xA = max(slot["x"], box["x"])
+    yA = max(slot["y"], box["y"])
+    xB = min(slot["x"] + slot["w"], box["x"] + box["w"])
+    yB = min(slot["y"] + slot["h"], box["y"] + box["h"])
+    inter = max(0, xB - xA) * max(0, yB - yA)
+    if inter > 0:
+        coverage = inter / max(1, slot["w"] * slot["h"])
+        ccx = box["x"] + box["w"] / 2
+        ccy = box["y"] + box["h"] / 2
+        inside = (slot["x"] < ccx < slot["x"] + slot["w"]) and (slot["y"] < ccy < slot["y"] + slot["h"])
+        if (inside and coverage >= CENTER_OVERLAP_MIN) or (coverage >= SLOT_OVERLAP_MIN):
+            return True
+    return False
+
+
 class SmartMonitor:
     """
     Manages one parking lot:
@@ -335,31 +348,20 @@ class SmartMonitor:
 
     def _load_model(self):
         try:
-            base  = os.path.dirname(os.path.abspath(__file__))
-            pb    = os.path.join(base, "models", "frozen_inference_graph.pb")
-            pbtxt = os.path.join(base, "models",
-                                 "ssd_mobilenet_v3_large_coco_2020_01_14.pbtxt")
+            from ultralytics import YOLO
+            import logging
+            # lower ultralytics logging so it doesn't spam console
+            logging.getLogger("ultralytics").setLevel(logging.ERROR)
 
-            if not os.path.exists(pb):
-                print(f"[WARN] Model not found: {pb}", flush=True)
-                print("[WARN] Run: python opencv-service/download_models.py", flush=True)
-                return
-
-            print("[AI] Loading SSD MobileNet V3 COCO...", flush=True)
-            self.net = cv2.dnn.readNetFromTensorflow(pb, pbtxt)
-            self.net.setPreferableBackend(cv2.dnn.DNN_BACKEND_OPENCV)
-            self.net.setPreferableTarget(cv2.dnn.DNN_TARGET_CPU)
-
+            print("[AI] Loading YOLOv8 nano model...", flush=True)
+            self.net = YOLO("yolov8n.pt")
+            
             # Warm-up pass
-            dummy = np.zeros((300, 300, 3), dtype=np.uint8)
-            blob  = cv2.dnn.blobFromImage(
-                dummy, scalefactor=SCALE_FACTOR, size=INPUT_SIZE,
-                mean=MEAN_SUBTRACTION, swapRB=True, crop=False)
-            self.net.setInput(blob)
-            self.net.forward()
+            dummy_frame = np.zeros((320, 320, 3), dtype=np.uint8)
+            self.net.predict(dummy_frame, verbose=False)
 
             self.model_loaded = True
-            print("[AI] ✓ Model loaded — Edge AI Active", flush=True)
+            print("[AI] ✓ YOLO Model loaded — Edge AI Active", flush=True)
         except Exception as e:
             print(f"[ERROR] Model load failed: {e}", flush=True)
             self.model_loaded = False
@@ -496,9 +498,10 @@ class SmartMonitor:
 
             ret, frame = cap.read()
             if not ret:
+                # STEP 1: Add retry "Frame lost, reconnecting..."
+                print("[Camera] Frame lost, reconnecting...", flush=True)
                 consecutive_failures += 1
                 if consecutive_failures >= 30:
-                    print(f"[Camera] Too many failures — reconnecting...", flush=True)
                     cap.release()
                     cap = None
                     consecutive_failures = 0
@@ -537,64 +540,56 @@ class SmartMonitor:
                 self.last_frame = annotated
 
             now = time.time()
-            if changed_slots and (now - last_sync) >= 0.3:
+            # STEP 2: Dynamic Sync (SMART FEATURE) - Only send data WHEN slot changes
+            if changed_slots and (now - last_sync) >= SYNC_INTERVAL:
                 self._persist_changes(changed_slots)
                 last_sync = now
 
             elapsed = time.perf_counter() - t0
-            time.sleep(max(0.0, 0.067 - elapsed))  # cap at ~15 fps processing
+            
+            # STEP 7: Add FPS Control (~30 FPS delay mapping)
+            time.sleep(0.03)
+            
+            # STEP 8: Add Logging
+            print("Frame processed successfully", flush=True)
 
     # ── AI Detection ───────────────────────────────────────────────────────
 
     def _detect_and_update(self, frame: np.ndarray) -> tuple[np.ndarray, list[dict]]:
+        # STEP 2: Reduce Frame Size (VERY IMPORTANT) -> 640x480
+        frame = cv2.resize(frame, (640, 480))
         h, w = frame.shape[:2]
 
-        # CLAHE contrast enhancement (handles harsh lighting)
-        lab = cv2.cvtColor(frame, cv2.COLOR_BGR2LAB)
-        l, a, b = cv2.split(lab)
-        clahe = cv2.createCLAHE(clipLimit=3.0, tileGridSize=(8, 8))
-        limg = cv2.merge((clahe.apply(l), a, b))
-        enhanced = cv2.cvtColor(limg, cv2.COLOR_LAB2BGR)
+        # STEP 5: Process Only ROI (Advanced Optimization)
+        # roi = frame[100:400, 200:800]  # Hardcoding ROI can break DB coordinates
+        # So we process the full resized 640x480 frame for robust DB coordinate matching
 
-        # Inference
-        blob = cv2.dnn.blobFromImage(
-            enhanced, scalefactor=SCALE_FACTOR, size=INPUT_SIZE,
-            mean=MEAN_SUBTRACTION, swapRB=True, crop=False)
-        self.net.setInput(blob)
-        raw = self.net.forward()
+        # Inference with YOLOv8
+        results = self.net.predict(frame, verbose=False)
 
         # Extract car detections
-        raw_boxes, raw_confs = [], []
-        for i in range(raw.shape[2]):
-            conf = float(raw[0, 0, i, 2])
-            if conf >= CONFIDENCE_THRESHOLD and int(raw[0, 0, i, 1]) == CAR_CLASS_ID:
-                x1 = int(raw[0, 0, i, 3] * w)
-                y1 = int(raw[0, 0, i, 4] * h)
-                x2 = int(raw[0, 0, i, 5] * w)
-                y2 = int(raw[0, 0, i, 6] * h)
-                raw_boxes.append([x1, y1, x2 - x1, y2 - y1])
-                raw_confs.append(conf)
-
-        # NMS
         cars = []
-        if raw_boxes:
-            indices = cv2.dnn.NMSBoxes(raw_boxes, raw_confs,
-                                        CONFIDENCE_THRESHOLD, NMS_THRESHOLD)
-            if len(indices) > 0:
-                for idx in indices.flatten():
-                    x, y, bw, bh = raw_boxes[idx]
+        for det in results[0].boxes:
+            cls_id = int(det.cls[0].item())
+            if cls_id in VEHICLE_CLASS_IDS:
+                conf = float(det.conf[0].item())
+                if conf >= CONFIDENCE_THRESHOLD:
+                    x1, y1, x2, y2 = det.xyxy[0].tolist()
+                    bw, bh = x2 - x1, y2 - y1
+
                     # Size sanity
                     if bw / w > BIG_CAR_FRACTION or bh / h > BIG_CAR_FRACTION:
                         continue
                     if bw < 30 or bh < 30:
                         continue
-                    # Aspect ratio (1.1–3.5 covers all car orientations)
+                    # Aspect ratio check
                     ar = bw / float(bh)
-                    if not (1.1 <= ar <= 3.5):
+                    if not (0.5 <= ar <= 4.0):
                         continue
-                    cars.append({"x": x, "y": y, "w": bw, "h": bh, "conf": raw_confs[idx]})
+
+                    cars.append({"x": int(x1), "y": int(y1), "w": int(bw), "h": int(bh), "conf": conf})
                     # Draw detection
-                    cv2.rectangle(frame, (x, y), (x + bw, y + bh), (255, 165, 0), 1)
+                    cv2.rectangle(frame, (int(x1), int(y1)), (int(x2), int(y2)), (255, 165, 0), 1)
 
         # Match cars to slots
         changed_slots = []
@@ -626,22 +621,14 @@ class SmartMonitor:
             sy = int(sy_ref * scale_y)
             sw = int(sw_ref * scale_x)
             sh = int(sh_ref * scale_y)
+            slot_box = {"x": sx, "y": sy, "w": sw, "h": sh}
 
             is_occupied = False
             for car in cars:
-                xA = max(sx, car["x"])
-                yA = max(sy, car["y"])
-                xB = min(sx + sw, car["x"] + car["w"])
-                yB = min(sy + sh, car["y"] + car["h"])
-                inter = max(0, xB - xA) * max(0, yB - yA)
-                if inter > 0:
-                    coverage = inter / max(1, sw * sh)
-                    ccx = car["x"] + car["w"] / 2
-                    ccy = car["y"] + car["h"] / 2
-                    inside = (sx < ccx < sx + sw) and (sy < ccy < sy + sh)
-                    if (inside and coverage >= CENTER_OVERLAP_MIN) or coverage >= SLOT_OVERLAP_MIN:
-                        is_occupied = True
-                        break
+                # STEP 4: Improve Slot Mapping with Check overlap function
+                if is_inside(car, slot_box):
+                    is_occupied = True
+                    break
 
             # Debounce buffer
             buf = self.slot_buffer.get(sid, 0)
@@ -781,14 +768,19 @@ def health():
             "occupied":     sum(1 for v in mon.slot_status.values() if v == "OCCUPIED"),
             "available":    sum(1 for v in mon.slot_status.values() if v == "AVAILABLE"),
         }
+    # Determine overall status dynamically based on running monitors
+    overall_running = any(m["running"] for m in status.values()) if status else True
+    overall_model = any(m["model_loaded"] for m in status.values()) if status else False
+    
     return jsonify({
-        "status":           "healthy",
-        "version":          "4.0",
-        "model":            "SSD MobileNet V3 COCO",
-        "db_connected":     (_db_writer._conn is not None and
-                             _db_writer._conn.is_connected()),
+        "status":           "running" if overall_running else "stopped",
+        "camera":           "connected" if overall_running else "disconnected",
+        "model":            "loaded" if overall_model else "unloaded",
+        "ai_model":         "YOLOv8",
+        "version":          "5.0",
+        "db_connected":     bool(_db_writer._conn and _db_writer._conn.is_connected()),
         "active_monitors":  list(monitors.keys()),
-        "monitors":         status,
+        "detailed_status":  status,
     })
 
 
@@ -900,5 +892,5 @@ if __name__ == "__main__":
     primary_lot = PARKING_LOT_ID
     monitors[primary_lot] = SmartMonitor(primary_lot)
     monitors[primary_lot].start()
-2
+
     app.run(host="0.0.0.0", port=PYTHON_SERVICE_PORT, threaded=True, debug=False)

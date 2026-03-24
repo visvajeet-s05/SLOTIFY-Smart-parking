@@ -33,31 +33,56 @@ export function useSlots(lotId: string) {
 
   // WebSocket for real-time updates
   useEffect(() => {
-    const ws = new WebSocket("ws://localhost:4000")
+    let ws: WebSocket
+    let reconnectTimeout: NodeJS.Timeout
 
-    ws.onopen = () => {
-      console.log("✅ Connected to WebSocket")
-      setWsConnected(true)
-    }
+    const connectWebSocket = () => {
+      ws = new WebSocket("ws://localhost:4000")
 
-    ws.onmessage = (event) => {
-      const data = JSON.parse(event.data)
-      if (data.type === "SLOT_UPDATE") {
-        setSlots(prev => prev.map(slot => 
-          slot.id === data.slotId 
-            ? { ...slot, status: data.status }
-            : slot
-        ))
+      ws.onopen = () => {
+        console.log("✅ Connected to WebSocket")
+        setWsConnected(true)
+        
+        // Subscribe to lot updates as a customer (Server requires this!)
+        ws.send(JSON.stringify({ type: "SUBSCRIBE", lotId, role: "CUSTOMER" }))
+      }
+
+      ws.onmessage = (event) => {
+        const data = JSON.parse(event.data)
+        
+        // STEP 5: Update UI in Real-Time
+        if (data.type === "SLOT_UPDATE") {
+          console.log("Live Update:", data)
+          setSlots(prev => prev.map(slot => {
+            // STEP 3: Handle Data format properly by matching either DB slotId OR AI slotNumber
+            const isMatch = (data.slotId && slot.id === data.slotId) || 
+                            (data.slotNumber !== undefined && slot.slotNumber === data.slotNumber);
+            
+            if (isMatch) {
+              return { ...slot, status: data.status }
+            }
+            return slot
+          }))
+        }
+      }
+
+      ws.onclose = () => {
+        console.log("⚠️ Disconnected from WebSocket")
+        setWsConnected(false)
+        
+        // STEP 6: Add Auto Reconnect (VERY IMPORTANT)
+        console.log("Reconnecting...")
+        reconnectTimeout = setTimeout(connectWebSocket, 2000)
       }
     }
 
-    ws.onclose = () => {
-      console.log("⚠️ Disconnected from WebSocket")
-      setWsConnected(false)
-    }
+    connectWebSocket()
 
-    return () => ws.close()
-  }, [])
+    return () => {
+      clearTimeout(reconnectTimeout)
+      if (ws) ws.close()
+    }
+  }, [lotId])
 
   // Book a slot (customer)
   const bookSlot = useCallback(async (slot: Slot) => {

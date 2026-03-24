@@ -503,15 +503,20 @@ class SmartMonitor:
 
             ret, frame = cap.read()
             if not ret:
-                # STEP 1: Add retry "Frame lost, reconnecting..."
-                print("[Camera] Frame lost, reconnecting...", flush=True)
-                consecutive_failures += 1
-                if consecutive_failures >= 30:
-                    cap.release()
-                    cap = None
-                    consecutive_failures = 0
-                    time.sleep(2)
-                continue
+                # If we're using a static test image or video file, loop it repeatedly
+                if "10." not in current_url and "http" not in current_url:
+                    cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
+                    ret, frame = cap.read()
+                
+                if not ret:
+                    print("[Camera] Frame lost, reconnecting...", flush=True)
+                    consecutive_failures += 1
+                    if consecutive_failures >= 30:
+                        cap.release()
+                        cap = None
+                        consecutive_failures = 0
+                        time.sleep(2)
+                    continue
 
             consecutive_failures = 0
             # Drop old frames — always process latest

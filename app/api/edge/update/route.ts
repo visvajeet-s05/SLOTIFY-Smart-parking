@@ -45,10 +45,8 @@ export async function POST(req: NextRequest) {
       updateData.cameraUrl = cameraUrl;
       console.log(`[Edge] Camera URL updated for ${lotId}: ${cameraUrl}`);
     }
-    if (tunnelUrl && typeof tunnelUrl === 'string') {
-      updateData.ddnsDomain = tunnelUrl;
-      console.log(`[Edge] Tunnel URL updated for ${lotId}: ${tunnelUrl}`);
-    }
+    // Tunnel URL removed to prevent Prisma Unknown Column 'ddnsDomain' 500 crashes on Railway.
+
 
     await prisma.parkinglot.update({
       where: { id: lotId },

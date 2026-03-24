@@ -51,8 +51,12 @@ except ImportError:
 
 # ── Load .env ──────────────────────────────────────────────────────────────
 _base_dir = os.path.dirname(os.path.abspath(__file__))
-load_dotenv(dotenv_path=os.path.join(_base_dir, '..', '.env.local'))
+# 1. Load root .env
 load_dotenv(dotenv_path=os.path.join(_base_dir, '..', '.env'))
+# 2. OVERRIDE with root .env.local (crucial for EDGE_NODE_ID assignments)
+load_dotenv(dotenv_path=os.path.join(_base_dir, '..', '.env.local'), override=True)
+# 3. OVERRIDE with local production if running remotely
+load_dotenv(dotenv_path=os.path.join(_base_dir, '.env.production'), override=True)
 
 app = Flask(__name__)
 CORS(app)

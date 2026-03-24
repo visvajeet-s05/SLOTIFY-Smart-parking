@@ -18,8 +18,22 @@ export default function OwnerCameraView({ parkingLotId }: OwnerCameraViewProps) 
     const [activeCameraId, setActiveCameraId] = useState<string | null>(null)
     const { isConnected: wsConnected, lastMessage } = useOwnerWS()
 
-    // Use dynamic hostname to support LAN access (e.g. 192.168.x.x)
-    const AI_SERVICE_URL = process.env.NEXT_PUBLIC_AI_SERVICE_URL || (typeof window !== "undefined" ? `http://${window.location.hostname}:5000` : "http://localhost:5000")
+    // Resolve edge AI service locally (browsers block mixed HTTP so use local HTTP for tests, or Ngrok tunnel in prod)
+    const [aiServiceUrl, setAiServiceUrl] = useState<string>("http://localhost:5000")
+
+    useEffect(() => {
+        if (process.env.NEXT_PUBLIC_AI_SERVICE_URL) {
+            setAiServiceUrl(process.env.NEXT_PUBLIC_AI_SERVICE_URL);
+        } else if (typeof window !== "undefined") {
+            // Check if we're on a local network IP vs public domain
+            const hostname = window.location.hostname;
+            if (hostname.includes('localhost') || hostname.includes('127.0.0.1') || hostname.startsWith('192.168.') || hostname.startsWith('10.')) {
+                 setAiServiceUrl(`http://${hostname}:5000`);
+            } else {
+                 setAiServiceUrl("http://localhost:5000"); // Strict fallback for remote hostnames viewing local edge nodes
+            }
+        }
+    }, [])
 
     useEffect(() => {
         if (!parkingLotId) return
@@ -27,8 +41,8 @@ export default function OwnerCameraView({ parkingLotId }: OwnerCameraViewProps) 
         const startMonitor = async (camId?: string) => {
             try {
                 const url = camId
-                    ? `${AI_SERVICE_URL}/start/${parkingLotId}/${camId}`
-                    : `${AI_SERVICE_URL}/start/${parkingLotId}`
+                    ? `${aiServiceUrl}/start/${parkingLotId}/${camId}`
+                    : `${aiServiceUrl}/start/${parkingLotId}`
                 await fetch(url, { method: 'POST' })
             } catch (e) {
                 console.error("Failed to start monitor:", e)
@@ -49,13 +63,13 @@ export default function OwnerCameraView({ parkingLotId }: OwnerCameraViewProps) 
                     setActiveCameraId(firstCam.id)
 
                     // Determine Stream URL (Virtual cams use main lot URL, Real cams might have specific URL)
-                    // For the Python service, we request the specific camera stream path
-                    setCameraUrl(`${AI_SERVICE_URL}/camera/${parkingLotId}/${firstCam.id}`)
+                    // Determine Stream URL
+                    setCameraUrl(`${aiServiceUrl}/camera/${parkingLotId}/${firstCam.id}`)
 
                     startMonitor(firstCam.id)
                 } else if (cameraData.hasCamera) {
                     // Fallback for primitive setup
-                    setCameraUrl(`${AI_SERVICE_URL}/camera/${parkingLotId}`)
+                    setCameraUrl(`${aiServiceUrl}/camera/${parkingLotId}`)
                     startMonitor()
                 }
 
@@ -72,15 +86,14 @@ export default function OwnerCameraView({ parkingLotId }: OwnerCameraViewProps) 
         }
 
         fetchData()
-    }, [parkingLotId])
+    }, [parkingLotId, aiServiceUrl])
 
     const handleCameraSwitch = (camId: string) => {
         setActiveCameraId(camId)
         // Update stream URL to point to the specific camera (real or virtual)
-        setCameraUrl(`${AI_SERVICE_URL}/camera/${parkingLotId}/${camId}`)
+        setCameraUrl(`${aiServiceUrl}/camera/${parkingLotId}/${camId}`)
 
-        // Trigger monitor for this specific camera
-        fetch(`${AI_SERVICE_URL}/start/${parkingLotId}/${camId}`, { method: 'POST' })
+        fetch(`${aiServiceUrl}/start/${parkingLotId}/${camId}`, { method: 'POST' })
             .catch(e => console.error("Failed to switch monitor:", e))
     }
 

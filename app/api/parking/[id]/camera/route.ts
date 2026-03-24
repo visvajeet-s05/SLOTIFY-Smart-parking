@@ -11,13 +11,13 @@ export async function GET(
     // Find parking lot with safety fallback for pending prisma generation
     let parkingLot: any;
     try {
-      parkingLot = await prisma.parkinglot.findUnique({
+        parkingLot = await prisma.parkinglot.findUnique({
         where: { id: lotId },
         include: {
           cameras: {
             orderBy: { createdAt: 'asc' }
           }
-        }
+        },
       })
     } catch (e) {
       console.warn("⚠️ Prisma 'cameras' field not generated yet, falling back...");
@@ -68,6 +68,7 @@ export async function GET(
       lotId: parkingLot.id,
       name: parkingLot.name,
       streamUrl: parkingLot.cameraUrl || null,
+      tunnelUrl: parkingLot.ddnsDomain || null,
       hasCamera: !!(parkingLot.cameraUrl || finalCameras.length > 0),
       cameras: finalCameras
     })

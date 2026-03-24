@@ -38,22 +38,28 @@ export default function OwnerCameraView({ parkingLotId }: OwnerCameraViewProps) 
     useEffect(() => {
         if (!parkingLotId) return
 
-        const startMonitor = async (camId?: string) => {
-            try {
-                const url = camId
-                    ? `${aiServiceUrl}/start/${parkingLotId}/${camId}`
-                    : `${aiServiceUrl}/start/${parkingLotId}`
-                await fetch(url, { method: 'POST' })
-            } catch (e) {
-                console.error("Failed to start monitor:", e)
-            }
-        }
-
         const fetchData = async () => {
             try {
                 // 1. Fetch config (Real + Virtual Cameras)
                 const cameraRes = await fetch(`/api/parking/${parkingLotId}/camera`)
                 const cameraData = await cameraRes.json()
+
+                let dynamicAiServiceUrl = aiServiceUrl;
+                if (cameraData.tunnelUrl && typeof window !== "undefined" && !window.location.hostname.includes('localhost')) {
+                    dynamicAiServiceUrl = cameraData.tunnelUrl.startsWith("http") ? cameraData.tunnelUrl : `https://${cameraData.tunnelUrl}`;
+                    setAiServiceUrl(dynamicAiServiceUrl);
+                }
+
+                const startMonitor = async (camId?: string) => {
+                    try {
+                        const url = camId
+                            ? `${dynamicAiServiceUrl}/start/${parkingLotId}/${camId}`
+                            : `${dynamicAiServiceUrl}/start/${parkingLotId}`
+                        await fetch(url, { method: 'POST' })
+                    } catch (e) {
+                        console.error("Failed to start monitor:", e)
+                    }
+                }
 
                 if (cameraData.cameras && cameraData.cameras.length > 0) {
                     setCameras(cameraData.cameras)
@@ -62,14 +68,13 @@ export default function OwnerCameraView({ parkingLotId }: OwnerCameraViewProps) 
                     const firstCam = cameraData.cameras[0]
                     setActiveCameraId(firstCam.id)
 
-                    // Determine Stream URL (Virtual cams use main lot URL, Real cams might have specific URL)
                     // Determine Stream URL
-                    setCameraUrl(`${aiServiceUrl}/camera/${parkingLotId}/${firstCam.id}`)
+                    setCameraUrl(`${dynamicAiServiceUrl}/camera/${parkingLotId}/${firstCam.id}`)
 
                     startMonitor(firstCam.id)
                 } else if (cameraData.hasCamera) {
                     // Fallback for primitive setup
-                    setCameraUrl(`${aiServiceUrl}/camera/${parkingLotId}`)
+                    setCameraUrl(`${dynamicAiServiceUrl}/camera/${parkingLotId}`)
                     startMonitor()
                 }
 

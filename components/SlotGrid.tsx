@@ -25,7 +25,7 @@ export default function SlotGrid({
       if (slotType === "DISABLED") return "bg-gradient-to-br from-teal-400 to-teal-600 shadow-[0_0_15px_rgba(20,184,166,0.5)] border-teal-400/50"
       return "bg-gradient-to-br from-emerald-400 to-emerald-600 shadow-[0_0_15px_rgba(16,185,129,0.5)] border-emerald-400/50"
     }
-    if (status === "OCCUPIED") return "bg-gradient-to-br from-red-500/20 to-red-900/20 border-red-500/20 text-red-400/50 backdrop-blur-sm"
+    if (status === "OCCUPIED") return "bg-gradient-to-br from-red-500/20 to-red-900/20 border-red-500/20 text-red-400/50"
     if (status === "RESERVED") return "bg-gradient-to-br from-amber-500/20 to-amber-700/20 border-amber-500/30 text-amber-500"
     if (status === "DISABLED") return "bg-slate-800/50 border-white/5 text-slate-500"
     if (status === "CLOSED") return "bg-black/80 border-red-900/50 text-red-900 line-through"
@@ -41,7 +41,7 @@ export default function SlotGrid({
   return (
     <div className="space-y-6">
       {/* Premium Legend */}
-      <div className="flex flex-wrap gap-4 mb-4 text-xs font-medium justify-center items-center bg-white/5 border border-white/5 p-4 rounded-full backdrop-blur-md w-fit mx-auto">
+      <div className="flex flex-wrap gap-4 mb-4 text-xs font-medium justify-center items-center bg-white/5 border border-white/5 p-4 rounded-full w-fit mx-auto">
         <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20">
           <div className="w-2 h-2 bg-emerald-400 rounded-full shadow-[0_0_8px_rgba(52,211,153,0.8)]"></div>
           <span className="text-emerald-200">Available</span>
@@ -88,7 +88,7 @@ export default function SlotGrid({
 
             {/* Price (only show if available) */}
             {slot.status === "AVAILABLE" && (
-              <span className="text-[10px] bg-black/20 px-2 py-0.5 rounded-full mt-1 font-medium backdrop-blur-sm">
+              <span className="text-[10px] bg-black/20 px-2 py-0.5 rounded-full mt-1 font-medium">
                 ₹{slot.price}/hr
               </span>
             )}

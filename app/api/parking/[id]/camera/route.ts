@@ -47,17 +47,27 @@ export async function GET(
       return timeDiff !== 0 ? timeDiff : a.id.localeCompare(b.id);
     });
 
+    const ROI_MAP: Record<string, any> = {
+      "virtual-cam-1": { x: 0, y: 0, w: 1920, h: 1080 },
+      "virtual-cam-2": { x: 0, y: 0, w: 1920, h: 600 },
+      "virtual-cam-3": { x: 0, y: 480, w: 1920, h: 600 },
+      "virtual-cam-4": { x: 0, y: 0, w: 960, h: 1080 },
+      "virtual-cam-5": { x: 960, y: 0, w: 960, h: 1080 },
+    };
+
     // Append virtual cameras if needed
     if (finalCameras.length < totalCamerasNeeded) {
       for (let i = finalCameras.length; i < totalCamerasNeeded; i++) {
+        const id = `virtual-cam-${i + 1}`;
         finalCameras.push({
-          id: `virtual-cam-${i + 1}`,
+          id: id,
           name: `Camera ${i + 1}`,
           url: parkingLot.cameraUrl, // Inherit main URL
           lotId: parkingLot.id,
           createdAt: new Date(),
           updatedAt: new Date(),
-          isVirtual: true
+          isVirtual: true,
+          roi: ROI_MAP[id] || { x: 0, y: 0, w: 1920, h: 1080 }
         });
       }
     }

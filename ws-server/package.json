@@ -1,6 +1,7 @@
 {
   "name": "smart-parking-ws-server",
   "version": "1.0.0",
+  "type": "module",
   "description": "WebSocket signaling server for Smart Parking AI updates",
   "main": "index.ts",
   "scripts": {

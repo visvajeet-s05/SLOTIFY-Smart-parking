@@ -8,7 +8,7 @@ export async function GET(
   try {
     const { id } = await params
     const { searchParams } = new URL(request.url)
-    const cameraId = searchParams.get('cameraId')
+    const cameraId = searchParams.get('cameraId') || searchParams.get('camera_id')
 
     // Standardized ID handling: trim and handle casing
     const targetId = id.trim();
@@ -103,16 +103,26 @@ export async function GET(
     const totalCamerasNeeded = Math.max(1, Math.ceil(slots.length / 30));
     const finalCameras = [...cameras];
 
+    const ROI_MAP: Record<string, any> = {
+      "virtual-cam-1": { x: 0, y: 0, w: 1920, h: 1080 },
+      "virtual-cam-2": { x: 0, y: 0, w: 1920, h: 600 },
+      "virtual-cam-3": { x: 0, y: 480, w: 1920, h: 600 },
+      "virtual-cam-4": { x: 0, y: 0, w: 960, h: 1080 },
+      "virtual-cam-5": { x: 960, y: 0, w: 960, h: 1080 },
+    };
+
     if (finalCameras.length < totalCamerasNeeded) {
       for (let i = finalCameras.length; i < totalCamerasNeeded; i++) {
+        const id = `virtual-cam-${i + 1}`;
         finalCameras.push({
-          id: `virtual-cam-${i + 1}`,
+          id: id,
           name: `Camera ${i + 1}`,
           url: lotData.cameraUrl,
           lotId: lotData.id,
           createdAt: new Date(),
           updatedAt: new Date(),
-          isVirtual: true
+          isVirtual: true,
+          roi: ROI_MAP[id] || { x: 0, y: 0, w: 1920, h: 1080 }
         });
       }
     }
@@ -134,18 +144,24 @@ export async function GET(
 
       if (isMissingCoords) {
         const GRID_COLS = 6;
-        const SLOT_WIDTH = 240;
-        const SLOT_HEIGHT = 140;
-        const PADDING_X = 40;
-        const PADDING_Y = 40;
-        const START_X = 150;
-        const START_Y = 150;
+        const SLOT_WIDTH = 220;
+        const SLOT_HEIGHT = 160;
+        const PADDING_X = 50;
+        const PADDING_Y = 30;
+        
+        // Find the camera's ROI to center slots within it
+        const targetCam = finalCameras.find(c => c.id === activeSlot.cameraId);
+        const roi = targetCam?.roi || { x: 0, y: 0, w: 1920, h: 1080 };
 
         const row = Math.floor(slotIndexInCamera / GRID_COLS);
         const col = slotIndexInCamera % GRID_COLS;
 
-        activeSlot.x = START_X + (col * (SLOT_WIDTH + PADDING_X));
-        activeSlot.y = START_Y + (row * (SLOT_HEIGHT + PADDING_Y));
+        // Spread slots within the ROI bounds (using 80% of ROI space to avoid edges)
+        const marginX = roi.w * 0.1;
+        const marginY = roi.h * 0.1;
+
+        activeSlot.x = roi.x + marginX + (col * (SLOT_WIDTH + PADDING_X));
+        activeSlot.y = roi.y + marginY + (row * (SLOT_HEIGHT + PADDING_Y));
         activeSlot.width = SLOT_WIDTH;
         activeSlot.height = SLOT_HEIGHT;
       }

@@ -12,18 +12,20 @@ interface OwnerCameraViewProps {
 
 export default function OwnerCameraView({ parkingLotId }: OwnerCameraViewProps) {
     const [cameraUrl, setCameraUrl] = useState<string | null>(null)
+    const [rawStreamUrl, setRawStreamUrl] = useState<string | null>(null)
     const [slots, setSlots] = useState<any[]>([])
+    const [totalSlotCount, setTotalSlotCount] = useState<number>(0)
     const [loading, setLoading] = useState(true)
     const [cameras, setCameras] = useState<any[]>([])
     const [activeCameraId, setActiveCameraId] = useState<string | null>(null)
     const { isConnected: wsConnected, lastMessage } = useOwnerWS()
 
-    // Resolve edge AI service locally, forcing Ngrok tunnel over Railway remote DB 500 errors!
-    const [aiServiceUrl, setAiServiceUrl] = useState<string>("https://shon-unrecurring-francis.ngrok-free.dev")
+    // Resolve edge AI service locally
+    const [aiServiceUrl, setAiServiceUrl] = useState<string>("http://localhost:5000")
 
     useEffect(() => {
-        // Force the tunnel natively to ensure the browser clears Mixed Content and Schema failures.
-        setAiServiceUrl("https://shon-unrecurring-francis.ngrok-free.dev");
+        // Force local tunneling to avoid ngrok-skip-browser-warning HTML blockage on img tags
+        setAiServiceUrl("http://localhost:5000");
     }, [])
 
     useEffect(() => {
@@ -52,15 +54,31 @@ export default function OwnerCameraView({ parkingLotId }: OwnerCameraViewProps) 
                     }
                 }
 
+                // Store direct IP webcam URL for background use
+                if (cameraData.streamUrl) {
+                    setRawStreamUrl(cameraData.streamUrl);
+                }
+
                 if (cameraData && cameraData.cameras && cameraData.cameras.length > 0) {
                     setCameras(cameraData.cameras)
                     const firstCam = cameraData.cameras[0]
                     setActiveCameraId(firstCam.id)
-                    setCameraUrl(`${dynamicAiServiceUrl}/camera/${parkingLotId}/${firstCam.id}`)
+                    
+                    const targetUrl = `${dynamicAiServiceUrl}/camera/${parkingLotId}/${firstCam.id}`;
+                    // Use proxy ONLY if on tunnel (to solve Mixed Content). Direct on localhost.
+                    if (typeof window !== "undefined" && window.location.hostname === 'localhost') {
+                        setCameraUrl(targetUrl);
+                    } else {
+                        setCameraUrl(`/api/camera/proxy?target=${encodeURIComponent(targetUrl)}`);
+                    }
                     startMonitor(firstCam.id)
                 } else {
-                    // Ultimate Fallback: Force visual feed directly by targeting ngrok even if DB crashes!
-                    setCameraUrl(`${dynamicAiServiceUrl}/camera/${parkingLotId}`)
+                    const targetUrl = `${dynamicAiServiceUrl}/camera/${parkingLotId}`;
+                    if (typeof window !== "undefined" && window.location.hostname === 'localhost') {
+                        setCameraUrl(targetUrl);
+                    } else {
+                        setCameraUrl(`/api/camera/proxy?target=${encodeURIComponent(targetUrl)}`);
+                    }
                     startMonitor()
                 }
 
@@ -68,6 +86,7 @@ export default function OwnerCameraView({ parkingLotId }: OwnerCameraViewProps) 
                 const slotsData = await slotsRes.json()
                 if (slotsData.slots) {
                     setSlots(slotsData.slots)
+                    setTotalSlotCount(slotsData.slots.length)
                 }
             } catch (err) {
                 console.error("Failed to fetch camera data:", err)
@@ -79,13 +98,30 @@ export default function OwnerCameraView({ parkingLotId }: OwnerCameraViewProps) 
         fetchData()
     }, [parkingLotId, aiServiceUrl])
 
-    const handleCameraSwitch = (camId: string) => {
+    const handleCameraSwitch = async (camId: string) => {
         setActiveCameraId(camId)
-        // Update stream URL to point to the specific camera (real or virtual)
-        setCameraUrl(`${aiServiceUrl}/camera/${parkingLotId}/${camId}`)
+        const targetUrl = `${aiServiceUrl}/camera/${parkingLotId}/${camId}`;
+        
+        if (typeof window !== "undefined" && window.location.hostname === 'localhost') {
+            setCameraUrl(targetUrl);
+        } else {
+            setCameraUrl(`/api/camera/proxy?target=${encodeURIComponent(targetUrl)}`);
+        }
 
+        // 1. Re-initialize AI monitor for this specific ROI
         fetch(`${aiServiceUrl}/start/${parkingLotId}/${camId}`, { method: 'POST' })
             .catch(e => console.error("Failed to switch monitor:", e))
+
+        // 2. Fetch scoped slots for this camera
+        try {
+            const slotsRes = await fetch(`/api/parking/${parkingLotId}/slots?camera_id=${camId}`)
+            const slotsData = await slotsRes.json()
+            if (slotsData.slots) {
+                setSlots(slotsData.slots)
+            }
+        } catch (e) {
+            console.error("Failed to refresh slots:", e)
+        }
     }
 
     // Handle WS updates to keep slots in sync for overlays
@@ -173,7 +209,7 @@ export default function OwnerCameraView({ parkingLotId }: OwnerCameraViewProps) 
                                         : "bg-white/5 text-zinc-400 border-white/10 hover:bg-white/10 hover:text-white"
                                         }`}
                                 >
-                                    {`S${idx * 30 + 1} - S${slots.length ? Math.min((idx + 1) * 30, slots.length) : (idx + 1) * 30}`}
+                                    {`S${idx * 30 + 1} - S${Math.min((idx + 1) * 30, totalSlotCount || (idx + 1) * 30)}`}
                                 </button>
                             ))}
                         </div>
@@ -181,8 +217,10 @@ export default function OwnerCameraView({ parkingLotId }: OwnerCameraViewProps) 
 
                     <CameraAnalysis
                         cameraUrl={cameraUrl}
+                        rawStreamUrl={rawStreamUrl}
                         slots={slots.filter(s => activeCameraId ? s.cameraId === activeCameraId : true)}
                         wsConnected={wsConnected}
+                        activeRoi={cameras.find(c => c.id === activeCameraId)?.roi || { x: 0, y: 0, w: 1920, h: 1080 }}
                     />
 
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">

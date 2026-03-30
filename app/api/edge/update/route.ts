@@ -12,7 +12,11 @@ import { SlotStatus } from '@prisma/client';
  */
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json();
+    const rawText = await req.text();
+    if (!rawText) {
+      return NextResponse.json({ error: 'Empty request body' }, { status: 400 });
+    }
+    const body = JSON.parse(rawText);
     const { lotId, edgeNodeId, edgeToken, slots, cameraUrl, tunnelUrl } = body;
 
     if (!lotId || !edgeToken || !edgeNodeId || !Array.isArray(slots)) {
@@ -100,16 +104,33 @@ export async function POST(req: NextRequest) {
           continue;
         }
 
-        // Business Logic: AI says AVAILABLE, but check for reservations/admin overrides
+        // ── BOOKING-AWARE STATE DECISION ENGINE ──
         let finalStatus: SlotStatus = mappedStatus;
-        if (mappedStatus === 'AVAILABLE') {
+
+        // PRIORITY RULE: Car detected (OCCUPIED) → ALWAYS OCCUPIED
+        if (mappedStatus === 'OCCUPIED') {
+          finalStatus = 'OCCUPIED';
+        }
+        // No car detected — apply booking-aware logic
+        else if (mappedStatus === 'AVAILABLE') {
+          // Preserve admin-set states (DISABLED/CLOSED)
           if (existingSlot.status === 'DISABLED' || existingSlot.status === 'CLOSED') {
-            // Preserve admin-set states
             finalStatus = existingSlot.status;
-          } else if (existingSlot.bookings && existingSlot.bookings.length > 0) {
-            // Slot has active booking — mark as RESERVED
+          }
+          // Check for active bookings → RESERVED
+          else if (existingSlot.bookings && existingSlot.bookings.length > 0) {
             finalStatus = 'RESERVED';
           }
+          // No booking, no car → AVAILABLE
+          else {
+            finalStatus = 'AVAILABLE';
+          }
+        }
+
+        // Validate state transition
+        if (!isValidTransition(existingSlot.status, finalStatus)) {
+          results.skipped++;
+          continue;
         }
 
         // Skip if no change
@@ -147,6 +168,7 @@ export async function POST(req: NextRequest) {
           slotId: existingSlot.id,
           slotNumber,
           status: finalStatus,
+          oldStatus: existingSlot.status,
           confidence,
           source: 'AI',
           timestamp: new Date().toISOString(),
@@ -190,6 +212,17 @@ function mapStatusToEnum(status: string): SlotStatus | null {
     'CLOSED': 'CLOSED',
   };
   return statusMap[status?.toUpperCase?.()] ?? null;
+}
+
+function isValidTransition(current: SlotStatus, target: SlotStatus): boolean {
+  const VALID: Record<string, Set<string>> = {
+    'AVAILABLE': new Set(['RESERVED', 'OCCUPIED']),
+    'RESERVED':  new Set(['OCCUPIED', 'AVAILABLE']),
+    'OCCUPIED':  new Set(['AVAILABLE', 'RESERVED']), // Allow returning to RESERVED if car leaves
+    'DISABLED':  new Set([]),             // Admin-only states
+    'CLOSED':    new Set([]),             // Admin-only states
+  };
+  return current === target || (VALID[current]?.has(target) ?? false);
 }
 
 function broadcastBulkUpdate(lotId: string, updates: any[]) {

@@ -74,12 +74,13 @@ export default function PaymentModal({
     // Fetch Client Secret on Open
     useEffect(() => {
         if (isOpen) {
-            const createIntent = async () => {
+            const createIntent = async (retryCount = 0) => {
                 const controller = new AbortController()
-                const timeoutId = setTimeout(() => controller.abort(), 15000) // 15s timeout
+                const timeoutMs = 45000 // 45s for slower connections
+                const timeoutId = setTimeout(() => controller.abort(), timeoutMs)
 
                 try {
-                    console.log("[PAYMENT] Initializing intent call...")
+                    console.log(`[PAYMENT] Attempt ${retryCount + 1}: Initializing intent call...`)
                     const res = await fetch("/api/payments/create-intent", {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
@@ -96,35 +97,54 @@ export default function PaymentModal({
                     clearTimeout(timeoutId)
 
                     if (!res.ok) {
-                        const errText = await res.text()
-                        console.error("[PAYMENT] API Error:", errText)
-                        throw new Error(errText)
+                        const errData = await res.json().catch(() => ({ error: "Unknown Error" }))
+                        console.error("[PAYMENT] API Error Response:", errData)
+                        
+                        // Handle specific business errors
+                        if (res.status === 409) {
+                            throw new Error("Slot is no longer available. Someone else might be booking it.")
+                        }
+                        throw new Error(errData.message || errData.error || "Server failed to create payment session")
                     }
 
                     const data = await res.json()
-                    console.log("[PAYMENT] Intent created successfully", { isMock: data.isMock })
+                    console.log("[PAYMENT] Intent created successfully", { isMock: data.isMock, bookingId: data.bookingId })
+                    
                     setClientSecret(data.clientSecret)
                     setBookingId(data.bookingId)
                     setIsMock(data.isMock)
                 } catch (error: any) {
                     clearTimeout(timeoutId)
-                    console.error("[PAYMENT] Failed to init payment", error)
+                    console.error("[PAYMENT] Failed to initialize payment flow:", {
+                        name: error.name,
+                        message: error.message,
+                        attempt: retryCount + 1
+                    })
                     
-                    let message = "Could not set up payment. Please try again."
+                    let message = error.message || "Could not set up payment. Please try again."
+                    
                     if (error.name === 'AbortError') {
-                        message = "Payment service is taking too long to respond. Please check your connection or try again."
-                    } else if (error.message.includes("Slot is no longer available")) {
-                        message = "This slot was just taken. Please choose another one."
+                        message = "The request timed out. Our servers are a bit busy, please try once more."
+                        
+                        // Auto-retry once for timeouts
+                        if (retryCount < 1) {
+                            console.log("[PAYMENT] Auto-retrying once due to timeout...")
+                            return createIntent(retryCount + 1)
+                        }
                     }
 
                     toast({
-                        title: "Checkout Error",
+                        title: "Checkout Problem",
                         description: message,
                         variant: "destructive"
                     })
                     
-                    // If it failed, don't leave them on the spinner
-                    setTimeout(() => onClose(), 3000)
+                    // Don't close immediately — let them see the error for 5 seconds
+                    // If it's a "no longer available" error, close faster so they can pick a new one
+                    const closeDelay = error.message.includes("no longer available") ? 2500 : 5000
+                    setTimeout(() => {
+                        if (isOpen) onClose()
+                    }, closeDelay)
                 }
             }
             createIntent()

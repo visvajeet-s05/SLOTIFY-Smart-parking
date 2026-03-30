@@ -198,6 +198,6 @@ export async function POST(req: NextRequest) {
 
     } catch (error) {
         console.error("[PAYMENTS_CREATE_INTENT]", error)
-        return new NextResponse("Internal Error", { status: 500 })
+        return NextResponse.json({ error: "Internal Server Error", message: "Failed to create booking intent" }, { status: 500 })
     }
 }

@@ -14,10 +14,8 @@ const subscriptions: Record<string, { OWNER: Set<WebSocket>; CUSTOMER: Set<WebSo
 const globalCustomers: Set<WebSocket> = new Set();
 
 
-// Batch update queue for high-frequency AI updates
-const batchUpdates = new Map<string, any>();
-let batchTimeout: NodeJS.Timeout | null = null;
-const BATCH_INTERVAL = 5000; // 5 seconds
+// Real-time processing for AI updates (No batching for maximum speed)
+const BATCH_INTERVAL = 100; // Minimal buffer for extreme high-frequency bursts (0.1s)
 
 type SlotUpdate = {
   lotSlug: string;
@@ -163,13 +161,8 @@ wss.on("connection", (ws: WebSocket) => {
       if (data.lotSlug && data.slotNumber !== undefined) {
         const slotData = data as SlotUpdate;
 
-        // Priority check: OWNER updates bypass batching
-        if (slotData.source === "OWNER") {
-          await processImmediateUpdate(slotData);
-        } else {
-          // AI updates go to batch queue
-          queueBatchUpdate(slotData);
-        }
+        // ALL updates are now processed immediately for millisecond response
+        await processImmediateUpdate(slotData);
         return;
       }
 
@@ -282,82 +275,9 @@ async function processImmediateUpdate(data: SlotUpdate) {
 }
 
 
-// Queue update for batch processing
-function queueBatchUpdate(data: SlotUpdate) {
-  const key = `${data.lotSlug}-${data.slotNumber}`;
-  batchUpdates.set(key, data);
-  console.log(`📝 Queued batch update: ${key}`);
-
-  if (!batchTimeout) {
-    batchTimeout = setTimeout(processBatchUpdates, BATCH_INTERVAL);
-  }
-}
-
-// Process all queued batch updates
+// Process all queued batch updates (DEPRECATED - Processing is now real-time)
 async function processBatchUpdates() {
-  if (batchUpdates.size === 0) {
-    batchTimeout = null;
-    return;
-  }
-
-  console.log(`🔄 Processing ${batchUpdates.size} batched updates...`);
-
-  const updates = Array.from(batchUpdates.values());
-  batchUpdates.clear();
-  batchTimeout = null;
-
-  // Process all updates in parallel
-  await Promise.all(
-    updates.map(async (data: SlotUpdate) => {
-      try {
-        // Find the parking lot
-        const lot = await prisma.parkinglot.findUnique({
-          where: { id: data.lotSlug },
-          include: { slots: true },
-        });
-
-        if (!lot) return;
-
-        // Find the specific slot
-        const slot = lot.slots.find((s: any) => s.slotNumber === data.slotNumber);
-        if (!slot) return;
-
-        // Priority check: can this update override the existing status?
-        if (!canOverride(slot.updatedBy, data.source)) {
-          console.log(`⛔ Blocked: ${data.source} cannot override ${slot.updatedBy}`);
-          return;
-        }
-
-        // Update slot in DB
-        await prisma.slot.update({
-          where: { id: slot.id },
-          data: {
-            status: data.status,
-            aiConfidence: data.confidence ?? 100,
-            updatedBy: data.source,
-          },
-        });
-
-        // Create status log entry
-        await prisma.slotStatusLog.create({
-          data: {
-            slotId: slot.id,
-            oldStatus: slot.status,
-            newStatus: data.status,
-            updatedBy: data.source,
-            aiConfidence: data.confidence ?? 100,
-          },
-        });
-
-        // Broadcast update
-        broadcastUpdate({ ...data, slotId: slot.id });
-      } catch (error) {
-        console.error("❌ Error in batch update:", error);
-      }
-    })
-  );
-
-  console.log("✅ Batch updates completed");
+  // Logic removed for real-time performance
 }
 
 

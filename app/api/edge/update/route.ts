@@ -26,8 +26,8 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 1. Authenticate Edge Node
-    const parkingLot = await prisma.parkinglot.findFirst({
+    // 1. Authenticate Edge Node (or Auto-Link if first time)
+    let parkingLot = await prisma.parkinglot.findFirst({
       where: {
         id: lotId,
         edgeNodeId: edgeNodeId,
@@ -35,10 +35,29 @@ export async function POST(req: NextRequest) {
       }
     });
 
+    // AUTO-LINK FEATURE: If no node assigned, claim this one
+    if (!parkingLot) {
+      const lotToClaim = await prisma.parkinglot.findFirst({
+        where: { id: lotId }
+      });
+      
+      if (lotToClaim && !lotToClaim.edgeNodeId) {
+        console.log(`[Edge Auto-Link] Claiming lot ${lotId} for node ${edgeNodeId}`);
+        parkingLot = await prisma.parkinglot.update({
+          where: { id: lotId },
+          data: {
+            edgeNodeId: edgeNodeId,
+            edgeToken: edgeToken,
+            lastHeartbeat: new Date()
+          }
+        });
+      }
+    }
+
     if (!parkingLot) {
       console.error(`[Edge Auth] Failed: lotId=${lotId} edgeNodeId=${edgeNodeId}`);
       return NextResponse.json(
-        { error: 'Authentication failed: Invalid lotId, edgeNodeId or edgeToken' },
+        { error: 'Authentication failed: Invalid lotId or node unauthorized' },
         { status: 401 }
       );
     }

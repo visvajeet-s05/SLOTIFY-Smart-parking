@@ -103,7 +103,7 @@ export async function GET() {
         edgeNodeId: lot.edgeNodeId || null,
         lastHeartbeat: lot.lastHeartbeat || null,
         ddnsDomain: lot.ddnsDomain || null,
-        isOnline: lot.lastHeartbeat ? (Math.abs(new Date().getTime() - new Date(lot.lastHeartbeat).getTime()) < 300000) : false,
+        isOnline: !!lot.lastHeartbeat && (Math.abs(new Date().getTime() - new Date(lot.lastHeartbeat).getTime()) < 300000),
         features: ["CCTV", "24/7", "Security"],
         distance: 0,
         rating: 4.5,

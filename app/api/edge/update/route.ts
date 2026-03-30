@@ -26,6 +26,23 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // ── SCHEMA-AUTO-REPAIR: Ensure Edge columns exist on Railway ──
+    try {
+      // Fast check for columns - if this fails, we know we need to add them
+      await prisma.$queryRaw`SELECT edgeNodeId, lastHeartbeat FROM parkinglot LIMIT 1`;
+    } catch (e) {
+      console.warn("⚠️ Production Database Outdated: Attempting Auto-Repair Schema...");
+      try {
+        await prisma.$executeRawUnsafe(`ALTER TABLE parkinglot ADD COLUMN IF NOT EXISTS edgeNodeId VARCHAR(255) UNIQUE AFTER totalSlots`);
+        await prisma.$executeRawUnsafe(`ALTER TABLE parkinglot ADD COLUMN IF NOT EXISTS edgeToken VARCHAR(255) UNIQUE AFTER edgeNodeId`);
+        await prisma.$executeRawUnsafe(`ALTER TABLE parkinglot ADD COLUMN IF NOT EXISTS lastHeartbeat DATETIME AFTER edgeToken`);
+        await prisma.$executeRawUnsafe(`ALTER TABLE parkinglot ADD COLUMN IF NOT EXISTS ddnsDomain VARCHAR(255) AFTER lastHeartbeat`);
+        console.log("✅ Production Database Repaired Successfully!");
+      } catch (repairErr: any) {
+        console.error("❌ Schema Repair Failed:", repairErr.message);
+      }
+    }
+
     // 1. Authenticate Edge Node (or Auto-Link if first time)
     let parkingLot = await prisma.parkinglot.findFirst({
       where: {

@@ -142,22 +142,22 @@ monitors: dict = {}
 #   ULTIMATE 6-CAR IDENTITY PROFILES (HSV)
 # ══════════════════════════════════════════════════════════════════════════
 CAR_PROFILES = {
-    "911_RED":        [(0, 160, 100),    (10, 255, 255),  (170, 160, 100), (180, 255, 255)], # Ultra-Vivid Red
-    "BLUE_POLICE":    [(95, 140, 70),    (140, 255, 255)],                                 # Ultra-Vivid Blue
-    "GREEN_POLICE":   [(45, 140, 70),    (85, 255, 255)],                                  # Ultra-Vivid Green
-    "BLACK_POLICE":   [(0, 0, 0),       (180, 255, 40)],                                   # Pure Black Only
-    "CARTOON_ART":    [(20, 180, 120),   (45, 255, 255)],                                  # Vivid Orange
-    "DINOSAUR":       [(5, 140, 50),     (20, 255, 150)],                                  # Vivid Maroon
-    "WHITE_ROOFS":    [(0, 0, 230),     (180, 30, 255)],                                   # Sparkling White
+    "911_RED":        [(0, 110, 80),      (15, 255, 255),  (165, 110, 80), (180, 255, 255)], # Strong Red
+    "BLUE_POLICE":    [(90, 110, 60),     (145, 255, 255)],                                 # Strong Blue
+    "GREEN_POLICE":   [(35, 110, 60),     (95, 255, 255)],                                  # Strong Green
+    "BLACK_POLICE":   [(0, 0, 0),        (180, 255, 50)],                                   # Black/Shadow
+    "CARTOON_ART":    [(15, 110, 80),     (45, 255, 255)],                                  # Strong Orange
+    "DINOSAUR":       [(5, 110, 50),      (30, 255, 180)],                                  # Strong Maroon
+    "WHITE_ROOFS":    [(0, 0, 180),      (180, 60, 255)],                                   # Bright White
 }
 
 def matches_car_profile(roi_hsv) -> str:
     """Rigidly checks color and returns the name of the matched car if valid."""
-    # First, check if there is ANY white in the slot (Roof/Logo)
-    # Most toy cars have white roofs or logos. Floor tiles don't.
-    white_mask = cv2.inRange(roi_hsv, np.array([0, 0, 200]), np.array([180, 60, 255]))
+    # Filter for bright white only (v > 210, low saturation)
+    white_mask = cv2.inRange(roi_hsv, np.array([0, 0, 210]), np.array([180, 60, 255]))
     white_ratio = cv2.countNonZero(white_mask) / float(roi_hsv.shape[0] * roi_hsv.shape[1])
-    has_white = white_ratio > 0.04
+    # Mandatory white proof for toy cars (labels/roofs)
+    has_white = white_ratio > 0.012 
 
     for name, ranges in CAR_PROFILES.items():
         if len(ranges) == 2:
@@ -174,16 +174,21 @@ def matches_car_profile(roi_hsv) -> str:
         count = cv2.countNonZero(mask)
         ratio = count / float(roi_hsv.shape[0] * roi_hsv.shape[1])
         
-        # ── THE SECURITY LOCK (WHITE HIGHLIGHT) ──
-        # For dark cars (Black/Blue/Dino), we REQUIRE a white highlight (roof/labels)
-        # to prevent the dark floor/shadows from triggering.
-        if name in ["BLACK_POLICE", "BLUE_POLICE", "DINOSAUR"]:
-            if ratio > 0.15 and has_white:
-                return f"{name} (SECURED)"
-        else:
-            # For bright cars (Red/Cartoon), color vibrancy is enough
-            if ratio > 0.22:
+        # ── THE SECURITY LOCK ──
+        # 1. Dark/Subtle cars: REQUIRE white proof to avoid floor matches
+        if name in ["BLACK_POLICE", "DINOSAUR"]:
+            if ratio > 0.18 and has_white:
                 return f"{name}"
+        
+        # 2. Distinct Colors (Blue, Green, Red, Orange): 
+        # Requirement: 22%+ color ratio AND some white labels/highlights
+        elif name in ["BLUE_POLICE", "GREEN_POLICE", "911_RED", "CARTOON_ART"]:
+            if ratio > 0.22 and has_white:
+                return f"{name}"
+        
+        # 3. White roofs: 
+        elif name == "WHITE_ROOFS" and ratio > 0.35:
+            return f"{name}"
             
     return None
 
@@ -468,6 +473,10 @@ class SmartMonitor:
         self.slot_status:  dict = {}
         self.slot_buffer:  dict = {}
         self.vehicle_centroids = []
+        
+        # Performance/Diagnostic tracking
+        self.last_changed_ratios = {} # For API debugging
+        self.last_identities = {}     # For API debugging
 
         # Booking state cache (refreshed periodically)
         self._booked_slots: set = set()  # Set of slot IDs with active bookings
@@ -973,18 +982,27 @@ class SmartMonitor:
                             
                             # MUST ALSO MATCH A CAR IDENTITY
                             actual_slot_hsv = cv2.cvtColor(frame[csy:csy2, csx:csx2], cv2.COLOR_BGR2HSV)
-                            identity_match = matches_car_profile(actual_slot_hsv)
+                            # ── PRESENTATION FINAL LOCK: IDENTITY + CHANGE + EDGES ──
+                            # 1. Identity must match (color + white proof)
+                            # 2. Must be DIFFERENT from the floor (changed_ratio > 8%)
+                            # 3. Must have object-like edges (edge_ratio > 2%)
                             
-                            # ── PRESENTATION FINAL LOCK: IDENTITY-ONLY ──
-                            # We no longer care about movement (D) or shape (M).
-                            # If the color match is positive, the car IS THERE.
-                            if identity_match:
+                            # Extract edges for this slot
+                            slot_edges = edges[csy:csy2, csx:csx2]
+                            edge_ratio = cv2.countNonZero(slot_edges) / float(total_ROI_pixels) if total_ROI_pixels > 0 else 0
+                            
+                            if identity_match and (changed_ratio > 0.08 or edge_ratio > 0.03):
                                 car_found_hardcoded = True
+                                print(f"[AI] Identity HIT: Slot {slot.get('slotNumber')} matched {identity_match} (E:{edge_ratio:.2f})", flush=True)
                             else:
                                 car_found_hardcoded = False
                         
                         if car_found_hardcoded:
                             detection_status = True
+                        
+                        # Store for debugging endpoint
+                        self.last_changed_ratios[sid] = changed_ratio
+                        self.last_identities[sid] = identity_match
 
             # ── FIX 3: TEMPORAL COUNTER HARD RESET ──
             if not hasattr(self, 'slot_stale_timers'):
@@ -1424,6 +1442,8 @@ def debug_detection(lot_id: str):
             "current_status": mon.slot_status.get(sid, "UNKNOWN"),
             "buffer": mon.slot_buffer.get(sid, 0),
             "using_fallback_coords": (slot.get("x") or 0) == 0 and (slot.get("y") or 0) == 0,
+            "dbg_changed_ratio": round(getattr(mon, 'last_changed_ratios', {}).get(sid, 0.0), 3),
+            "dbg_identity": getattr(mon, 'last_identities', {}).get(sid, None)
         })
 
     result["total_detections"] = len(all_detections)

@@ -265,7 +265,7 @@ export default function CameraAnalysis({ cameraUrl, rawStreamUrl, slots: initial
                     <div className="relative w-full overflow-hidden rounded-[2.5rem] border border-white/5 shadow-[0_40px_120px_rgba(0,0,0,0.9)] select-none" style={{ minHeight: '700px' }}>
                         
                         {/* ═══ LAYER 1 (z-0): ONE FULL-BACKGROUND LIVE CAMERA ═══ */}
-                        {/* Priority: rawStreamUrl (direct IP Webcam) > cameraUrl (AI proxy) */}
+                        {/* Use direct IP stream for zero-latency presentation viewing */}
                         {(rawStreamUrl || cameraUrl) ? (
                             <img 
                                 src={rawStreamUrl || cameraUrl || ''}
@@ -273,7 +273,7 @@ export default function CameraAnalysis({ cameraUrl, rawStreamUrl, slots: initial
                                 alt=""
                                 draggable={false}
                                 onError={(e) => {
-                                    // If raw stream fails, try AI proxy; if AI proxy fails, try raw stream
+                                    // Fallback to AI proxy if direct stream drops
                                     const img = e.currentTarget;
                                     if (rawStreamUrl && img.src === rawStreamUrl && cameraUrl) {
                                         img.src = cameraUrl;

@@ -135,7 +135,7 @@ export default function LoginModal({
                 <div className="relative hidden md:flex flex-col justify-between p-8 overflow-hidden bg-slate-900/50">
                   <div className="absolute inset-0 z-0">
                     <Image
-                      src="https://images.unsplash.com/photo-1590674899505-1c5c41951f89?q=80&w=2074&auto=format&fit=crop"
+                      src="https://images.unsplash.com/photo-1449965408869-eaa3f722e40d?q=80&w=2070&auto=format&fit=crop"
                       alt=""
                       fill
                       className="object-cover opacity-60 mix-blend-overlay"

@@ -26,25 +26,8 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // ── SCHEMA-AUTO-REPAIR: Ensure Edge columns exist on Railway ──
-    try {
-      // Fast check for columns - if this fails, we know we need to add them
-      await prisma.$queryRaw`SELECT edgeNodeId, lastHeartbeat FROM parkinglot LIMIT 1`;
-    } catch (e) {
-      console.warn("⚠️ Production Database Outdated: Attempting Auto-Repair Schema...");
-      try {
-        await prisma.$executeRawUnsafe(`ALTER TABLE parkinglot ADD COLUMN IF NOT EXISTS edgeNodeId VARCHAR(255) UNIQUE AFTER totalSlots`);
-        await prisma.$executeRawUnsafe(`ALTER TABLE parkinglot ADD COLUMN IF NOT EXISTS edgeToken VARCHAR(255) UNIQUE AFTER edgeNodeId`);
-        await prisma.$executeRawUnsafe(`ALTER TABLE parkinglot ADD COLUMN IF NOT EXISTS lastHeartbeat DATETIME AFTER edgeToken`);
-        await prisma.$executeRawUnsafe(`ALTER TABLE parkinglot ADD COLUMN IF NOT EXISTS ddnsDomain VARCHAR(255) AFTER lastHeartbeat`);
-        console.log("✅ Production Database Repaired Successfully!");
-      } catch (repairErr: any) {
-        console.error("❌ Schema Repair Failed:", repairErr.message);
-      }
-    }
-
-    // 1. Authenticate Edge Node (or Auto-Link if first time)
-    let parkingLot = await prisma.parkinglot.findFirst({
+    // 1. Authenticate Edge Node
+    const parkingLot = await prisma.parkinglot.findFirst({
       where: {
         id: lotId,
         edgeNodeId: edgeNodeId,
@@ -52,29 +35,10 @@ export async function POST(req: NextRequest) {
       }
     });
 
-    // AUTO-LINK FEATURE: If no node assigned, claim this one
-    if (!parkingLot) {
-      const lotToClaim = await prisma.parkinglot.findFirst({
-        where: { id: lotId }
-      });
-      
-      if (lotToClaim && !lotToClaim.edgeNodeId) {
-        console.log(`[Edge Auto-Link] Claiming lot ${lotId} for node ${edgeNodeId}`);
-        parkingLot = await prisma.parkinglot.update({
-          where: { id: lotId },
-          data: {
-            edgeNodeId: edgeNodeId,
-            edgeToken: edgeToken,
-            lastHeartbeat: new Date()
-          }
-        });
-      }
-    }
-
     if (!parkingLot) {
       console.error(`[Edge Auth] Failed: lotId=${lotId} edgeNodeId=${edgeNodeId}`);
       return NextResponse.json(
-        { error: 'Authentication failed: Invalid lotId or node unauthorized' },
+        { error: 'Authentication failed: Invalid lotId, edgeNodeId or edgeToken' },
         { status: 401 }
       );
     }

@@ -33,7 +33,7 @@ params = parse_db_url(DATABASE_URL) or {
 try:
     conn = mysql.connector.connect(**params)
     cursor = conn.cursor()
-    new_url = "http://172.26.94.77:8080/video"
+    new_url = "http://10.68.195.57:8080/video"
     
     # Tables to update based on schema.prisma
     # parkinglot has cameraUrl

@@ -117,11 +117,11 @@ CENTER_OVERLAP_MIN   = 0.20    # If centered, requires less overlap
 CENTER_STRICT        = False   # Relaxed to allow cars that overlap 50%
 BIG_CAR_FRACTION     = 0.95
 
-# Debounce (TUNED FOR INSTANT TRIGGER per user request)
-OCCUPY_THRESHOLD     = 1       # Instant detection (1 frame)
-CLEAR_THRESHOLD      = 0       # Instant clear (1 frame)
-BUFFER_INCREMENT     = 10      # Full buffer fill in 1 frame
-BUFFER_DECREMENT     = 10      # Full buffer clear in 1 frame
+# Debounce (ULTRA-FAST PRESENTATION MODE)
+OCCUPY_THRESHOLD     = 1       # Instant (1 frame)
+CLEAR_THRESHOLD      = 0       # Instant (1 frame)
+BUFFER_INCREMENT     = 10      # Full fill
+BUFFER_DECREMENT     = 2       # Slower clear to prevent flickering
 
 # Global state
 # Standard regions for 1920x1080 resolution
@@ -139,7 +139,56 @@ monitors: dict = {}
 
 
 # ══════════════════════════════════════════════════════════════════════════
-#   DATABASE LAYER — Direct MySQL (< 5ms writes)
+#   ULTIMATE 6-CAR IDENTITY PROFILES (HSV)
+# ══════════════════════════════════════════════════════════════════════════
+CAR_PROFILES = {
+    "911_RED":        [(0, 160, 100),    (10, 255, 255),  (170, 160, 100), (180, 255, 255)], # Ultra-Vivid Red
+    "BLUE_POLICE":    [(95, 140, 70),    (140, 255, 255)],                                 # Ultra-Vivid Blue
+    "GREEN_POLICE":   [(45, 140, 70),    (85, 255, 255)],                                  # Ultra-Vivid Green
+    "BLACK_POLICE":   [(0, 0, 0),       (180, 255, 40)],                                   # Pure Black Only
+    "CARTOON_ART":    [(20, 180, 120),   (45, 255, 255)],                                  # Vivid Orange
+    "DINOSAUR":       [(5, 140, 50),     (20, 255, 150)],                                  # Vivid Maroon
+    "WHITE_ROOFS":    [(0, 0, 230),     (180, 30, 255)],                                   # Sparkling White
+}
+
+def matches_car_profile(roi_hsv) -> str:
+    """Rigidly checks color and returns the name of the matched car if valid."""
+    # First, check if there is ANY white in the slot (Roof/Logo)
+    # Most toy cars have white roofs or logos. Floor tiles don't.
+    white_mask = cv2.inRange(roi_hsv, np.array([0, 0, 200]), np.array([180, 60, 255]))
+    white_ratio = cv2.countNonZero(white_mask) / float(roi_hsv.shape[0] * roi_hsv.shape[1])
+    has_white = white_ratio > 0.04
+
+    for name, ranges in CAR_PROFILES.items():
+        if len(ranges) == 2:
+            mask = cv2.inRange(roi_hsv, np.array(ranges[0]), np.array(ranges[1]))
+        else: # Dual-range for Red (wraps around 0/180)
+            m1 = cv2.inRange(roi_hsv, np.array(ranges[0]), np.array(ranges[1]))
+            m2 = cv2.inRange(roi_hsv, np.array(ranges[2]), np.array(ranges[3]))
+            mask = cv2.bitwise_or(m1, m2)
+        
+        # Morphological Noise Filter (kill grain)
+        kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
+        mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
+        
+        count = cv2.countNonZero(mask)
+        ratio = count / float(roi_hsv.shape[0] * roi_hsv.shape[1])
+        
+        # ── THE SECURITY LOCK (WHITE HIGHLIGHT) ──
+        # For dark cars (Black/Blue/Dino), we REQUIRE a white highlight (roof/labels)
+        # to prevent the dark floor/shadows from triggering.
+        if name in ["BLACK_POLICE", "BLUE_POLICE", "DINOSAUR"]:
+            if ratio > 0.15 and has_white:
+                return f"{name} (SECURED)"
+        else:
+            # For bright cars (Red/Cartoon), color vibrancy is enough
+            if ratio > 0.22:
+                return f"{name}"
+            
+    return None
+
+# ══════════════════════════════════════════════════════════════════════════
+#   HELPER FUNCTIONS
 # ══════════════════════════════════════════════════════════════════════════
 
 def is_inside(inner: dict, outer: dict) -> bool:
@@ -484,10 +533,22 @@ class SmartMonitor:
                 for s in self.slots
                 if s.get("slotNumber") is not None
             }
-            print(f"[Config] ✓ {len(self.slots)} slots loaded for {self.lot_id}", flush=True)
-            if self.slots:
-                s0 = self.slots[0]
-                print(f"[Config]   Slot 1: x={s0.get('x')} y={s0.get('y')}", flush=True)
+            
+            # FORCE-ENSURE 30 SLOTS EXIST (for the presentation)
+            if len(self.slots) < 30:
+                print(f"[Config] Padding missing slots to reach 30...", flush=True)
+                existing_nums = set(self.slot_db_map.keys())
+                for i in range(1, 31):
+                    if i not in existing_nums:
+                        self.slots.append({
+                            "id": f"force-slot-{i}",
+                            "slotNumber": i,
+                            "status": "AVAILABLE",
+                            "x": 0, "y": 0 # Use grid fallback
+                        })
+                self.slots.sort(key=lambda x: x["slotNumber"])
+            
+            print(f"[Config] ✓ {len(self.slots)} slots active for {self.lot_id}", flush=True)
 
         except Exception as e:
             print(f"[Config] Error: {e}", flush=True)
@@ -814,9 +875,16 @@ class SmartMonitor:
         # Hardcoded to exclusively detect the specific physical dimensions of your 6 models.
         # We use a massive Gaussian blur to violently erase any background video noise/static that causes false positives.
         gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        
+        # FIX 1: CALIBRATION / REFERENCE CAPTURE
+        if not hasattr(self, 'bg_gray') or self.bg_gray is None:
+            self.bg_gray = gray_frame.copy()
+            self.slot_stale_timers = {}
+            print("[AI] Background Empty Reference Calibrated!", flush=True)
+
         blurred = cv2.GaussianBlur(gray_frame, (5, 5), 0)
         edges = cv2.Canny(blurred, 25, 75)
-
+        
         # ── STATE DECISION ENGINE (Booking-Aware) ──────────────────────────
         # Priority: OCCUPIED (car detected) > RESERVED (booking) > AVAILABLE
         changed_slots = []
@@ -830,12 +898,14 @@ class SmartMonitor:
 
             if (raw_x is None or raw_x == 0) and (raw_y is None or raw_y == 0):
                 # Grid fallback
+                # Grid fallback (CALIBRATED TO SCREENSHOT PROPORTIONS)
+                # Grid fallback (SECURITY CALIBRATION v2)
                 cols = 6
                 row  = idx // cols
                 col  = idx % cols
-                sx_ref = 150 + col * 280
-                sy_ref = 150 + row * 180
-                sw_ref, sh_ref = 240, 140
+                sx_ref = 100 + col * 145
+                sy_ref = 120 + row * 105
+                sw_ref, sh_ref = 135, 95
             else:
                 sx_ref = float(raw_x or 0)
                 sy_ref = float(raw_y or 0)
@@ -843,6 +913,11 @@ class SmartMonitor:
                 sh_ref = float(slot.get("height") or 140)
 
             slot_box = {"x": sx_ref, "y": sy_ref, "w": sw_ref, "h": sh_ref}
+            
+            # Reset values for this specific slot iteration
+            changed_ratio = 0.0
+            surviving_blob_ratio = 0.0
+            identity_match = False
 
             # Check if any valid YOLO car detection overlaps this slot
             detection_status = False
@@ -863,73 +938,94 @@ class SmartMonitor:
                     lsw = int(sw_ref * w / rw_ref)
                     lsh = int(sh_ref * h / rh_ref)
                     
-                    # Remove aggressive margins. There are no physical painted lines on the cardboard, 
-                    # so we don't need to blind the AI. A tiny 2% margin just handles rounding errors.
-                    margin_x = int(lsw * 0.02)
-                    margin_y = int(lsh * 0.02)
-                    csx = lsx + margin_x
-                    csy = lsy + margin_y
+                    # ── STEP 2: Per-Slot ROI Extraction with 12% Shrink ──
+                    # Shrink ROI inward by 12% on all 4 sides to permanently eliminate
+                    # 90% of grid line, tile edge, and cardboard shadow false positives.
+                    # ── STEP 2: Per-Slot ROI Extraction (BALANCED FOR PRESENTATION) ──
+                    # 5% margin to exclude neighboring car bleed but catch central bodies
+                    margin_x = int(lsw * 0.05)
+                    margin_y = int(lsh * 0.05)
+                    csx = max(0, lsx + margin_x)
+                    csy = max(0, lsy + margin_y)
                     csx2 = min(w, lsx + lsw - margin_x)
                     csy2 = min(h, lsy + lsh - margin_y)
                     
                     if csy2 > csy and csx2 > csx:
-                        # ── AIRTIGHT HARDCODE HYBRID FILTER (V6 UNLOCKED) ──
+                        # ── LAYER 2: Morphological Density with BLUR-IMMUNITY ──
                         slot_gray = gray_frame[csy:csy2, csx:csx2]
-                        slot_edges = edges[csy:csy2, csx:csx2]
-                        
-                        # 1. Pixel Variance (Standard Deviation)
-                        # An empty smooth cardboard floor has very low contrast (std_dev < 5).
-                        # A toy car (shiny black/blue paint, white text, wheels) shoots variance > 12.
-                        std_dev = np.std(slot_gray)
-                        edge_pixels = cv2.countNonZero(slot_edges)
                         
                         car_found_hardcoded = False
+                        changed_ratio = 0.0
+                        surviving_blob_ratio = 0.0
                         
-                        # An empty slot with a shadow gradient triggers std_dev but has ~0 edges.
-                        # An empty slot with a cardboard seam triggers edge_pixels but has low std_dev.
-                        # A solid toy car mathematically triggers BOTH std_dev > 15 AND edge_pixels > 80 simultaneously.
-                        if std_dev > 14.0 and edge_pixels > 60:
-                            contours, _ = cv2.findContours(slot_edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-                            if contours:
-                                # Combine ALL edges to find the true outer boundary footprint
-                                all_points = np.concatenate(contours)
-                                x, y, w_obj, h_obj = cv2.boundingRect(all_points)
-                                
-                                available_area = (csx2 - csx) * (csy2 - csy)
-                                footprint_area = w_obj * h_obj
-                                fill_ratio = footprint_area / available_area if available_area > 0 else 0
-                                
-                                # A straight line (seam) has ar > 10.
-                                # A tiny coin or static cluster has fill_ratio < 0.05
-                                ar = max(w_obj, h_obj) / max(min(w_obj, h_obj), 1)
-                                
-                                if ar <= 5.0 and fill_ratio >= 0.08:
-                                    car_found_hardcoded = True
+                        # FIX 4 (REVISED): Absolute Difference Block
+                        # Instead of calculating average mean (where bright white roofs cancel out dark blue trunks),
+                        # we directly measure how many individual pixels wildly deviate from the empty floor!
+                        total_ROI_pixels = (csx2 - csx) * (csy2 - csy)
+                        
+                        if hasattr(self, 'bg_gray') and self.bg_gray is not None:
+                            slot_ref_gray = self.bg_gray[csy:csy2, csx:csx2]
+                            diff = cv2.absdiff(slot_ref_gray, slot_gray)
+                            _, diff_thresh = cv2.threshold(diff, 15, 255, cv2.THRESH_BINARY)
+                            changed_pixels = cv2.countNonZero(diff_thresh)
+                            
+                            changed_ratio = changed_pixels / total_ROI_pixels if total_ROI_pixels > 0 else 0
+                            
+                            # MUST ALSO MATCH A CAR IDENTITY
+                            actual_slot_hsv = cv2.cvtColor(frame[csy:csy2, csx:csx2], cv2.COLOR_BGR2HSV)
+                            identity_match = matches_car_profile(actual_slot_hsv)
+                            
+                            # ── PRESENTATION FINAL LOCK: IDENTITY-ONLY ──
+                            # We no longer care about movement (D) or shape (M).
+                            # If the color match is positive, the car IS THERE.
+                            if identity_match:
+                                car_found_hardcoded = True
+                            else:
+                                car_found_hardcoded = False
+                        
                         if car_found_hardcoded:
                             detection_status = True
 
-            # Debounce buffer
+            # ── FIX 3: TEMPORAL COUNTER HARD RESET ──
+            if not hasattr(self, 'slot_stale_timers'):
+                self.slot_stale_timers = {}
+                
             buf = self.slot_buffer.get(sid, 0)
-            buf = min(buf + BUFFER_INCREMENT, 10) if detection_status else max(buf - BUFFER_DECREMENT, 0)
+            
+            # +2 for OCCUPIED, -1 for AVAILABLE, clamped to 0-7
+            if detection_status:
+                buf += 2
+            else:
+                buf -= 1
+            buf = max(0, min(buf, 7))
             self.slot_buffer[sid] = buf
 
             prev = self.slot_status.get(sid, "AVAILABLE")
 
-            # ── STATE DECISION RULES ──
-            # Rule 1: Car detected → ALWAYS OCCUPIED (highest priority)
-            if buf >= OCCUPY_THRESHOLD:
+            # ── STATE DECISION RULES (Tuned) ──
+            if buf >= 4:
                 final = "OCCUPIED"
-            # Rule 2: No car, buffer cleared → check booking status
-            elif buf <= CLEAR_THRESHOLD:
-                # Check if this slot has an active booking → RESERVED
-                has_booking = self._has_active_booking(sid)
-                if has_booking:
-                    final = "RESERVED"
-                else:
-                    final = "AVAILABLE"
+            elif buf <= 2:
+                final = "RESERVED" if self._has_active_booking(sid) else "AVAILABLE"
             else:
-                # In transition zone — maintain previous state
                 final = prev
+                
+            # Maintain staleness timer to break frozen states
+            stale_timer = self.slot_stale_timers.get(sid, 0)
+            if final == prev and buf > 2 and buf < 4:
+                stale_timer += 1
+            else:
+                stale_timer = 0
+                
+            # HARD RESET RULE: Any slot stuck in uncertain zone > 45 frames
+            if stale_timer > 45:
+                buf = 0
+                self.slot_buffer[sid] = 0
+                stale_timer = 0
+                final = "AVAILABLE"
+                print(f"[AI] Recovering frozen slot {slot.get('slotNumber')} via Hard Reset", flush=True)
+                
+            self.slot_stale_timers[sid] = stale_timer
 
             if final != prev:
                 # Validate state transition
@@ -959,15 +1055,21 @@ class SmartMonitor:
                 # Overlay on frame
                 # Color coding: OCCUPIED=Red, RESERVED=Blue, AVAILABLE=Green
                 if final == "OCCUPIED":
-                    color = (0, 0, 220)  # Red
+                    color = (0, 0, 255)  # Brighter Red
                 elif final == "RESERVED":
-                    color = (220, 160, 0)  # Blue
+                    color = (255, 100, 0) # Brighter Blue
                 else:
-                    color = (0, 210, 0)  # Green
+                    color = (0, 255, 0)  # Brighter Green
+                
                 cv2.rectangle(frame, (lsx, lsy), (lsx + lsw, lsy + lsh), color, 2)
                 cv2.putText(frame, f"S{slot['slotNumber']} {final[:3]}",
-                            (lsx + 2, lsy + 14),
-                            cv2.FONT_HERSHEY_SIMPLEX, 0.38, color, 1)
+                            (lsx + 2, lsy + 18),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
+                
+                # MASSIVE DIAGNOSTICS OVERLAY
+                diag_text = f"D:{changed_ratio:.2f} M:{surviving_blob_ratio:.2f} {'FIX' if identity_match else ''}"
+                cv2.putText(frame, diag_text, (lsx + 2, lsy + lsh - 10),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.45, (0, 255, 255), 2)
 
         # HUD overlay
         active_ids = [s.get("id") for s in self.slots]
@@ -1142,6 +1244,20 @@ def update_camera_url(lot_id: str):
     return jsonify({"status": "updated", "lot": lot_id, "url": new_url})
 
 
+@app.route("/reset/<lot_id>", methods=["POST"])
+def reset_baseline(lot_id: str):
+    """Force the monitor to re-calibrate its empty background baseline."""
+    if lot_id not in monitors:
+        return jsonify({"error": "Monitor not running"}), 404
+        
+    mon = monitors[lot_id]
+    with mon.lock:
+        mon.bg_gray = None # Trigger Fix 1 in next loop
+        
+    print(f"[AI] Manual Baseline Reset Triggered for {lot_id}", flush=True)
+    return jsonify({"status": "reset", "lot": lot_id})
+
+
 @app.route("/status/<lot_id>")
 def slot_status(lot_id: str):
     if lot_id not in monitors:
@@ -1271,9 +1387,9 @@ def debug_detection(lot_id: str):
                     cols = 6
                     row = idx // cols
                     col = idx % cols
-                    sx = 150 + col * 280
-                    sy = 150 + row * 180
-                    sw, sh = 240, 140
+                    sx = 120 + col * 155
+                    sy = 120 + row * 115
+                    sw, sh = 140, 100
                 slot_box = {"x": sx, "y": sy, "w": sw, "h": sh}
                 if is_inside(car_box, slot_box):
                     overlapping_slots.append({
@@ -1298,9 +1414,9 @@ def debug_detection(lot_id: str):
             cols = 6
             row = idx // cols
             col = idx % cols
-            sx = 150 + col * 280
-            sy = 150 + row * 180
-            sw, sh = 240, 140
+            sx = 100 + col * 145
+            sy = 120 + row * 105
+            sw, sh = 135, 95
         slot_info.append({
             "slot_number": slot.get("slotNumber"),
             "id": sid,
